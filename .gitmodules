@@ -1,0 +1,21 @@
+[submodule "CommonLibSSE-NG"]
+	path = CommonLibSSE-NG
+	url = https://github.com/alandtse/CommonLibVR
+[submodule "cimgui"]
+	path = cimgui
+	url = https://github.com/cimgui/cimgui
+[submodule "spdlog"]
+	path = spdlog
+	url = https://github.com/gabime/spdlog
+[submodule "DirectXTK"]
+	path = DirectXTK
+	url = https://github.com/microsoft/DirectXTK
+[submodule "rapidcsv"]
+	path = rapidcsv
+	url = https://github.com/d99kris/rapidcsv
+[submodule "SKSEMenuFramework"]
+	path = SKSEMenuFramework
+	url = https://github.com/Thiago099/SKSE-Menu-Framework
+[submodule "SMF-SDK"]
+	path = SMF-SDK
+	url = https://github.com/Thiago099/SKSE-Menu-Framework-SDK

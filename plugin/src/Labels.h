@@ -1,0 +1,141 @@
+#pragma once
+
+#include "Config.h"
+#include "Marks.h"
+
+namespace SS
+{
+	// Everything drawn on the finished frame: name tags, the ground ring, and
+	// the vignette.
+	//
+	// These cannot be drawn from a normal SKSE Menu Framework window: opening
+	// one puts the game into its locked state and swallows input, which is fine
+	// for a settings page and useless for a HUD. Framework 3.13 added
+	// RegisterHudElement for exactly this, so that is what we use - resolved at
+	// runtime, because 3.9 does not export it and we still want to load there.
+	class Labels
+	{
+	public:
+		struct Entry
+		{
+			std::string   text;
+			RE::NiPoint3  world;
+			std::uint32_t colour;   // 0xRRGGBB
+			float         bornAt;   // seconds, shared clock with Sense
+			float         diesAt;
+			float         scale{ 1.0f };  // multiplies the configured text size
+			Disposition   icon{ Disposition::kNone };
+			// How many identical things this tag stands for. A cellar with forty
+			// bottles of wine in it is forty tags stacked into an unreadable
+			// smear; one tag reading "Wine x40" is the same information.
+			std::uint32_t count{ 1 };
+			// Index into the user's marker rules, or -1. When a rule matches and
+			// supplies a picture, that picture replaces the built-in shape.
+			int           mark{ -1 };
+			std::uint32_t markColour{ 0xFFFFFF };
+			// Drawn beside the marker when the rule carries a counter. -1 hides
+			// it; countCap means "that many or more".
+			int           markCount{ -1 };
+			int           markCap{ 101 };
+			// 0..1 when the marker is drawn as a filling icon; negative means
+			// draw the tally as a number instead.
+			float         markFill{ -1.0f };
+			// Something the player has favourited. Drawn with a star and its own
+			// colour, because "I marked this as worth having" beats every other
+			// thing we could say about an object.
+			bool          favourite{ false };
+			// The marker has reached its full tally, so a rule that supplies a
+			// second picture shows that one instead.
+			bool          markAtFull{ false };
+			// Arousal, 0 to 100, or -1 when nothing is known. Drawn on the far
+			// side of the name from everything else, so it never crowds the
+			// marker and you always know where to look for it.
+			int           arousal{ -1 };
+			// Drawn on its own line above the name, smaller. Empty for most
+			// things - a barrel is not a Jarl.
+			std::string   title;
+			std::uint32_t titleColour{ 0xC9C9C9 };
+			// The thing this names, so the tag can be kept over it while it
+			// moves. Resolving a handle needs the main thread, so the position
+			// is refreshed there and the render thread only ever reads world.
+			RE::ObjectRefHandle owner;
+			// Set on the main thread when this person is talking, for people
+			// running a mod that floats subtitles over the speaker.
+			bool          speaking{ false };
+		};
+
+		// The sonar ring, sampled as a height field so the render thread never
+		// has to touch game data.
+		//
+		// A circle drawn straight onto the screen looks pasted on, because the
+		// ground is not a plane: it climbs stairs, drops off ledges and rolls
+		// over hills. So the main thread samples the terrain height at a grid of
+		// angles and radii when the wave starts, and the render thread just
+		// interpolates that table and projects the points.
+		struct Ring
+		{
+			RE::NiPoint3       centre;
+			float              minRadius{ 0.0f };
+			float              maxRadius{ 0.0f };
+			float              startAt{ 0.0f };
+			float              endAt{ 0.0f };
+			std::uint32_t      angles{ 0 };
+			std::uint32_t      steps{ 0 };
+			std::vector<float> heights;  // angles * steps, world Z
+
+			[[nodiscard]] bool Valid() const
+			{
+				return angles >= 8 && steps >= 2 && endAt > startAt && maxRadius > minRadius &&
+				       heights.size() == static_cast<std::size_t>(angles) * steps;
+			}
+		};
+
+		[[nodiscard]] static Labels* GetSingleton();
+
+		// Registers the HUD callback. Safe to call once; reports what it found.
+		void Install();
+
+		void Clear();
+
+		// Move tags that are already on screen, without rebuilding them. Called
+		// every frame from the main thread while a wave is in flight; the vector
+		// is positional, matching the order Replace was last given.
+		void MoveTo(const std::vector<RE::NiPoint3>& a_anchors, const std::vector<bool>& a_speaking);
+		void Replace(std::vector<Entry> a_entries);
+
+		void SetRing(Ring a_ring);
+		void StopRing();
+
+		// Composited overlay drawn under everything else. This is the part that
+		// survives Community Shaders and ENB no matter what they do to the
+		// tonemapper, because it lands on the finished image.
+		void SetWash(float a_bornAt, float a_diesAt);
+		void StopWash();
+
+		[[nodiscard]] bool Available() const { return _installed; }
+
+		// Invoked by the framework's HUD callback on the render thread.
+		void Render();
+
+	private:
+		Labels() = default;
+
+		void SubmitPostFX(void* a_drawList, float a_now);
+		void DrawWash(void* a_drawList, float a_width, float a_height, float a_now);
+		void DrawRing(void* a_drawList, float a_width, float a_height, float a_now);
+
+		std::vector<Entry> _entries;
+		Ring               _ring;
+		float              _washBorn{ 0.0f };
+		float              _washDies{ 0.0f };
+		std::mutex         _lock;
+		bool               _installed{ false };
+		bool               _sawFirstFrame{ false };
+		bool               _saidSuppressed{ false };
+
+	public:
+		// Set on the first HUD frame. Read by the menu to explain itself.
+		std::atomic_bool _hasCJK{ false };
+		[[nodiscard]] bool SawFirstFrame() const { return _sawFirstFrame; }
+	};
+}
