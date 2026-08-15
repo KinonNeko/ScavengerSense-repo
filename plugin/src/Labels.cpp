@@ -87,6 +87,81 @@ namespace SS
 			ImDrawList_PathFillConvex(a_draw, a_colour);
 		}
 
+		// One vitals bar, drawn as a sheared quad rather than a rectangle.
+		//
+		// A rectangle is a progress widget; a slanted, notched, glowing sliver
+		// reads as a piece of equipment, which is the whole difference. The
+		// shape is built from four corners so the same code draws it lying flat
+		// or standing on end, and so the fill can be clipped along the slant
+		// instead of straight down.
+		//
+		//   a_origin  the corner the bar grows from
+		//   a_length  along the bar
+		//   a_thick   across it
+		//   a_shear   how far the far edge leans, in pixels
+		//   a_upright false runs left to right, true runs bottom to top
+		void DrawVitalBar(ImDrawList* a_draw, ImVec2 a_origin, float a_length, float a_thick,
+			float a_shear, bool a_upright, float a_value, std::uint32_t a_colour,
+			std::uint32_t a_frame, float a_alpha, int a_segments, bool a_glow)
+		{
+			// Corner at distance d along the bar, offset t across it.
+			//
+			// The lean always goes on the ALONG axis, scaled by how far across
+			// we are. Putting it on the across axis instead just makes the bar
+			// fatter at one edge - which is what the upright case did until the
+			// area of the quad was measured and came out nearly double.
+			const auto corner = [&](float d, float t) {
+				const float lean = a_shear * (t / std::max(a_thick, 0.001f));
+				return a_upright
+						   ? ImVec2{ a_origin.x + t, a_origin.y - d + lean }
+						   : ImVec2{ a_origin.x + d + lean, a_origin.y + t };
+			};
+
+			const float filled = a_length * std::clamp(a_value, 0.0f, 1.0f);
+
+			const ImVec2 track[4]{ corner(0.0f, 0.0f), corner(a_length, 0.0f),
+				corner(a_length, a_thick), corner(0.0f, a_thick) };
+
+			// A wider, fainter copy underneath. Cheap bloom: it survives the
+			// desaturation pass because it is drawn on the finished frame.
+			if (a_glow && filled > 0.0f) {
+				const float g = a_thick * 0.9f;
+				const ImVec2 halo[4]{ corner(-g, -g), corner(filled + g, -g),
+					corner(filled + g, a_thick + g), corner(-g, a_thick + g) };
+				ImDrawList_AddConvexPolyFilled(a_draw, halo, 4, PackColour(a_colour, a_alpha * 0.13f));
+			}
+
+			// Empty channel, so a drained bar still says where full would be.
+			ImDrawList_AddConvexPolyFilled(a_draw, track, 4, PackColour(0x000000, a_alpha * 0.5f));
+			ImDrawList_AddConvexPolyFilled(a_draw, track, 4, PackColour(a_colour, a_alpha * 0.14f));
+
+			if (filled > 0.0f) {
+				const ImVec2 fill[4]{ corner(0.0f, 0.0f), corner(filled, 0.0f),
+					corner(filled, a_thick), corner(0.0f, a_thick) };
+				ImDrawList_AddConvexPolyFilled(a_draw, fill, 4, PackColour(a_colour, a_alpha * 0.92f));
+
+				// Bright head at the leading edge - the eye lands on it, and it
+				// is what makes the bar look powered rather than painted.
+				const float cap = std::max(1.5f, a_thick * 0.34f);
+				const ImVec2 head[4]{ corner(std::max(0.0f, filled - cap), 0.0f), corner(filled, 0.0f),
+					corner(filled, a_thick), corner(std::max(0.0f, filled - cap), a_thick) };
+				ImDrawList_AddConvexPolyFilled(a_draw, head, 4, PackColour(0xFFFFFF, a_alpha * 0.55f));
+			}
+
+			// Notches, cut the whole way across on the same slant.
+			if (a_segments > 1) {
+				for (int i = 1; i < a_segments; ++i) {
+					const float d = a_length * static_cast<float>(i) / static_cast<float>(a_segments);
+					ImDrawList_AddLine(a_draw, corner(d, 0.0f), corner(d, a_thick),
+						PackColour(0x000000, a_alpha * 0.55f), std::max(1.0f, a_thick * 0.14f));
+				}
+			}
+
+			// Thin frame last, so it sits over the fill and the notches.
+			ImDrawList_AddPolyline(a_draw, track, 4, PackColour(a_frame, a_alpha * 0.75f),
+				ImDrawFlags_Closed, std::max(1.0f, a_thick * 0.16f));
+		}
+
 		void DrawIcon(ImDrawList* a_draw, Disposition a_icon, ImVec2 a_centre, float a_size, ImU32 a_colour)
 		{
 			const auto r = a_size * 0.5f;
@@ -321,6 +396,96 @@ namespace SS
 		std::scoped_lock guard{ _lock };
 		_washBorn = 0.0f;
 		_washDies = 0.0f;
+	}
+
+	void Labels::SetSelfHud(const float (&a_vitals)[3], float a_changedAt)
+	{
+		std::scoped_lock guard{ _lock };
+		_selfHud[0] = a_vitals[0];
+		_selfHud[1] = a_vitals[1];
+		_selfHud[2] = a_vitals[2];
+		_selfHudAt = a_changedAt;
+	}
+
+	// The corner readout: the same bars as the tag, pinned to the screen.
+	//
+	// Its own draw rather than a fake tag, because a tag needs somewhere in the
+	// world to hang from and in first person the player is inside the camera.
+	// Caller holds the lock.
+	void Labels::DrawSelfHud(void* a_drawList, float a_width, float a_height, float a_now)
+	{
+		const auto* settings = Settings::GetSingleton();
+		if (settings->selfHudCorner == Corner::kOff) {
+			return;
+		}
+
+		// How visible the whole thing is, before any per-bar rule.
+		float alpha = 1.0f;
+		if (settings->selfHudShow == ShowWhen::kOnChange) {
+			const float age = a_now - _selfHudAt;
+			if (age > settings->selfHudLinger) {
+				return;
+			}
+			const float fade = settings->selfHudFade;
+			if (fade > 0.0f && age > settings->selfHudLinger - fade) {
+				alpha = std::clamp((settings->selfHudLinger - age) / fade, 0.0f, 1.0f);
+			}
+		}
+		if (alpha <= 0.01f) {
+			return;
+		}
+
+		const std::uint32_t colours[3]{ settings->selfHealthColour,
+			settings->selfMagickaColour, settings->selfStaminaColour };
+
+		int rows[3]{};
+		int shown = 0;
+		for (int i = 0; i < 3; ++i) {
+			const float v = _selfHud[i];
+			if (v < 0.0f) {
+				continue;
+			}
+			// "Only what is below maximum" applies per bar, so a full stamina
+			// bar drops out while a hurt health bar stays.
+			if (settings->selfHudShow == ShowWhen::kNotFull && v >= 0.999f) {
+				continue;
+			}
+			rows[shown++] = i;
+		}
+		if (shown == 0) {
+			return;
+		}
+
+		const float scale = settings->selfHudScale;
+		const float thick = std::max(1.0f, settings->selfBarHeight * scale);
+		const float span = settings->selfBarWidth * scale;
+		const float shear = settings->selfBarShear * thick;
+		const float step = thick + thick * 0.75f;
+
+		const bool right = settings->selfHudCorner == Corner::kTopRight ||
+		                   settings->selfHudCorner == Corner::kBottomRight;
+		const bool bottom = settings->selfHudCorner == Corner::kBottomLeft ||
+		                    settings->selfHudCorner == Corner::kBottomRight;
+
+		auto* draw = static_cast<ImDrawList*>(a_drawList);
+		for (int r = 0; r < shown; ++r) {
+			const int   i = rows[r];
+			const float away = static_cast<float>(r) * settings->selfBarPerspective;
+			const float length = span * (1.0f - away);
+			const float inset = (span - length) * 0.5f;
+
+			// Stacks downward from a top corner and upward from a bottom one,
+			// so the block always grows into the screen rather than off it.
+			const float x = right ? a_width - settings->selfHudX - span + inset
+			                      : settings->selfHudX + inset;
+			const float y = bottom
+			                    ? a_height - settings->selfHudY - step * static_cast<float>(r) - thick
+			                    : settings->selfHudY + step * static_cast<float>(r);
+
+			DrawVitalBar(draw, ImVec2{ x, y }, length, thick, shear, false, _selfHud[i],
+				colours[i], settings->selfBarFrameColour, alpha,
+				static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
+		}
 	}
 
 	void Labels::SetRing(Ring a_ring)
@@ -568,7 +733,8 @@ namespace SS
 		_entries = std::move(a_entries);
 	}
 
-	void Labels::MoveTo(const std::vector<RE::NiPoint3>& a_anchors, const std::vector<bool>& a_speaking)
+	void Labels::MoveTo(const std::vector<RE::NiPoint3>& a_anchors, const std::vector<bool>& a_speaking,
+		const std::vector<std::array<float, 4>>& a_vitals)
 	{
 		std::scoped_lock guard{ _lock };
 
@@ -580,6 +746,12 @@ namespace SS
 		for (std::size_t i = 0; i < count; ++i) {
 			_entries[i].world = a_anchors[i];
 			_entries[i].speaking = i < a_speaking.size() && a_speaking[i];
+			if (i < a_vitals.size()) {
+				_entries[i].vitals[0] = a_vitals[i][0];
+				_entries[i].vitals[1] = a_vitals[i][1];
+				_entries[i].vitals[2] = a_vitals[i][2];
+				_entries[i].vitalsAt = a_vitals[i][3];
+			}
 		}
 	}
 
@@ -668,6 +840,10 @@ namespace SS
 		{
 			std::scoped_lock guard{ _lock };
 			DrawRing(draw, width, height, now);
+			// Before the early-out below: the corner readout is the one thing
+			// here that is not tied to a sweep, so it has to survive an empty
+			// tag list.
+			DrawSelfHud(draw, width, height, now);
 		}
 
 		if (!settings->labelsEnabled || snapshot.empty()) {
@@ -990,6 +1166,86 @@ namespace SS
 				PackColour(0x000000, alpha * 0.8f), text.c_str(), nullptr, 0.0f, nullptr);
 			ImDrawList_AddText_FontPtr(draw, font, thisSize, textAt,
 				PackColour(entry.colour, alpha), text.c_str(), nullptr, 0.0f, nullptr);
+
+			// Vitals. Only the player's entry ever carries these.
+			//
+			// Bars rather than numbers because the question a sweep answers is
+			// "am I in trouble", not "by how much". Each row is set back a
+			// little from the one before and shortened to match, so the three
+			// together read as a panel lying on a surface angled away rather
+			// than three stickers on the glass.
+			if (entry.vitals[0] >= 0.0f || entry.vitals[1] >= 0.0f || entry.vitals[2] >= 0.0f) {
+				const std::uint32_t colours[3]{ settings->selfHealthColour,
+					settings->selfMagickaColour, settings->selfStaminaColour };
+
+				const bool  upright = settings->selfBarPlace == BarPlace::kLeft ||
+				                      settings->selfBarPlace == BarPlace::kRight;
+				const float thick = std::max(1.0f, settings->selfBarHeight * entry.scale);
+				const float span = settings->selfBarWidth * entry.scale;
+				const float shear = settings->selfBarShear * thick;
+				const float gap = thick * 0.75f;
+				const float step = thick + gap;
+
+				// Rows that are actually drawn, so a hidden full bar does not
+				// leave a hole in the stack.
+				// Yours answer to one rule and everybody else's to another, and
+				// the entry says which it is so the render thread never has to
+				// work out who anybody is.
+				const bool     mine = entry.vitalsSelf;
+				const ShowWhen when = mine ? settings->selfBarsWhen : settings->vitalsActorsWhen;
+
+				int rows[3]{};
+				int shown = 0;
+				for (int i = 0; i < 3; ++i) {
+					const float v = entry.vitals[i];
+					if (v < 0.0f) {
+						continue;
+					}
+					if (when == ShowWhen::kNotFull && v >= 0.999f) {
+						continue;
+					}
+					if (when == ShowWhen::kOnChange &&
+						now - entry.vitalsAt > settings->selfHudLinger) {
+						continue;
+					}
+					rows[shown++] = i;
+				}
+
+				for (int r = 0; r < shown; ++r) {
+					const int   i = rows[r];
+					const float away = static_cast<float>(r) * settings->selfBarPerspective;
+					const float length = span * (1.0f - away);
+					// Recentred as it shortens, so the stack tapers about its
+					// middle instead of hanging off one end.
+					const float inset = (span - length) * 0.5f;
+
+					ImVec2 origin{};
+					switch (settings->selfBarPlace) {
+					case BarPlace::kAbove:
+						// Above the title if there is one, climbing away.
+						origin = ImVec2{ topLeft.x + (totalWidth - span) * 0.5f + inset,
+							topLeft.y - titleHeight - step * static_cast<float>(r + 1) - thick * 0.5f };
+						break;
+					case BarPlace::kLeft:
+						origin = ImVec2{ topLeft.x - step * static_cast<float>(r + 1) - thick,
+							topLeft.y + size.y * 0.5f + span * 0.5f - inset };
+						break;
+					case BarPlace::kRight:
+						origin = ImVec2{ topLeft.x + totalWidth + step * static_cast<float>(r),
+							topLeft.y + size.y * 0.5f + span * 0.5f - inset };
+						break;
+					case BarPlace::kBelow:
+					default:
+						origin = ImVec2{ topLeft.x + (totalWidth - span) * 0.5f + inset,
+							topLeft.y + size.y + thick * 0.6f + step * static_cast<float>(r) };
+						break;
+					}
+
+					DrawVitalBar(draw, origin, length, thick, shear, upright, entry.vitals[i],
+						colours[i], settings->selfBarFrameColour, alpha,
+						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
+				}
+			}
 
 			if (hasHeat) {
 				const ImVec2 centre{ textAt.x + size.x + heatGap + heatSize * 0.5f,

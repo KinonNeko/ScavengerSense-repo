@@ -62,6 +62,16 @@ namespace SS
 			// Set on the main thread when this person is talking, for people
 			// running a mod that floats subtitles over the speaker.
 			bool          speaking{ false };
+			// Health, magicka, stamina as fractions of their maximum. Negative
+			// means "nothing known, draw no bar" - which is every entry except
+			// the player's.
+			float         vitals[3]{ -1.0f, -1.0f, -1.0f };
+			// Which rule decides whether those are drawn: yours, or the one for
+			// other people. Kept on the entry so the render thread does not have
+			// to work out who anybody is.
+			bool          vitalsSelf{ false };
+			// When any of them last moved, for "only someone just hurt".
+			float         vitalsAt{ -1000.0f };
 		};
 
 		// The sonar ring, sampled as a height field so the render thread never
@@ -100,8 +110,14 @@ namespace SS
 		// Move tags that are already on screen, without rebuilding them. Called
 		// every frame from the main thread while a wave is in flight; the vector
 		// is positional, matching the order Replace was last given.
-		void MoveTo(const std::vector<RE::NiPoint3>& a_anchors, const std::vector<bool>& a_speaking);
+		void MoveTo(const std::vector<RE::NiPoint3>& a_anchors, const std::vector<bool>& a_speaking,
+			const std::vector<std::array<float, 4>>& a_vitals);
 		void Replace(std::vector<Entry> a_entries);
+
+		// The corner readout. Pushed from the main thread every frame while it
+		// is switched on; a_changedAt is when any of the three last moved, which
+		// is what the "only when it changes" rule is judged against.
+		void SetSelfHud(const float (&a_vitals)[3], float a_changedAt);
 
 		void SetRing(Ring a_ring);
 		void StopRing();
@@ -121,11 +137,14 @@ namespace SS
 		Labels() = default;
 
 		void SubmitPostFX(void* a_drawList, float a_now);
+		void DrawSelfHud(void* a_drawList, float a_width, float a_height, float a_now);
 		void DrawWash(void* a_drawList, float a_width, float a_height, float a_now);
 		void DrawRing(void* a_drawList, float a_width, float a_height, float a_now);
 
 		std::vector<Entry> _entries;
 		Ring               _ring;
+		float              _selfHud[3]{ -1.0f, -1.0f, -1.0f };
+		float              _selfHudAt{ -1000.0f };
 		float              _washBorn{ 0.0f };
 		float              _washDies{ 0.0f };
 		std::mutex         _lock;

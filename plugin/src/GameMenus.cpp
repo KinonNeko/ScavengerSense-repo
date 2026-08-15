@@ -174,4 +174,82 @@ namespace SS
 		}
 		return out;
 	}
+
+	void GameMenus::ApplyHudVisibility()
+	{
+		const auto* settings = Settings::GetSingleton();
+		auto*       ui = RE::UI::GetSingleton();
+		if (!ui) {
+			return;
+		}
+
+		// Turned off, or turned off since last time: put everything back first.
+		if (!settings->hideGameHud) {
+			RestoreHud();
+			return;
+		}
+
+		std::vector<std::string> wanted;
+		{
+			std::string_view list{ settings->hideMenus };
+			std::size_t      start = 0;
+			while (start <= list.size()) {
+				const auto comma = list.find(',', start);
+				auto piece = list.substr(start, comma == std::string_view::npos
+													? std::string_view::npos
+													: comma - start);
+				// trim
+				while (!piece.empty() && (piece.front() == ' ' || piece.front() == '\t')) {
+					piece.remove_prefix(1);
+				}
+				while (!piece.empty() && (piece.back() == ' ' || piece.back() == '\t' || piece.back() == '\r')) {
+					piece.remove_suffix(1);
+				}
+				if (!piece.empty()) {
+					wanted.emplace_back(piece);
+				}
+				if (comma == std::string_view::npos) {
+					break;
+				}
+				start = comma + 1;
+			}
+		}
+
+		// Anything we hid that is no longer wanted goes back.
+		for (const auto& name : _hidden) {
+			if (std::find(wanted.begin(), wanted.end(), name) == wanted.end()) {
+				if (auto menu = ui->GetMenu(name); menu && menu->uiMovie) {
+					menu->uiMovie->SetVisible(true);
+				}
+			}
+		}
+
+		_hidden.clear();
+		for (const auto& name : wanted) {
+			auto menu = ui->GetMenu(name);
+			if (!menu || !menu->uiMovie) {
+				continue;  // not open right now - retried next time this runs
+			}
+			menu->uiMovie->SetVisible(false);
+			_hidden.push_back(name);
+		}
+	}
+
+	void GameMenus::RestoreHud()
+	{
+		auto* ui = RE::UI::GetSingleton();
+		if (!ui) {
+			_hidden.clear();
+			return;
+		}
+		for (const auto& name : _hidden) {
+			if (auto menu = ui->GetMenu(name); menu && menu->uiMovie) {
+				menu->uiMovie->SetVisible(true);
+			}
+		}
+		if (!_hidden.empty()) {
+			logger::info("menus: restored {} hidden menu(s)", _hidden.size());
+		}
+		_hidden.clear();
+	}
 }

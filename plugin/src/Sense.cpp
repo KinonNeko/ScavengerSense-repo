@@ -171,6 +171,26 @@ namespace SS
 			std::uint32_t colour{ 0 };
 		};
 
+		// Health, magicka and stamina as fractions of their maximum. Permanent
+		// plus the temporary modifier is the ceiling as the game itself reckons
+		// it, so a fortify effect widens the bar instead of overflowing it.
+		void ReadVitals(RE::Actor* a_actor, float (&a_out)[3])
+		{
+			auto* values = a_actor ? a_actor->AsActorValueOwner() : nullptr;
+			if (!values) {
+				return;
+			}
+			constexpr RE::ActorValue kWanted[3] = { RE::ActorValue::kHealth,
+				RE::ActorValue::kMagicka, RE::ActorValue::kStamina };
+			for (int i = 0; i < 3; ++i) {
+				const float now = values->GetActorValue(kWanted[i]);
+				const float top = values->GetPermanentActorValue(kWanted[i]) +
+								  a_actor->GetActorValueModifier(
+									  RE::ACTOR_VALUE_MODIFIER::kTemporary, kWanted[i]);
+				a_out[i] = top > 0.0f ? std::clamp(now / top, 0.0f, 1.0f) : -1.0f;
+			}
+		}
+
 		// What the player currently is. Three states, in the order that matters:
 		// a beast form overrides everything, then vampirism, then nothing has
 		// happened to you.
@@ -446,11 +466,28 @@ namespace SS
 			std::thread([this]() {
 				for (;;) {
 					std::this_thread::sleep_for(std::chrono::milliseconds(16));
-					if (!_active) {
+
+					// The corner readout and the hidden interface both have to
+					// keep working with no wave in flight, so the tick runs
+					// whenever either is asked for. Tick() itself still returns
+					// immediately when there is no sweep.
+					const auto* settings = Settings::GetSingleton();
+					// HasHidden keeps the tick alive for one more pass after the
+					// setting is turned off, which is what actually puts the
+					// interface back. Without it the loop stops first and the
+					// player is left with no HUD.
+					const bool  idleWork = settings->selfHudCorner != Corner::kOff ||
+					                      settings->hideGameHud ||
+					                      GameMenus::GetSingleton()->HasHidden();
+					if (!_active && !idleWork) {
 						continue;
 					}
 					if (auto* task = SKSE::GetTaskInterface()) {
-						task->AddTask([this]() { Tick(); });
+						task->AddTask([this]() {
+							PollSelf();
+							GameMenus::GetSingleton()->ApplyHudVisibility();
+							Tick();
+						});
 					}
 				}
 			}).detach();
@@ -806,6 +843,15 @@ namespace SS
 										 : std::string{},
 					Titles::GetSingleton()->ColourFor(player),
 					player->CreateRefHandle() });
+
+				// Your own vitals, read once as the wave starts rather than
+				// polled per frame - a sweep is three seconds and this is a
+				// glance, not a combat readout.
+				if (settings->selfBars) {
+					ReadVitals(player, _labelBuffer.back().vitals);
+					_labelBuffer.back().vitalsSelf = true;
+				}
+
 				Labels::GetSingleton()->Replace(_labelBuffer);
 			}
 
@@ -841,6 +887,45 @@ namespace SS
 
 		logger::info("wave started: lighting {} of {} hits, ends at t+{:.2f}s | menus open: {}",
 			keepAlso, hits.size(), _waveEnd - _waveStart, GameMenus::GetSingleton()->Describe());
+	}
+
+	// The corner readout, refreshed whether or not a sweep is running.
+	//
+	// Deliberately a poll rather than a hook on damage: the interesting cases
+	// are regeneration, a potion, a spell cost and a fortify effect wearing
+	// off, and no single event covers all of them. Three actor value reads at
+	// 60 Hz is nothing.
+	void Sense::PollSelf()
+	{
+		const auto* settings = Settings::GetSingleton();
+		if (settings->selfHudCorner == Corner::kOff) {
+			return;
+		}
+
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		if (!player) {
+			return;
+		}
+
+		float now[3]{ -1.0f, -1.0f, -1.0f };
+		ReadVitals(player, now);
+
+		// A hair of slack, so floating point noise in regeneration does not
+		// count as a change and hold the readout up forever.
+		constexpr float kEpsilon = 0.0005f;
+		bool            moved = false;
+		for (int i = 0; i < 3; ++i) {
+			if (now[i] >= 0.0f && std::abs(now[i] - _selfLast[i]) > kEpsilon) {
+				moved = true;
+			}
+			_selfLast[i] = now[i];
+		}
+
+		if (moved) {
+			_selfChangedAt = SS::RealNow();
+		}
+
+		Labels::GetSingleton()->SetSelfHud(now, _selfChangedAt);
 	}
 
 	void Sense::Tick()
@@ -881,8 +966,10 @@ namespace SS
 
 			_anchorBuffer.clear();
 			_speakingBuffer.clear();
+			_vitalsBuffer.clear();
 			_anchorBuffer.reserve(_labelBuffer.size());
 			_speakingBuffer.reserve(_labelBuffer.size());
+			_vitalsBuffer.reserve(_labelBuffer.size());
 
 			for (auto& entry : _labelBuffer) {
 				auto ref = entry.owner.get();
@@ -891,6 +978,7 @@ namespace SS
 					// Leave it where it was rather than dropping it mid-fade.
 					_anchorBuffer.push_back(entry.world);
 					_speakingBuffer.push_back(false);
+					_vitalsBuffer.push_back({ entry.vitals[0], entry.vitals[1], entry.vitals[2], entry.vitalsAt });
 					continue;
 				}
 
@@ -912,11 +1000,35 @@ namespace SS
 					}
 				}
 
+				// Yours are re-read rather than carried: a bar that froze at the
+				// value you had three seconds ago is worse than no bar, and this
+				// is meant to stand in for the HUD.
+				if (actor && entry.vitals[0] >= 0.0f) {
+					const auto* live = Settings::GetSingleton();
+					const bool  wanted = entry.vitalsSelf ? live->selfBars : live->vitalsActors;
+					if (wanted) {
+						float before[3]{ entry.vitals[0], entry.vitals[1], entry.vitals[2] };
+						ReadVitals(actor, entry.vitals);
+						if (!entry.vitalsSelf && !live->vitalsActorsAll) {
+							entry.vitals[1] = -1.0f;
+							entry.vitals[2] = -1.0f;
+						}
+						for (int i = 0; i < 3; ++i) {
+							if (entry.vitals[i] >= 0.0f && before[i] >= 0.0f &&
+								std::abs(entry.vitals[i] - before[i]) > 0.0005f) {
+								entry.vitalsAt = SS::Now();
+								break;
+							}
+						}
+					}
+				}
+
 				_anchorBuffer.push_back(entry.world);
 				_speakingBuffer.push_back(speaking);
+				_vitalsBuffer.push_back({ entry.vitals[0], entry.vitals[1], entry.vitals[2], entry.vitalsAt });
 			}
 
-			Labels::GetSingleton()->MoveTo(_anchorBuffer, _speakingBuffer);
+			Labels::GetSingleton()->MoveTo(_anchorBuffer, _speakingBuffer, _vitalsBuffer);
 		}
 
 		// Stop the clock rather than shifting each deadline. Shifting only ever
@@ -1166,6 +1278,22 @@ namespace SS
 							title,
 							titleColour,
 							a_ref->CreateRefHandle() });
+
+						// Vitals over other people last exactly as long as the
+						// sweep does. Persistent bars over everyone are what a
+						// combat HUD mod is for; what this adds is the whole
+						// room at once, through walls.
+						if (isActor && settings->vitalsActors &&
+							(!settings->vitalsActorsHostileOnly ||
+								disposition == Disposition::kHostile)) {
+							auto& fresh = _labelBuffer.back();
+							ReadVitals(a_ref->As<RE::Actor>(), fresh.vitals);
+							if (!settings->vitalsActorsAll) {
+								fresh.vitals[1] = -1.0f;
+								fresh.vitals[2] = -1.0f;
+							}
+							fresh.vitalsAt = now;
+						}
 					}
 
 					Labels::GetSingleton()->Replace(_labelBuffer);

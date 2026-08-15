@@ -30,12 +30,31 @@ namespace SS
 		// Comma separated list of the blocking menus currently up, for the log.
 		[[nodiscard]] std::string Describe() const;
 
+		// Hide or restore the Scaleform menus named in the settings.
+		//
+		// Reaches only Scaleform. A mod drawing its HUD through ImGui - which
+		// includes this one - owns its own frame and cannot be reached from
+		// here, so this is honest about covering the game's interface and
+		// whatever other Scaleform menus are named, and nothing more.
+		void ApplyHudVisibility();
+
+		// Puts back anything we hid. Called on unload so a crash or a disabled
+		// setting never leaves somebody with no interface.
+		void RestoreHud();
+
+		// True while anything is still hidden, so the tick keeps running long
+		// enough to put it back after the setting is switched off.
+		[[nodiscard]] bool HasHidden() const { return !_hidden.empty(); }
+
 		RE::BSEventNotifyControl ProcessEvent(
 			const RE::MenuOpenCloseEvent*             a_event,
 			RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override;
 
 	private:
 		GameMenus() = default;
+
+		// Menus we actually hid, so only those get put back.
+		std::vector<std::string> _hidden;
 
 		// Returns whether the menu takes over the screen, and fills a_why with
 		// what it was judged on so the log can explain itself.

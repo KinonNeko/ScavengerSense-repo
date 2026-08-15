@@ -103,6 +103,35 @@ namespace SS
 		bool        enabled{ true };
 	};
 
+	// Where the vitals bars sit relative to the tag they belong to.
+	enum class BarPlace
+	{
+		kBelow = 0,
+		kAbove,
+		kLeft,
+		kRight
+	};
+
+	// Where a persistent readout is pinned. kOff is not a corner - it is the
+	// whole feature switched off, which keeps one setting where there would
+	// otherwise be two.
+	enum class Corner
+	{
+		kOff = 0,
+		kTopLeft,
+		kTopRight,
+		kBottomLeft,
+		kBottomRight
+	};
+
+	// When a bar is worth drawing at all.
+	enum class ShowWhen
+	{
+		kAlways = 0,
+		kOnChange,  // for a few seconds after the value moves
+		kNotFull
+	};
+
 	// How the bound button has to be pressed before a sweep fires.
 	enum class Trigger : std::uint32_t
 	{
@@ -132,6 +161,13 @@ namespace SS
 		// flags go - talking does not pause the game - but a pulse going off
 		// mid-dialogue breaks the scene more than any inventory screen does.
 		bool        muteInDialogue{ true };
+		// Hide the game's own interface. "HUD Menu" is the vanilla one and also
+		// carries anything drawn into it, moreHUD included. Other mods own their
+		// own menus, so the list is editable rather than hard coded - add a name
+		// and it goes too. Menus drawn through ImGui rather than Scaleform
+		// cannot be reached this way at all.
+		bool        hideGameHud{ false };
+		std::string hideMenus{ "HUD Menu" };
 
 		// [Hotkey]
 		std::int32_t keyboard{ 21 };  // DX scan code, 21 = Y
@@ -297,6 +333,57 @@ namespace SS
 		std::uint32_t selfColour{ 0xF2F2F2 };
 		float         selfScale{ 1.25f };
 		bool          selfIcon{ true };
+		// Health, magicka and stamina under your own name for the length of a
+		// sweep. Deliberately only yours: a bar over every person in the radius
+		// is a wall of colour, and for anybody in combat TrueHUD already draws
+		// one. This is for playing with the game's own HUD turned off.
+		bool          selfBars{ true };
+		// One rule, shared with the corner readout and with other people's bars.
+		// This used to be a bool meaning "show bars that are full", which said
+		// the same thing as ShowWhen in a second vocabulary.
+		ShowWhen      selfBarsWhen{ ShowWhen::kAlways };
+		float         selfBarWidth{ 120.0f };    // pixels at 1080p, scaled with the tag
+		float         selfBarHeight{ 5.0f };
+		BarPlace      selfBarPlace{ BarPlace::kBelow };
+		// Slant, as a multiple of thickness. The whole reason the bars read as a
+		// piece of hardware rather than a progress widget: a sheared quad has a
+		// direction, and a rectangle does not.
+		float         selfBarShear{ 0.9f };
+		// Notches cut across the bar. 0 draws it smooth.
+		std::int32_t  selfBarSegments{ 10 };
+		// Each row set back a little from the one before, so the stack reads as
+		// lying on a surface angled away rather than painted flat on the screen.
+		float         selfBarPerspective{ 0.10f };
+		bool          selfBarGlow{ true };
+		// Muted to sit with Oathvein: brick between its hostile and rival reds,
+		// then its own ally blue and flora green unchanged.
+		std::uint32_t selfHealthColour{ 0xC4564A };
+		std::uint32_t selfMagickaColour{ 0x7FA8C4 };
+		std::uint32_t selfStaminaColour{ 0x8FA86B };
+		std::uint32_t selfBarFrameColour{ 0x3A4A57 };
+
+		// A persistent readout pinned to a corner of the screen, drawn whether
+		// or not a sweep is running. Off by default: this mod is a sweep, and
+		// turning it into an always-on HUD should be the player's decision.
+		Corner   selfHudCorner{ Corner::kOff };
+		ShowWhen selfHudShow{ ShowWhen::kOnChange };
+		float    selfHudLinger{ 3.0f };  // seconds it stays up after a change
+		float    selfHudFade{ 0.6f };    // of that, how long it spends fading
+		float    selfHudX{ 48.0f };
+		float    selfHudY{ 48.0f };
+		float    selfHudScale{ 1.6f };
+
+		// [Vitals] - the same bars over other people, for the length of a sweep.
+		// Never persistent: a bar over everyone in the radius all the time is
+		// what TrueHUD is for, and it does it better.
+		bool     vitalsActors{ false };
+		bool     vitalsActorsAll{ false };  // false draws health only
+		// Only people actually hostile to you. Judged from the engine's own
+		// hostility check, not from a faction list, so it covers anyone a mod
+		// has made an enemy. Rivals - people who dislike you but have not
+		// drawn a weapon - do not count.
+		bool     vitalsActorsHostileOnly{ false };
+		ShowWhen vitalsActorsWhen{ ShowWhen::kNotFull };
 
 		// [Labels] continued - behaviour that needs the main thread every frame
 		bool labelsFollow{ true };

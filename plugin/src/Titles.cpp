@@ -75,6 +75,27 @@ namespace SS
 			return nullptr;
 		}
 
+		// Keywords are the other record that keeps its editor ID at runtime -
+		// for a keyword the editor ID *is* the string the game matches on. That
+		// means a rule can name one the way SPID and KID name it, with no form
+		// ID to look up, which is what makes "distribute a keyword, then title
+		// on it" workable for somebody who is not a modder.
+		[[nodiscard]] RE::BGSKeyword* KeywordByEditorID(std::string_view a_editorID)
+		{
+			auto* handler = RE::TESDataHandler::GetSingleton();
+			if (!handler) {
+				return nullptr;
+			}
+			for (auto* keyword : handler->GetFormArray<RE::BGSKeyword>()) {
+				if (keyword) {
+					if (const auto* id = keyword->GetFormEditorID(); id && a_editorID == id) {
+						return keyword;
+					}
+				}
+			}
+			return nullptr;
+		}
+
 		[[nodiscard]] bool Truthy(std::string_view a_value)
 		{
 			return a_value == "true" || a_value == "1" || a_value == "yes";
@@ -205,6 +226,22 @@ namespace SS
 						++unresolved;
 					}
 				}
+			} else if (key == "keyword") {
+				// Either File.esm|0xFORMID or the keyword's own name. The name
+				// is tried first because that is the useful spelling and it
+				// cannot be mistaken for a form ID.
+				for (const auto& spec : Split(value)) {
+					if (auto* kw = KeywordByEditorID(spec); kw) {
+						current.keywords.push_back(kw);
+						continue;
+					}
+					auto* form = LookupForm(spec);
+					if (auto* kw = form ? form->As<RE::BGSKeyword>() : nullptr; kw) {
+						current.keywords.push_back(kw);
+					} else {
+						++unresolved;
+					}
+				}
 			} else {
 				for (const auto& spec : Split(value)) {
 					auto* form = LookupForm(spec);
@@ -219,10 +256,6 @@ namespace SS
 					} else if (key == "faction") {
 						if (auto* faction = form->As<RE::TESFaction>(); faction) {
 							current.factions.push_back(faction);
-						}
-					} else if (key == "keyword") {
-						if (auto* kw = form->As<RE::BGSKeyword>(); kw) {
-							current.keywords.push_back(kw);
 						}
 					} else if (key == "formlist" || key == "list") {
 						if (auto* list = form->As<RE::BGSListForm>(); list) {

@@ -34,6 +34,12 @@ namespace SS
 
 		constexpr const char* kCountStyleNames[] = { "number", "fill", "hidden" };
 
+		constexpr const char* kBarPlaceNames[] = { "below", "above", "left", "right" };
+
+		constexpr const char* kCornerNames[] = { "off", "topleft", "topright", "bottomleft", "bottomright" };
+
+		constexpr const char* kShowWhenNames[] = { "always", "change", "notfull" };
+
 		constexpr auto kPresetDir = "Data/SKSE/Plugins/ScavengerSense/presets";
 
 		// Where the FOMOD drops one small file per answer the installer asked.
@@ -260,6 +266,59 @@ namespace SS
 			}
 		}
 
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, BarPlace& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kBarPlaceNames); ++i) {
+				if (raw == kBarPlaceNames[i]) {
+					a_value = static_cast<BarPlace>(i);
+					return;
+				}
+			}
+
+			logger::warn("unrecognised bar placement \"{}\" - keeping {}", raw,
+				kBarPlaceNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, Corner& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kCornerNames); ++i) {
+				if (raw == kCornerNames[i]) {
+					a_value = static_cast<Corner>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised corner \"{}\" - keeping {}", raw,
+				kCornerNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, ShowWhen& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kShowWhenNames); ++i) {
+				if (raw == kShowWhenNames[i]) {
+					a_value = static_cast<ShowWhen>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised visibility rule \"{}\" - keeping {}", raw,
+				kShowWhenNames[static_cast<std::size_t>(a_value)]);
+		}
+
 		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, std::uint32_t& a_value)
 		{
 			std::string raw;
@@ -470,6 +529,15 @@ namespace SS
 		Get(table, "general", "menuAware", menuAware);
 		Get(table, "general", "stopOnMenu", stopOnMenu);
 		Get(table, "general", "muteInDialogue", muteInDialogue);
+		Get(table, "general", "hideGameHud", hideGameHud);
+		// NOT through Get: that overload lower-cases, and a Scaleform menu is
+		// looked up by an exact, case-sensitive name. "hud menu" finds nothing.
+		{
+			std::string raw;
+			if (Lookup(table, "general", "hideMenus", raw) && !raw.empty()) {
+				hideMenus = raw;
+			}
+		}
 
 		Get(table, "hotkey", "keyboard", keyboard);
 		Get(table, "hotkey", "gamepad", gamepad);
@@ -514,6 +582,40 @@ namespace SS
 		Get(table, "self", "icon", selfIcon);
 		Get(table, "self", "color", selfColour);
 		Get(table, "self", "scale", selfScale);
+		Get(table, "self", "bars", selfBars);
+		// Older INIs said this with a bool. Read it first so an existing file
+		// keeps behaving, then let the newer key win if it is there.
+		{
+			bool legacyWhenFull = true;
+			if (std::string raw; Lookup(table, "self", "barsWhenFull", raw)) {
+				Get(table, "self", "barsWhenFull", legacyWhenFull);
+				selfBarsWhen = legacyWhenFull ? ShowWhen::kAlways : ShowWhen::kNotFull;
+			}
+		}
+		Get(table, "self", "barsWhen", selfBarsWhen);
+		Get(table, "self", "barWidth", selfBarWidth);
+		Get(table, "self", "barHeight", selfBarHeight);
+		Get(table, "self", "healthColor", selfHealthColour);
+		Get(table, "self", "magickaColor", selfMagickaColour);
+		Get(table, "self", "staminaColor", selfStaminaColour);
+		Get(table, "self", "barPlace", selfBarPlace);
+		Get(table, "self", "barShear", selfBarShear);
+		Get(table, "self", "barSegments", selfBarSegments);
+		Get(table, "self", "barPerspective", selfBarPerspective);
+		Get(table, "self", "barGlow", selfBarGlow);
+		Get(table, "self", "frameColor", selfBarFrameColour);
+		Get(table, "self", "hudCorner", selfHudCorner);
+		Get(table, "self", "hudShow", selfHudShow);
+		Get(table, "self", "hudLinger", selfHudLinger);
+		Get(table, "self", "hudFade", selfHudFade);
+		Get(table, "self", "hudX", selfHudX);
+		Get(table, "self", "hudY", selfHudY);
+		Get(table, "self", "hudScale", selfHudScale);
+
+		Get(table, "vitals", "actors", vitalsActors);
+		Get(table, "vitals", "actorsAll", vitalsActorsAll);
+		Get(table, "vitals", "hostileOnly", vitalsActorsHostileOnly);
+		Get(table, "vitals", "actorsWhen", vitalsActorsWhen);
 
 		Get(table, "labels", "follow", labelsFollow);
 		Get(table, "labels", "speakerMode", labelSpeakerMode);
@@ -623,6 +725,16 @@ namespace SS
 
 		favouriteScale = std::clamp(favouriteScale, 0.5f, 3.0f);
 		selfScale = std::clamp(selfScale, 0.5f, 3.0f);
+		selfBarWidth = std::clamp(selfBarWidth, 20.0f, 600.0f);
+		selfBarHeight = std::clamp(selfBarHeight, 1.0f, 24.0f);
+		selfBarShear = std::clamp(selfBarShear, -3.0f, 3.0f);
+		selfBarSegments = std::clamp(selfBarSegments, 0, 40);
+		selfBarPerspective = std::clamp(selfBarPerspective, 0.0f, 0.6f);
+		selfHudLinger = std::clamp(selfHudLinger, 0.3f, 30.0f);
+		selfHudFade = std::clamp(selfHudFade, 0.0f, selfHudLinger);
+		selfHudScale = std::clamp(selfHudScale, 0.5f, 5.0f);
+		selfHudX = std::clamp(selfHudX, 0.0f, 4000.0f);
+		selfHudY = std::clamp(selfHudY, 0.0f, 4000.0f);
 		arousalMin = std::clamp(arousalMin, 0, 100);
 		titleScale = std::clamp(titleScale, 0.3f, 1.5f);
 		labelSpeakerMode = std::clamp(labelSpeakerMode, 0, 2);
@@ -740,7 +852,14 @@ namespace SS
 		file << "; Treat a conversation the same way. Talking does not pause the game,\n";
 		file << "; so this has to be asked for by name - but a pulse going off while\n";
 		file << "; someone is mid-sentence breaks the scene more than a menu does.\n";
-		file << "muteInDialogue = " << boolean(muteInDialogue) << "\n\n\n";
+		file << "muteInDialogue = " << boolean(muteInDialogue) << "\n\n";
+		file << "; Hide the game's own interface. \"HUD Menu\" is the vanilla one and\n";
+		file << "; carries anything drawn into it, moreHUD included. Other mods own\n";
+		file << "; their own menus, so add their names to the list below, comma\n";
+		file << "; separated, and they go too. A mod drawing through ImGui rather than\n";
+		file << "; Scaleform cannot be reached this way at all.\n";
+		file << "hideGameHud = " << boolean(hideGameHud) << "\n";
+		file << "hideMenus = " << hideMenus << "\n\n\n";
 
 		file << "[Hotkey]\n\n";
 		file << "; DirectX scan code of the key that triggers a sweep. Mouse buttons are\n";
@@ -942,7 +1061,63 @@ namespace SS
 		file << "icon = " << boolean(selfIcon) << "\n\n";
 		file << "color = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
 			 << (selfColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-		file << "scale = " << selfScale << "\n\n\n";
+		file << "scale = " << selfScale << "\n\n";
+		file << "; Your health, magicka and stamina as three thin bars under your\n";
+		file << "; name, for as long as a sweep lasts. Only yours - a bar over every\n";
+		file << "; person in the radius is a wall of colour, and TrueHUD already\n";
+		file << "; covers anyone you are fighting. Pairs with playing the game with\n";
+		file << "; its own HUD hidden: sweep to check yourself.\n";
+		file << "bars = " << boolean(selfBars) << "\n";
+		file << "; always, change (a few seconds after a value moves) or notfull.\n";
+		file << "barsWhen = " << kShowWhenNames[static_cast<std::size_t>(selfBarsWhen)] << "\n";
+		file << "barWidth = " << selfBarWidth << "\n";
+		file << "barHeight = " << selfBarHeight << "\n";
+		file << "; below, above, left or right of your name. Left and right stand the\n";
+		file << "; bars upright and fill them from the bottom.\n";
+		file << "barPlace = " << kBarPlaceNames[static_cast<std::size_t>(selfBarPlace)] << "\n";
+		file << "; Slant, as a multiple of thickness. 0 is a plain rectangle.\n";
+		file << "barShear = " << selfBarShear << "\n";
+		file << "; Notches cut across the bar. 0 draws it smooth.\n";
+		file << "barSegments = " << selfBarSegments << "\n";
+		file << "; How far each row is set back from the one before, so the stack\n";
+		file << "; reads as angled away rather than painted flat. 0 stacks them square.\n";
+		file << "barPerspective = " << selfBarPerspective << "\n";
+		file << "barGlow = " << boolean(selfBarGlow) << "\n";
+		file << "frameColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
+			 << (selfBarFrameColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+
+		file << "; A readout pinned to a corner of the screen, drawn whether or not a\n";
+		file << "; sweep is running: off, topleft, topright, bottomleft, bottomright.\n";
+		file << "hudCorner = " << kCornerNames[static_cast<std::size_t>(selfHudCorner)] << "\n";
+		file << "; always, change (appears for a few seconds when a value moves), or\n";
+		file << "; notfull (only what is below maximum).\n";
+		file << "hudShow = " << kShowWhenNames[static_cast<std::size_t>(selfHudShow)] << "\n";
+		file << "hudLinger = " << selfHudLinger << "\n";
+		file << "hudFade = " << selfHudFade << "\n";
+		file << "hudX = " << selfHudX << "\n";
+		file << "hudY = " << selfHudY << "\n";
+		file << "hudScale = " << selfHudScale << "\n\n\n";
+
+		file << "[Vitals]\n\n";
+		file << "; The same bars over other people, for the length of a sweep only.\n";
+		file << "; Never persistent - a bar over everyone all the time is what a\n";
+		file << "; combat HUD mod is for. What this gives instead is every person a\n";
+		file << "; wave reached, through walls, across the whole radius, at once.\n";
+		file << "actors = " << boolean(vitalsActors) << "\n";
+		file << "; false draws health only.\n";
+		file << "actorsAll = " << boolean(vitalsActorsAll) << "\n";
+		file << "; Only people hostile to you. Read from the engine's own hostility\n";
+		file << "; check rather than a faction list, so a modded enemy counts too.\n";
+		file << "; Rivals - people who dislike you but have not drawn - do not.\n";
+		file << "hostileOnly = " << boolean(vitalsActorsHostileOnly) << "\n";
+		file << "; always, change (only someone just hurt) or notfull.\n";
+		file << "actorsWhen = " << kShowWhenNames[static_cast<std::size_t>(vitalsActorsWhen)] << "\n";
+		file << "healthColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
+			 << (selfHealthColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+		file << "magickaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
+			 << (selfMagickaColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+		file << "staminaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
+			 << (selfStaminaColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n\n\n";
 
 		file << "[Titles]\n\n";
 		file << "; A small word above the name - Jarl, Blacksmith, Thane of Whiterun -\n";

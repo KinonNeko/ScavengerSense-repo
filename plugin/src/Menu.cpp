@@ -1006,6 +1006,9 @@ namespace SS::Menu
 			igEndChild();
 		}
 
+		// Who you are on the sweep. Just identity - everything about bars moved
+		// to its own page, because two thirds of what used to be here was not
+		// about you at all.
 		void DrawSelf(Settings& a_settings)
 		{
 			if (!Header(T("You"))) {
@@ -1025,6 +1028,174 @@ namespace SS::Menu
 				ColourPicker(T("My colour"), a_settings.selfColour);
 				igSliderFloat(T("My tag size"), &a_settings.selfScale, 0.5f, 3.0f, "%.2fx", 0);
 				Help("On top of the size people's tags already get.");
+			}
+
+			igSpacing();
+			igTextDisabled("%s", T("Health, magicka and stamina are on the Vitals page."));
+			igSpacing();
+		}
+
+		// How a bar looks, wherever it is drawn. Stated once: the same shape and
+		// timing serve the tag, the corner readout and other people.
+		void DrawBarStyle(Settings& a_settings)
+		{
+			if (!Header(T("Bar style"))) {
+				return;
+			}
+
+			igTextDisabled("%s", T("Applies to every bar below."));
+			igSpacing();
+
+			ColourPicker(T("Health"), a_settings.selfHealthColour);
+			ColourPicker(T("Magicka"), a_settings.selfMagickaColour);
+			ColourPicker(T("Stamina"), a_settings.selfStaminaColour);
+			ColourPicker(T("Bar frame"), a_settings.selfBarFrameColour);
+
+			igSliderFloat(T("Bar length"), &a_settings.selfBarWidth, 20.0f, 400.0f, "%.0f px", 0);
+			igSliderFloat(T("Bar thickness"), &a_settings.selfBarHeight, 1.0f, 16.0f, "%.0f px", 0);
+
+			igSliderFloat(T("Slant"), &a_settings.selfBarShear, -2.0f, 2.0f, "%.2f", 0);
+			Help(
+				"Leans the ends of the bar over. This is most of what stops it\n"
+				"looking like a loading bar. 0 is a plain rectangle.");
+
+			int segments = static_cast<int>(a_settings.selfBarSegments);
+			if (igSliderInt(T("Notches"), &segments, 0, 30, "%d", 0)) {
+				a_settings.selfBarSegments = segments;
+			}
+			Help("Divisions cut across the bar. 0 draws it smooth.");
+
+			igSliderFloat(T("Depth"), &a_settings.selfBarPerspective, 0.0f, 0.5f, "%.2f", 0);
+			Help(
+				"Sets each row further back than the one above, shortening it to\n"
+				"match, so the three read as a panel angled away rather than three\n"
+				"flat stickers. 0 stacks them square.");
+
+			igCheckbox(T("Glow"), &a_settings.selfBarGlow);
+			Help("A soft halo under the filled part.");
+
+			igSpacing();
+			igSliderFloat(T("Stays up for"), &a_settings.selfHudLinger, 0.5f, 15.0f, "%.1f s", 0);
+			igSliderFloat(T("Fading over"), &a_settings.selfHudFade, 0.0f, 5.0f, "%.1f s", 0);
+			Help(
+				"How long a bar set to \"when something changes\" stays visible after\n"
+				"the value moves, and how much of that it spends fading out.\n"
+				"\n"
+				"Shared by all three, so the readout and the bars over other people\n"
+				"never disagree about how long a change is worth showing.");
+
+			igSpacing();
+		}
+
+		// Your own vitals, in the two places they can appear.
+		void DrawMyVitals(Settings& a_settings)
+		{
+			if (!Header(T("Mine"))) {
+				return;
+			}
+
+			static const char* const kWhen[] = { "Always", "When something changes",
+				"Only what is not full" };
+
+			igSeparatorText(T("On my name tag"));
+			igCheckbox(T("Show them during a sweep"), &a_settings.selfBars);
+			Help(
+				"Three bars under your name for as long as a sweep lasts.\n"
+				"\n"
+				"Needs \"Tag me too\" on the People page, since they hang off the tag.");
+
+			if (a_settings.selfBars) {
+				int when = static_cast<int>(a_settings.selfBarsWhen);
+				if (igCombo_Str_arr(T("Show them"), &when, Translated(kWhen, 3), 3, -1)) {
+					a_settings.selfBarsWhen = static_cast<ShowWhen>(std::clamp(when, 0, 2));
+				}
+
+				static const char* const kPlaces[] = { "Below the name", "Above the name",
+					"Left of the name", "Right of the name" };
+				int place = static_cast<int>(a_settings.selfBarPlace);
+				if (igCombo_Str_arr(T("Where"), &place, Translated(kPlaces, 4), 4, -1)) {
+					a_settings.selfBarPlace = static_cast<BarPlace>(std::clamp(place, 0, 3));
+				}
+				Help(
+					"Left and right stand the bars upright beside you and fill them from\n"
+					"the bottom. Above and below lay them flat.");
+			}
+
+			igSpacing();
+			igSeparatorText(T("Pinned to the screen"));
+
+			static const char* const kCorners[] = { "Off", "Top left", "Top right",
+				"Bottom left", "Bottom right" };
+			int corner = static_cast<int>(a_settings.selfHudCorner);
+			if (igCombo_Str_arr(T("Corner"), &corner, Translated(kCorners, 5), 5, -1)) {
+				a_settings.selfHudCorner = static_cast<Corner>(std::clamp(corner, 0, 4));
+			}
+			Help(
+				"The same bars pinned to a corner, drawn whether or not a sweep is\n"
+				"running and whether or not you are tagged.\n"
+				"\n"
+				"This is the one that works in first person, where there is no\n"
+				"character to hang a tag on. Pair it with hiding the game's own HUD\n"
+				"on the Setup page.");
+
+			if (a_settings.selfHudCorner != Corner::kOff) {
+				int when = static_cast<int>(a_settings.selfHudShow);
+				if (igCombo_Str_arr(T("Show it"), &when, Translated(kWhen, 3), 3, -1)) {
+					a_settings.selfHudShow = static_cast<ShowWhen>(std::clamp(when, 0, 2));
+				}
+				Help(
+					"\"When something changes\" keeps the screen clear until a value\n"
+					"moves - taking a hit, casting, drinking, or regenerating - then\n"
+					"shows the bars for a few seconds and fades them out again.");
+
+				igSliderFloat(T("Corner size"), &a_settings.selfHudScale, 0.5f, 4.0f, "%.2fx", 0);
+				igSliderFloat(T("Margin across"), &a_settings.selfHudX, 0.0f, 600.0f, "%.0f px", 0);
+				igSliderFloat(T("Margin down"), &a_settings.selfHudY, 0.0f, 600.0f, "%.0f px", 0);
+			}
+
+			igSpacing();
+		}
+
+		void DrawOtherVitals(Settings& a_settings)
+		{
+			if (!Header(T("Other people"))) {
+				return;
+			}
+
+			igCheckbox(T("Bars over other people"), &a_settings.vitalsActors);
+			Help(
+				"For the length of a sweep only, everyone the wave reached gets the\n"
+				"same bars - through walls, across the whole radius, all at once.\n"
+				"\n"
+				"Deliberately not persistent. A bar over everybody all the time is\n"
+				"what a combat HUD mod is for, and it will do it better than this.");
+
+			if (a_settings.vitalsActors) {
+				igCheckbox(T("Only people hostile to me"), &a_settings.vitalsActorsHostileOnly);
+				Help(
+					"Bars only over people who actually want you dead, so a sweep\n"
+					"through a town stays quiet and a sweep through a bandit camp\n"
+					"tells you what you are walking into.\n"
+					"\n"
+					"Read from the game's own hostility check rather than a faction\n"
+					"list, so a modded enemy counts too. Rivals - people who dislike\n"
+					"you but have not drawn a weapon - do not.");
+
+				igCheckbox(T("Their magicka and stamina too"), &a_settings.vitalsActorsAll);
+				Help("Off draws health only, which is usually all you wanted to know.");
+
+				static const char* const kWhen2[] = { "Always", "Only someone just hurt",
+					"Only what is not full" };
+				int when2 = static_cast<int>(a_settings.vitalsActorsWhen);
+				if (igCombo_Str_arr(T("For whom"), &when2, Translated(kWhen2, 3), 3, -1)) {
+					a_settings.vitalsActorsWhen = static_cast<ShowWhen>(std::clamp(when2, 0, 2));
+				}
+
+				igSpacing();
+				igTextDisabled("%s", T("People still have to be lit for this to show."));
+				Help(
+					"Turn on the People category on the People page, or a sweep never\n"
+					"reaches anybody and there is nothing to put a bar over.");
 			}
 
 			igSpacing();
@@ -1374,6 +1545,48 @@ namespace SS::Menu
 			igSpacing();
 		}
 
+		// Was buried under Actions, which is meant to be buttons. It is a
+		// display setting and belongs with the other display settings.
+		void DrawInterface(Settings& a_settings)
+		{
+			if (!Header(T("Hide the interface"))) {
+				return;
+			}
+
+			igCheckbox(T("Hide the game's HUD"), &a_settings.hideGameHud);
+			Help(
+				"Hides the compass, health bars, crosshair, subtitles and the\n"
+				"activation prompt. They are all one piece as far as the game is\n"
+				"concerned, so they go together or not at all.\n"
+				"\n"
+				"Pairs with the corner readout on the People page: no permanent\n"
+				"interface, and a sweep when you want to know how you are doing.");
+
+			if (a_settings.hideGameHud) {
+				static char buffer[256]{};
+				if (buffer[0] == '\0') {
+					std::snprintf(buffer, sizeof(buffer), "%s", a_settings.hideMenus.c_str());
+				}
+				if (igInputText(T("Menus to hide"), buffer, sizeof(buffer), 0, nullptr, nullptr)) {
+					a_settings.hideMenus = buffer;
+				}
+				Help(
+					"Comma separated, and case sensitive. \"HUD Menu\" is the game's own,\n"
+					"and carries anything drawn into it - moreHUD among them.\n"
+					"\n"
+					"Other mods own their own menus, so add their names here to take\n"
+					"those too. What cannot be reached this way at all is a mod drawing\n"
+					"through ImGui rather than Scaleform - including this one. There is\n"
+					"no general switch for those, by anyone.");
+
+				igTextDisabled("%s", T("Currently hidden: see the log"));
+			}
+
+			igSpacing();
+
+			igSpacing();
+		}
+
 		void DrawPresets(Settings& a_settings)
 		{
 			if (!Header(T("Presets"))) {
@@ -1566,6 +1779,14 @@ namespace SS::Menu
 				igEndTabItem();
 			}
 
+			if (igBeginTabItem(T("Vitals"), nullptr, 0)) {
+				igSpacing();
+				DrawBarStyle(settings);
+				DrawMyVitals(settings);
+				DrawOtherVitals(settings);
+				igEndTabItem();
+			}
+
 			if (igBeginTabItem(T("Titles"), nullptr, 0)) {
 				igSpacing();
 				DrawTitles(settings);
@@ -1580,6 +1801,7 @@ namespace SS::Menu
 
 			if (igBeginTabItem(T("Setup"), nullptr, 0)) {
 				igSpacing();
+				DrawInterface(settings);
 				DrawPresets(settings);
 				DrawActions(settings);
 				igEndTabItem();
