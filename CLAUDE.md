@@ -80,6 +80,11 @@ A preset loaded from the menu deliberately skips step 2.
 
 ## Releasing
 
+After a build, `tools/deploy.ps1` copies the DLL, the esp and the data INIs
+into the live MO2 install. It merges rather than overwrites the `[Assigned]`
+block of the titles file, so titles typed in game survive a deploy, and it
+never touches `ScavengerSense.ini` — that belongs to the game, not the repo.
+
 ```sh
 python3 tools/make_esp.py
 python3 tools/build_fomod.py
