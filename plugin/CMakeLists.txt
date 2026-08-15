@@ -12,6 +12,10 @@ FetchContent_MakeAvailable(spdlog)
 
 set(RAPIDCSV_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../rapidcsv/src CACHE PATH "" FORCE)
 
+# CommonLibSSE's install(EXPORT) requires spdlog to be in an export set when
+# spdlog is a real subproject target; without this, generation fails.
+set(SPDLOG_INSTALL ON CACHE BOOL "" FORCE)
+
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(SKSE_SUPPORT_XBYAK OFF CACHE BOOL "" FORCE)
 set(ENABLE_SKYRIM_SE ON CACHE BOOL "" FORCE)
@@ -52,7 +56,11 @@ add_library(${PROJECT_NAME} SHARED
 )
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE src/PCH.h)
-target_include_directories(${PROJECT_NAME} PRIVATE src ${CMAKE_CURRENT_SOURCE_DIR}/../cimgui)
+# Do NOT add src to the include path: on case-insensitive filesystems (Windows)
+# src/Locale.h would shadow the CRT's <locale.h> for angle-bracket includes.
+# Sources include their own headers with quotes, which search the file's
+# directory first and need no -I entry.
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../cimgui)
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 # SKSE Menu Framework re-exports the cimgui C API from its own DLL; this import
 # library is generated from that DLL's export table (see extern/lib/*.def).
