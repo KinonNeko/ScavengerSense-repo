@@ -5,7 +5,7 @@ everything worth looting lights up in an outward wave, with names over the
 objects and the colour draining from the world while it runs. It reads people
 too — relationships, titles, and who is a merchant.
 
-**Nexus page:** *(add the link once it is published)*
+**Nexus page:** <https://www.nexusmods.com/skyrimspecialedition/mods/188380>
 **Author:** KShakes — <https://www.nexusmods.com/profile/KShakes>
 
 This repository is the source. Release builds are attached to the Nexus page as
