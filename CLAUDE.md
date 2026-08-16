@@ -1,7 +1,7 @@
 # Scavenger Sense — working notes
 
 Context for whoever picks this up, human or otherwise. Written at the end of the
-session that built 0.5 beta and the vitals work on top of it.
+session that built 0.5 beta, then the vitals work and 0.6 on top of it.
 
 ## What it is
 
@@ -9,8 +9,13 @@ An SKSE plugin. Press a key, everything worth looting lights up in an outward
 wave, names float over it, the colour drains out of the world. It reads people
 too: relationships, titles, and vitals bars.
 
-Nexus: https://www.nexusmods.com/skyrimspecialedition/mods/188380
-Published version: **0.5 beta**. Everything after that is unreleased.
+Nexus:  https://www.nexusmods.com/skyrimspecialedition/mods/188380
+Source: https://github.com/KinonNeko/ScavengerSense-repo
+
+**0.5 beta is what is published.** The repo is at **0.6 beta**: packaged and
+verified as a FOMOD, but not uploaded, and never installed from that zip into a
+clean profile. The installer questions have not been exercised against the 0.6
+defaults — everything so far was tested as loose files.
 
 ## Build
 
