@@ -1,12 +1,23 @@
 # Scavenger Sense
 
-**0.5 beta** — by KShakes — https://www.nexusmods.com/profile/KShakes
+**0.6 beta** — by KShakes — https://www.nexusmods.com/profile/KShakes
 
-This is a first public build. Everything in it works and has been played with,
-but it has only been tested against one load order. Keep a save from before you
-installed it. If something misbehaves, `ScavengerSense.log` (in
-`Documents\My Games\Skyrim Special Edition\SKSE\`, and a second copy next to
-the plugin) records what happened and is the fastest way to get it fixed.
+Everything in it works and has been played with, but it has only been tested
+against one load order.
+
+**New in 0.6.** Health, magicka and stamina as sheared, notched bars — under
+your name during a sweep, or pinned to a screen corner where they work in
+first person and with no sweep running at all. The same bars over other people
+for the length of a sweep, optionally only over people hostile to you. The
+game's own interface can be hidden, so the sweep becomes the interface. Title
+rules can name a keyword instead of a form ID, which is what makes SPID
+distribution practical. The settings menu has been reorganised around a new
+Vitals page.
+
+Keep a save from before you installed it. If something misbehaves,
+`ScavengerSense.log` (in `Documents\My Games\Skyrim Special Edition\SKSE\`, and
+a second copy next to the plugin) records what happened and is the fastest way
+to get it fixed.
 
 Press a key and everything worth looting lights up in an outward wave, with a
 ring travelling across the ground from your feet, names floating over the

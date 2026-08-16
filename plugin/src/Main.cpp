@@ -228,7 +228,7 @@ namespace SS
 }
 
 SKSEPluginInfo(
-	.Version = REL::Version{ 0, 5, 0, 0 },
+	.Version = REL::Version{ 0, 6, 0, 0 },
 	.Name = "ScavengerSense"sv,
 	.Author = "KShakes"sv)
 
@@ -241,7 +241,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	SKSE::Init(a_skse, false);
 	SS::InitLogging();
 
-	logger::info("Scavenger Sense 0.5 beta loading");
+	logger::info("Scavenger Sense 0.6 beta loading");
 
 	if (auto* messaging = SKSE::GetMessagingInterface()) {
 		messaging->RegisterListener(SS::OnMessage);
