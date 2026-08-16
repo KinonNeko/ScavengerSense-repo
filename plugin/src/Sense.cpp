@@ -627,16 +627,24 @@ namespace SS
 				return false;
 			}
 
-			// Only people who mean you harm: hostile by nature, or hostile
-			// because of something you did - anyone you have struck counts.
-			// The living only; a corpse is loot, and actorFilter above already
-			// decides whether loot-shaped people show.
-			if (settings->actorEnemiesOnly && !dead) {
-				auto*      player = RE::PlayerCharacter::GetSingleton();
-				auto*      whom = a_ref->As<RE::Actor>();  // IsHostileToActor is non-const
-				const bool enemy = player && whom &&
-				                   (whom->IsHostileToActor(player) ||
-									   _combatHits.contains(whom->GetFormID()));
+			// Only people who mean you harm - all of them, corpses included.
+			// Three ways to qualify: the engine's own hostility check (covers
+			// hostile-by-design and modded enemies), actively fighting the
+			// player right now (hostility can lag a first strike), or having
+			// been struck by the player at any point this session - "hostile
+			// because of something you did" is not forgotten when they die.
+			if (settings->actorEnemiesOnly) {
+				auto* player = RE::PlayerCharacter::GetSingleton();
+				auto* whom = a_ref->As<RE::Actor>();  // IsHostileToActor is non-const
+				bool  enemy = false;
+				if (player && whom) {
+					enemy = _struckEver.contains(whom->GetFormID()) ||
+					        whom->IsHostileToActor(player);
+					if (!enemy && !dead) {
+						enemy = whom->GetActorRuntimeData().currentCombatTarget ==
+						        player->CreateRefHandle();
+					}
+				}
 				if (!enemy) {
 					++a_stats.notEnemy;
 					return false;
@@ -1061,6 +1069,7 @@ namespace SS
 
 		const float real = SS::RealNow();
 		_combatHits[target->GetFormID()] = { target->CreateRefHandle(), real, real, 0.0f };
+		_struckEver.insert(target->GetFormID());
 		if (Settings::GetSingleton()->debug) {
 			const auto* name = target->GetDisplayFullName();
 			logger::info("combat bars: hit {} ({:08X}), {} tracked, player inCombat={}",
@@ -1102,6 +1111,26 @@ namespace SS
 				_combatShown = false;
 			}
 			return;
+		}
+
+		// TrueHUD suppression cannot wait for the first hit: its bar appears
+		// the moment combat starts. Once a second, everyone in combat whose
+		// target is the player has TrueHUD's bar dismissed - ours takes over
+		// on the first hit, exactly as the feature is designed to.
+		if (g_trueHud && settings->pushTrueHUDAside && settings->combatBars &&
+			real - _lastHudPush > 1.0f) {
+			_lastHudPush = real;
+			if (auto* lists = RE::ProcessLists::GetSingleton()) {
+				const auto ph = player->CreateRefHandle();
+				lists->ForEachHighActor([&](RE::Actor* a_actor) {
+					if (a_actor && !a_actor->IsPlayerRef() && a_actor->IsInCombat() &&
+						a_actor->GetActorRuntimeData().currentCombatTarget == ph) {
+						g_trueHud->RemoveActorInfoBar(a_actor->GetHandle(),
+							TRUEHUD_API::WidgetRemovalMode::Immediate);
+					}
+					return RE::BSContainer::ForEachResult::kContinue;
+				});
+			}
 		}
 
 		const auto now = SS::Now();

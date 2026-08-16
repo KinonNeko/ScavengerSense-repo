@@ -729,9 +729,10 @@ namespace SS::Menu
 
 			igCheckbox(T("Only enemies"), &a_settings.actorEnemiesOnly);
 			Help(
-				"Only people who mean you harm: hostile by nature, or hostile because\n"
-				"of something you did - anyone you have struck counts. Monsters too.\n"
-				"Corpses still follow the box above.");
+				"Nothing lights or gets a tag unless it means you harm: hostile by\n"
+				"nature, attacking you right now, or struck by you at any point this\n"
+				"session. Monsters too, and corpses as well - a dead bandit shows,\n"
+				"a dead shopkeeper does not.");
 
 			igSpacing();
 			ClipboardBar();

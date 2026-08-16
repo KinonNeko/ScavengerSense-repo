@@ -106,6 +106,11 @@ namespace SS
 		};
 		std::unordered_map<RE::FormID, HitTrack> _combatHits;
 		std::vector<Labels::Entry>               _combatBuffer;
+		// Everyone the player has ever struck this session. Never expires:
+		// "hostile because of something you did" should not be forgotten the
+		// moment the fight ends, and Only enemies reads it for corpses too.
+		std::unordered_set<RE::FormID>           _struckEver;
+		float                                    _lastHudPush{ 0.0f };  // real time
 		bool                                     _combatShown{ false };
 		bool                                     _hitSinkRegistered{ false };
 		float                          _selfLast[3]{ -1.0f, -1.0f, -1.0f };
