@@ -409,6 +409,9 @@ namespace SS
 			if (auto* events = RE::ScriptEventSourceHolder::GetSingleton()) {
 				events->AddEventSink<RE::TESHitEvent>(this);
 				_hitSinkRegistered = true;
+				logger::info("combat bars: hit sink registered");
+			} else {
+				logger::warn("combat bars: no script event source - hits will not be seen");
 			}
 		}
 
@@ -996,6 +999,12 @@ namespace SS
 		}
 
 		_combatHits[target->GetFormID()] = { target->CreateRefHandle(), SS::RealNow() };
+		if (Settings::GetSingleton()->debug) {
+			const auto* name = target->GetDisplayFullName();
+			logger::info("combat bars: hit {} ({:08X}), {} tracked, player inCombat={}",
+				name && name[0] ? name : "?", target->GetFormID(), _combatHits.size(),
+				RE::PlayerCharacter::GetSingleton()->IsInCombat());
+		}
 		return RE::BSEventNotifyControl::kContinue;
 	}
 
@@ -1004,11 +1013,36 @@ namespace SS
 		const auto* settings = Settings::GetSingleton();
 		auto*       player = RE::PlayerCharacter::GetSingleton();
 
-		const bool fighting = settings->combatBars && player && player->IsInCombat();
+		// "Is there a fight on" is asked of the people we track as well as the
+		// player: the player has no combat controller of their own, and their
+		// in-combat flag has proven unreliable exactly when it matters. The
+		// bandit swinging at you certainly knows the fight is on.
+		bool fighting = settings->combatBars && player && !_combatHits.empty();
+		if (fighting && !player->IsInCombat()) {
+			fighting = false;
+			for (const auto& [id, track] : _combatHits) {
+				auto  ref = track.handle.get();
+				auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
+				if (actor && !actor->IsDead() && actor->IsInCombat()) {
+					fighting = true;
+					break;
+				}
+				// A one-shot kill never reports combat from either side; give
+				// the corpse its linger anyway.
+				if (actor && actor->IsDead() &&
+					SS::RealNow() - track.lastHitAt < 4.0f) {
+					fighting = true;
+					break;
+				}
+			}
+		}
 		if (!fighting) {
 			// The fight is over (or the feature just went off): the tracked set
 			// goes too, so the next fight starts clean.
 			if (_combatShown || !_combatHits.empty()) {
+				if (_combatShown) {
+					logger::info("combat bars: fight over, cleared");
+				}
 				_combatHits.clear();
 				_combatBuffer.clear();
 				Labels::GetSingleton()->SetCombatBars({});
@@ -1067,6 +1101,12 @@ namespace SS
 		}
 
 		Labels::GetSingleton()->SetCombatBars(_combatBuffer);
+		// Transitions only - this runs sixty times a second.
+		if (!_combatShown && !_combatBuffer.empty()) {
+			logger::info("combat bars: up over {} people", _combatBuffer.size());
+		} else if (_combatShown && _combatBuffer.empty()) {
+			logger::info("combat bars: down, nobody left to show");
+		}
 		_combatShown = !_combatBuffer.empty();
 	}
 

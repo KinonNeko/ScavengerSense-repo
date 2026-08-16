@@ -13,7 +13,10 @@ import wave
 
 RATE = 44100
 SECONDS = 1.1
-PEAK = 0.30  # deliberately quiet; the plugin scales it further
+# Near full scale. Loudness belongs to the file: the engine's volume control
+# only attenuates, so a quiet master cannot be turned up in game. The chime
+# stays gentle by its shape, not by a low peak.
+PEAK = 0.85
 
 samples = [0.0] * int(RATE * SECONDS)
 

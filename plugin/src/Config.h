@@ -312,7 +312,9 @@ namespace SS
 		// otherwise; the override exists for people who want a vanilla sound
 		// (or another mod's) instead of editing the wav on disk.
 		bool          soundEnabled{ true };
-		float         soundVolume{ 0.6f };
+		// Full by default: the engine only attenuates, so anything below 1.0
+		// is loudness the player cannot get back from the slider.
+		float         soundVolume{ 1.0f };
 		std::uint32_t soundFormID{ 0 };
 
 		ActorFilter actorFilter{ ActorFilter::kAll };

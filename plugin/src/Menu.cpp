@@ -438,13 +438,28 @@ namespace SS::Menu
 			igSliderFloat(T("Cooldown (s)"), &a_settings.cooldown, 0.0f, 10.0f, "%.2f", 0);
 
 			igSpacing();
+		}
+
+		// Its own section rather than a line under the cooldown: a sound you
+		// cannot find the volume control for might as well have none.
+		void DrawChime(Settings& a_settings)
+		{
+			if (!Header(T("Chime"))) {
+				return;
+			}
+
 			igCheckbox(T("Chime when the sweep starts"), &a_settings.soundEnabled);
 			Help(
-				"A short, quiet two-note chime. The sound itself is the file\n"
+				"A short two-note chime. The sound itself is the file\n"
 				"Sound\\FX\\ScavengerSense\\sweep.wav - overwrite it with any wav\n"
-				"to make it yours.");
+				"to make it yours. It plays through the game's UI audio, so the\n"
+				"game's own volume sliders apply on top.");
 			if (a_settings.soundEnabled) {
 				igSliderFloat(T("Chime volume"), &a_settings.soundVolume, 0.0f, 1.0f, "%.2f", 0);
+				Help(
+					"1.00 plays the file as loud as it is. The game engine can only\n"
+					"turn a sound down, not up - so if it is still too quiet at full,\n"
+					"replace the wav with a louder one.");
 			}
 
 			igSpacing();
@@ -1084,6 +1099,16 @@ namespace SS::Menu
 			igCheckbox(T("Glow"), &a_settings.selfBarGlow);
 			Help("A soft halo under the filled part.");
 
+			if (igTreeNode_Str(T("Fine placement"))) {
+				igSliderFloat(T("Nudge across"), &a_settings.selfBarOffsetX, -300.0f, 300.0f, "%.0f px", 0);
+				igSliderFloat(T("Nudge down"), &a_settings.selfBarOffsetY, -300.0f, 300.0f, "%.0f px", 0);
+				Help(
+					"Moves every over-head bar stack - yours, other people's, and the\n"
+					"in-combat ones - from wherever \"Where\" put it. The corner readout\n"
+					"has its own margins below.");
+				igTreePop();
+			}
+
 			igSpacing();
 			igCheckbox(T("Show what a survival mod has taken"), &a_settings.barsLostMax);
 			Help(
@@ -1142,15 +1167,6 @@ namespace SS::Menu
 				Help(
 					"Left and right stand the bars upright beside you and fill them from\n"
 					"the bottom. Above and below lay them flat.");
-
-				if (igTreeNode_Str(T("Fine placement"))) {
-					igSliderFloat(T("Nudge across"), &a_settings.selfBarOffsetX, -300.0f, 300.0f, "%.0f px", 0);
-					igSliderFloat(T("Nudge down"), &a_settings.selfBarOffsetY, -300.0f, 300.0f, "%.0f px", 0);
-					Help(
-						"Moves the whole bar stack from wherever \"Where\" put it.\n"
-						"Applies to the bars over other people as well.");
-					igTreePop();
-				}
 			}
 
 			igSpacing();
@@ -1848,6 +1864,7 @@ namespace SS::Menu
 				DrawHotkey(settings);
 				DrawScan(settings);
 				DrawPulse(settings);
+				DrawChime(settings);
 				igEndTabItem();
 			}
 
