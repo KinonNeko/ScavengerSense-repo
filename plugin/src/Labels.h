@@ -125,6 +125,11 @@ namespace SS
 		// is what the "only when it changes" rule is judged against.
 		void SetSelfHud(const float (&a_vitals)[3], const float (&a_caps)[3], float a_changedAt);
 
+		// Bars over people the player has hit, for as long as the fight lasts.
+		// Pushed whole every frame from the main thread, like MoveTo; only the
+		// vitals fields and world/owner/scale of each entry are used.
+		void SetCombatBars(std::vector<Entry> a_entries);
+
 		void SetRing(Ring a_ring);
 		void StopRing();
 
@@ -148,6 +153,7 @@ namespace SS
 		void DrawRing(void* a_drawList, float a_width, float a_height, float a_now);
 
 		std::vector<Entry> _entries;
+		std::vector<Entry> _combat;
 		Ring               _ring;
 		float              _selfHud[3]{ -1.0f, -1.0f, -1.0f };
 		float              _selfHudCap[3]{ 1.0f, 1.0f, 1.0f };

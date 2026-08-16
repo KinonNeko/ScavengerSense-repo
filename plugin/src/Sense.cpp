@@ -403,6 +403,15 @@ namespace SS
 
 		_imod = handler->LookupForm<RE::TESImageSpaceModifier>(kImodFormID, kPluginFile);
 
+		// Hits feed the in-combat bars. Registered once even though
+		// OnDataLoaded may run again.
+		if (!_hitSinkRegistered) {
+			if (auto* events = RE::ScriptEventSourceHolder::GetSingleton()) {
+				events->AddEventSink<RE::TESHitEvent>(this);
+				_hitSinkRegistered = true;
+			}
+		}
+
 		// Absent from esps made before the chime existed; everything else works
 		// without it, so a warning is all it rates.
 		_sweepSound = handler->LookupForm<RE::BGSSoundDescriptorForm>(kSweepSoundFormID, kPluginFile);
@@ -494,6 +503,7 @@ namespace SS
 					// player is left with no HUD.
 					const bool  idleWork = settings->selfHudCorner != Corner::kOff ||
 					                      settings->hideGameHud ||
+					                      settings->combatBars ||
 					                      GameMenus::GetSingleton()->HasHidden();
 					if (!_active && !idleWork) {
 						continue;
@@ -501,6 +511,7 @@ namespace SS
 					if (auto* task = SKSE::GetTaskInterface()) {
 						task->AddTask([this]() {
 							PollSelf();
+							PollCombat();
 							GameMenus::GetSingleton()->ApplyHudVisibility();
 							Tick();
 						});
@@ -956,6 +967,107 @@ namespace SS
 		}
 
 		Labels::GetSingleton()->SetSelfHud(now, caps, _selfChangedAt);
+	}
+
+	RE::BSEventNotifyControl Sense::ProcessEvent(
+		const RE::TESHitEvent* a_event, RE::BSTEventSource<RE::TESHitEvent>*)
+	{
+		// Cheap gates first: this fires for every hit anybody lands anywhere.
+		if (!a_event || !Settings::GetSingleton()->combatBars) {
+			return RE::BSEventNotifyControl::kContinue;
+		}
+		if (!a_event->cause || !a_event->cause->IsPlayerRef()) {
+			return RE::BSEventNotifyControl::kContinue;
+		}
+
+		auto* target = a_event->target ? a_event->target->As<RE::Actor>() : nullptr;
+		if (!target || target->IsPlayerRef()) {
+			return RE::BSEventNotifyControl::kContinue;
+		}
+
+		// Newest hits win the space. 24 bars is already an unreadable fight.
+		constexpr std::size_t kMaxTracked = 24;
+		if (_combatHits.size() >= kMaxTracked && !_combatHits.contains(target->GetFormID())) {
+			const auto oldest = std::min_element(_combatHits.begin(), _combatHits.end(),
+				[](const auto& a_lhs, const auto& a_rhs) {
+					return a_lhs.second.lastHitAt < a_rhs.second.lastHitAt;
+				});
+			_combatHits.erase(oldest);
+		}
+
+		_combatHits[target->GetFormID()] = { target->CreateRefHandle(), SS::RealNow() };
+		return RE::BSEventNotifyControl::kContinue;
+	}
+
+	void Sense::PollCombat()
+	{
+		const auto* settings = Settings::GetSingleton();
+		auto*       player = RE::PlayerCharacter::GetSingleton();
+
+		const bool fighting = settings->combatBars && player && player->IsInCombat();
+		if (!fighting) {
+			// The fight is over (or the feature just went off): the tracked set
+			// goes too, so the next fight starts clean.
+			if (_combatShown || !_combatHits.empty()) {
+				_combatHits.clear();
+				_combatBuffer.clear();
+				Labels::GetSingleton()->SetCombatBars({});
+				_combatShown = false;
+			}
+			return;
+		}
+
+		// Step aside for menus exactly the way the sweep does, but keep the
+		// tracked set - the fight is still there behind the inventory screen.
+		auto*      ui = RE::UI::GetSingleton();
+		const bool suspended = (settings->menuAware && GameMenus::GetSingleton()->Blocking()) ||
+		                       (ui && ui->GameIsPaused());
+		if (suspended) {
+			if (_combatShown) {
+				Labels::GetSingleton()->SetCombatBars({});
+				_combatShown = false;
+			}
+			return;
+		}
+
+		const auto now = SS::Now();
+		_combatBuffer.clear();
+		for (auto it = _combatHits.begin(); it != _combatHits.end();) {
+			auto  ref = it->second.handle.get();
+			auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
+			bool  drop = !actor || !actor->Is3DLoaded();
+
+			if (!drop) {
+				const auto life = actor->AsActorState()->GetLifeState();
+				if (life == RE::ACTOR_LIFE_STATE::kDying || life == RE::ACTOR_LIFE_STATE::kDead) {
+					// A few seconds of drained bar, so the kill reads.
+					drop = SS::RealNow() - it->second.lastHitAt > 4.0f;
+				}
+			}
+
+			if (drop) {
+				it = _combatHits.erase(it);
+				continue;
+			}
+
+			Labels::Entry entry{};
+			entry.world = TagAnchor(actor, true);
+			entry.bornAt = now - 1.0f;
+			entry.diesAt = now + 3600.0f;
+			entry.scale = settings->labelActorScale;
+			entry.owner = actor->CreateRefHandle();
+			ReadVitals(actor, entry.vitals, entry.vitalsCap);
+			if (!settings->vitalsActorsAll) {
+				entry.vitals[1] = -1.0f;
+				entry.vitals[2] = -1.0f;
+			}
+			entry.vitalsAt = now;
+			_combatBuffer.push_back(std::move(entry));
+			++it;
+		}
+
+		Labels::GetSingleton()->SetCombatBars(_combatBuffer);
+		_combatShown = !_combatBuffer.empty();
 	}
 
 	void Sense::Tick()

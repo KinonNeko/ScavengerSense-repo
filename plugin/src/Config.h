@@ -400,6 +400,11 @@ namespace SS
 		// Frost over lost health, smoke over lost magicka and stamina. Off draws
 		// the dead zone plain.
 		bool     barsLostFx{ true };
+		// In combat, anyone you have hit keeps bars over their head until the
+		// fight ends - no sweep needed. Off by default: TrueHUD's recent-damage
+		// bars cover the same ground, so this is for load orders without a
+		// combat HUD.
+		bool     combatBars{ false };
 
 		// [Labels] continued - behaviour that needs the main thread every frame
 		bool labelsFollow{ true };

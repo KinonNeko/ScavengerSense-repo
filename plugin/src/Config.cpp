@@ -620,6 +620,7 @@ namespace SS
 		Get(table, "vitals", "actorsWhen", vitalsActorsWhen);
 		Get(table, "vitals", "lostMax", barsLostMax);
 		Get(table, "vitals", "lostFx", barsLostFx);
+		Get(table, "vitals", "combat", combatBars);
 
 		Get(table, "labels", "follow", labelsFollow);
 		Get(table, "labels", "speakerMode", labelSpeakerMode);
@@ -1130,6 +1131,10 @@ namespace SS
 		file << "lostMax = " << boolean(barsLostMax) << "\n";
 		file << "; Frost over lost health, smoke over lost magicka and stamina.\n";
 		file << "lostFx = " << boolean(barsLostFx) << "\n";
+		file << "; In combat, anyone you have hit keeps bars over their head until\n";
+		file << "; the fight ends. If you run TrueHUD, leave this off - its\n";
+		file << "; recent-damage bars already cover it.\n";
+		file << "combat = " << boolean(combatBars) << "\n";
 		file << "healthColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
 			 << (selfHealthColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
 		file << "magickaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)

@@ -3,14 +3,19 @@
 #include "Config.h"
 
 #include <array>
+#include <unordered_map>
 #include "Labels.h"
 
 namespace SS
 {
-	class Sense
+	class Sense : public RE::BSTEventSink<RE::TESHitEvent>
 	{
 	public:
 		[[nodiscard]] static Sense* GetSingleton();
+
+		// Hits the player lands, feeding the in-combat bars.
+		RE::BSEventNotifyControl ProcessEvent(
+			const RE::TESHitEvent* a_event, RE::BSTEventSource<RE::TESHitEvent>*) override;
 
 		// Resolve the forms shipped in ScavengerSense.esp. Safe to call more than once.
 		void OnDataLoaded();
@@ -59,6 +64,8 @@ namespace SS
 		void Tick();
 		// Reads the player's vitals every frame for the corner readout.
 		void PollSelf();
+		// Keeps bars over people the player has hit while a fight is on.
+		void PollCombat();
 		void ApplyTo(RE::TESObjectREFR* a_ref, Category a_category);
 		void ClearOurEffects();
 		void BeginTint(float a_duration);
@@ -81,6 +88,18 @@ namespace SS
 		std::vector<RE::NiPoint3>      _anchorBuffer;
 		std::vector<bool>              _speakingBuffer;
 		std::vector<std::array<float, 7>> _vitalsBuffer;  // three values, when they moved, three caps
+
+		// People the player has hit this fight. Main thread only: the hit sink
+		// and the poll both run there, so no lock is needed.
+		struct HitTrack
+		{
+			RE::ObjectRefHandle handle;
+			float               lastHitAt{ 0.0f };  // real time
+		};
+		std::unordered_map<RE::FormID, HitTrack> _combatHits;
+		std::vector<Labels::Entry>               _combatBuffer;
+		bool                                     _combatShown{ false };
+		bool                                     _hitSinkRegistered{ false };
 		float                          _selfLast[3]{ -1.0f, -1.0f, -1.0f };
 		float                          _selfChangedAt{ -1000.0f };
 		std::unordered_set<RE::FormID> _favourites;  // rebuilt at the start of each sweep

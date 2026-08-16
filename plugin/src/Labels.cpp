@@ -456,6 +456,12 @@ namespace SS
 		_selfHudAt = a_changedAt;
 	}
 
+	void Labels::SetCombatBars(std::vector<Entry> a_entries)
+	{
+		std::scoped_lock guard{ _lock };
+		_combat = std::move(a_entries);
+	}
+
 	// The corner readout: the same bars as the tag, pinned to the screen.
 	//
 	// Its own draw rather than a fake tag, because a tag needs somewhere in the
@@ -814,11 +820,13 @@ namespace SS
 		const auto* settings = Settings::GetSingleton();
 
 		std::vector<Entry> snapshot;
+		std::vector<Entry> combatSnapshot;
 		{
 			// The HUD callback runs on the render thread, so take a copy and get
 			// off the lock rather than holding it across any drawing.
 			std::scoped_lock guard{ _lock };
 			snapshot = _entries;
+			combatSnapshot = _combat;
 		}
 
 		auto* io = igGetIO();
@@ -898,6 +906,63 @@ namespace SS
 			// here that is not tied to a sweep, so it has to survive an empty
 			// tag list.
 			DrawSelfHud(draw, width, height, now);
+		}
+
+		// In-combat bars: people the player has hit, bars only, no tag. Also
+		// before the early-out - a fight does not need a sweep to be running.
+		if (!combatSnapshot.empty()) {
+			// Anyone already carrying sweep bars keeps those; two stacks over
+			// one head is worse than either.
+			std::unordered_set<std::uint32_t> barred;
+			for (const auto& entry : snapshot) {
+				if (entry.vitals[0] >= 0.0f) {
+					barred.insert(entry.owner.native_handle());
+				}
+			}
+
+			const std::uint32_t colours[3]{ settings->selfHealthColour,
+				settings->selfMagickaColour, settings->selfStaminaColour };
+
+			for (const auto& c : combatSnapshot) {
+				if (barred.contains(c.owner.native_handle())) {
+					continue;
+				}
+				ImVec2 at;
+				if (!Project(c.world, width, height, at)) {
+					continue;
+				}
+
+				const float thick = std::max(1.0f, settings->selfBarHeight * c.scale);
+				const float span = settings->selfBarWidth * c.scale;
+				const float shear = settings->selfBarShear * thick;
+				const float step = thick + thick * 0.75f;
+
+				int rows[3]{};
+				int shown = 0;
+				for (int i = 0; i < 3; ++i) {
+					if (c.vitals[i] >= 0.0f) {
+						rows[shown++] = i;
+					}
+				}
+
+				for (int r = 0; r < shown; ++r) {
+					const int   i = rows[r];
+					const float away = static_cast<float>(r) * settings->selfBarPerspective;
+					const float length = span * (1.0f - away);
+					const float inset = (span - length) * 0.5f;
+
+					ImVec2 origin{ at.x - span * 0.5f + inset,
+						at.y + step * static_cast<float>(r) };
+					origin.x += settings->selfBarOffsetX * c.scale;
+					origin.y += settings->selfBarOffsetY * c.scale;
+
+					DrawVitalBar(draw, origin, length, thick, shear, false, c.vitals[i],
+						settings->barsLostMax ? c.vitalsCap[i] : 1.0f,
+						settings->barsLostFx ? i : -1, now,
+						colours[i], settings->selfBarFrameColour, 1.0f,
+						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
+				}
+			}
 		}
 
 		if (!settings->labelsEnabled || snapshot.empty()) {
