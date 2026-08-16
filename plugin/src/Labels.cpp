@@ -100,9 +100,14 @@ namespace SS
 		//   a_thick   across it
 		//   a_shear   how far the far edge leans, in pixels
 		//   a_upright false runs left to right, true runs bottom to top
+		//   a_cap     how much of the scale is available, 0..1; the span above it
+		//             is drawn as a dead zone (a survival mod's lowered ceiling)
+		//   a_vital   0 health, 1 magicka, 2 stamina - picks the dead zone's
+		//             dressing (frost or smoke); -1 leaves it plain
+		//   a_now     seconds, for the dressing's slow animation
 		void DrawVitalBar(ImDrawList* a_draw, ImVec2 a_origin, float a_length, float a_thick,
-			float a_shear, bool a_upright, float a_value, std::uint32_t a_colour,
-			std::uint32_t a_frame, float a_alpha, int a_segments, bool a_glow)
+			float a_shear, bool a_upright, float a_value, float a_cap, int a_vital, float a_now,
+			std::uint32_t a_colour, std::uint32_t a_frame, float a_alpha, int a_segments, bool a_glow)
 		{
 			// Corner at distance d along the bar, offset t across it.
 			//
@@ -117,7 +122,8 @@ namespace SS
 						   : ImVec2{ a_origin.x + d + lean, a_origin.y + t };
 			};
 
-			const float filled = a_length * std::clamp(a_value, 0.0f, 1.0f);
+			const float cap = std::clamp(a_cap, 0.0f, 1.0f);
+			const float filled = a_length * std::clamp(std::min(a_value, cap), 0.0f, 1.0f);
 
 			const ImVec2 track[4]{ corner(0.0f, 0.0f), corner(a_length, 0.0f),
 				corner(a_length, a_thick), corner(0.0f, a_thick) };
@@ -134,6 +140,48 @@ namespace SS
 			// Empty channel, so a drained bar still says where full would be.
 			ImDrawList_AddConvexPolyFilled(a_draw, track, 4, PackColour(0x000000, a_alpha * 0.5f));
 			ImDrawList_AddConvexPolyFilled(a_draw, track, 4, PackColour(a_colour, a_alpha * 0.14f));
+
+			// The ceiling a survival mod has taken away. The track keeps its full
+			// length - the bar must not quietly rescale - and the unavailable span
+			// reads as dead hardware: dimmed, and dressed when styling is on.
+			if (cap < 0.995f) {
+				const float  from = a_length * cap;
+				const ImVec2 dead[4]{ corner(from, 0.0f), corner(a_length, 0.0f),
+					corner(a_length, a_thick), corner(from, a_thick) };
+				ImDrawList_AddConvexPolyFilled(a_draw, dead, 4, PackColour(a_colour, a_alpha * 0.10f));
+				ImDrawList_AddConvexPolyFilled(a_draw, dead, 4, PackColour(0x000000, a_alpha * 0.30f));
+
+				if (a_vital == 0) {
+					// Frost over lost health: pale crystalline hatching over the
+					// dim red channel, breathing very slowly.
+					const float pulse = 0.22f + 0.06f * std::sin(a_now * 0.9f);
+					const float gap = std::max(a_thick * 1.1f, 3.0f);
+					for (float d = from + gap * 0.5f; d < a_length; d += gap) {
+						ImDrawList_AddLine(a_draw, corner(d, 0.0f),
+							corner(std::min(d + a_thick * 0.8f, a_length), a_thick),
+							PackColour(0xD8ECFF, a_alpha * pulse), std::max(1.0f, a_thick * 0.18f));
+					}
+				} else if (a_vital > 0) {
+					// Smoke over lost magicka and stamina: soft wisps in the bar's
+					// own colour drifting through the dead span.
+					const float lost = a_length - from;
+					const float width = lost * 0.22f;
+					if (lost > 2.0f && width > 0.5f) {
+						for (int k = 0; k < 3; ++k) {
+							const float speed = 4.0f + 2.6f * static_cast<float>(k);
+							const float at = from + std::fmod(
+								a_now * speed + static_cast<float>(k) * lost * 0.37f,
+								std::max(lost - width, 0.001f));
+							const float breathe =
+								0.10f + 0.05f * std::sin(a_now * 1.7f + static_cast<float>(k) * 2.1f);
+							const ImVec2 wisp[4]{ corner(at, 0.0f), corner(at + width, 0.0f),
+								corner(at + width, a_thick), corner(at, a_thick) };
+							ImDrawList_AddConvexPolyFilled(a_draw, wisp, 4,
+								PackColour(a_colour, a_alpha * breathe));
+						}
+					}
+				}
+			}
 
 			if (filled > 0.0f) {
 				const ImVec2 fill[4]{ corner(0.0f, 0.0f), corner(filled, 0.0f),
@@ -398,12 +446,13 @@ namespace SS
 		_washDies = 0.0f;
 	}
 
-	void Labels::SetSelfHud(const float (&a_vitals)[3], float a_changedAt)
+	void Labels::SetSelfHud(const float (&a_vitals)[3], const float (&a_caps)[3], float a_changedAt)
 	{
 		std::scoped_lock guard{ _lock };
-		_selfHud[0] = a_vitals[0];
-		_selfHud[1] = a_vitals[1];
-		_selfHud[2] = a_vitals[2];
+		for (int i = 0; i < 3; ++i) {
+			_selfHud[i] = a_vitals[i];
+			_selfHudCap[i] = a_caps[i];
+		}
 		_selfHudAt = a_changedAt;
 	}
 
@@ -483,6 +532,8 @@ namespace SS
 			                    : settings->selfHudY + step * static_cast<float>(r);
 
 			DrawVitalBar(draw, ImVec2{ x, y }, length, thick, shear, false, _selfHud[i],
+				settings->barsLostMax ? _selfHudCap[i] : 1.0f,
+				settings->barsLostFx ? i : -1, a_now,
 				colours[i], settings->selfBarFrameColour, alpha,
 				static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
 		}
@@ -734,7 +785,7 @@ namespace SS
 	}
 
 	void Labels::MoveTo(const std::vector<RE::NiPoint3>& a_anchors, const std::vector<bool>& a_speaking,
-		const std::vector<std::array<float, 4>>& a_vitals)
+		const std::vector<std::array<float, 7>>& a_vitals)
 	{
 		std::scoped_lock guard{ _lock };
 
@@ -751,6 +802,9 @@ namespace SS
 				_entries[i].vitals[1] = a_vitals[i][1];
 				_entries[i].vitals[2] = a_vitals[i][2];
 				_entries[i].vitalsAt = a_vitals[i][3];
+				_entries[i].vitalsCap[0] = a_vitals[i][4];
+				_entries[i].vitalsCap[1] = a_vitals[i][5];
+				_entries[i].vitalsCap[2] = a_vitals[i][6];
 			}
 		}
 	}
@@ -1241,7 +1295,14 @@ namespace SS
 						break;
 					}
 
+					// The user's nudge comes last, on top of whatever side the
+					// place rule chose, scaled like everything else on the tag.
+					origin.x += settings->selfBarOffsetX * entry.scale;
+					origin.y += settings->selfBarOffsetY * entry.scale;
+
 					DrawVitalBar(draw, origin, length, thick, shear, upright, entry.vitals[i],
+						settings->barsLostMax ? entry.vitalsCap[i] : 1.0f,
+						settings->barsLostFx ? i : -1, now,
 						colours[i], settings->selfBarFrameColour, alpha,
 						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
 				}

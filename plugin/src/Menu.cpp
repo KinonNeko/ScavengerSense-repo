@@ -1085,6 +1085,19 @@ namespace SS::Menu
 			Help("A soft halo under the filled part.");
 
 			igSpacing();
+			igCheckbox(T("Show what a survival mod has taken"), &a_settings.barsLostMax);
+			Help(
+				"When fatigue or cold pulls your maximum down, the bar keeps its\n"
+				"full length and the missing span becomes a dead zone - instead of\n"
+				"the bar quietly rescaling and pretending nothing happened.");
+			if (a_settings.barsLostMax) {
+				igCheckbox(T("Frost and smoke over the lost span"), &a_settings.barsLostFx);
+				Help(
+					"Frost creeps over lost health; lost magicka and stamina smoulder\n"
+					"in their own colour. Off draws the dead zone plain.");
+			}
+
+			igSpacing();
 			igSliderFloat(T("Stays up for"), &a_settings.selfHudLinger, 0.5f, 15.0f, "%.1f s", 0);
 			igSliderFloat(T("Fading over"), &a_settings.selfHudFade, 0.0f, 5.0f, "%.1f s", 0);
 			Help(
@@ -1129,6 +1142,15 @@ namespace SS::Menu
 				Help(
 					"Left and right stand the bars upright beside you and fill them from\n"
 					"the bottom. Above and below lay them flat.");
+
+				if (igTreeNode_Str(T("Fine placement"))) {
+					igSliderFloat(T("Nudge across"), &a_settings.selfBarOffsetX, -300.0f, 300.0f, "%.0f px", 0);
+					igSliderFloat(T("Nudge down"), &a_settings.selfBarOffsetY, -300.0f, 300.0f, "%.0f px", 0);
+					Help(
+						"Moves the whole bar stack from wherever \"Where\" put it.\n"
+						"Applies to the bars over other people as well.");
+					igTreePop();
+				}
 			}
 
 			igSpacing();

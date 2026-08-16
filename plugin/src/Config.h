@@ -356,6 +356,10 @@ namespace SS
 		float         selfBarShear{ 0.9f };
 		// Notches cut across the bar. 0 draws it smooth.
 		std::int32_t  selfBarSegments{ 10 };
+		// Fine placement of the over-head bar stack, added after the place rule
+		// has chosen a side. Pixels at the tag's scale.
+		float         selfBarOffsetX{ 0.0f };
+		float         selfBarOffsetY{ 0.0f };
 		// Each row set back a little from the one before, so the stack reads as
 		// lying on a surface angled away rather than painted flat on the screen.
 		float         selfBarPerspective{ 0.10f };
@@ -389,6 +393,13 @@ namespace SS
 		// drawn a weapon - do not count.
 		bool     vitalsActorsHostileOnly{ false };
 		ShowWhen vitalsActorsWhen{ ShowWhen::kNotFull };
+		// Draw the ceiling a survival mod has taken away. The bar keeps its full
+		// length; the span above the reduced maximum becomes a dead zone instead
+		// of quietly rescaling the bar and pretending nothing happened.
+		bool     barsLostMax{ true };
+		// Frost over lost health, smoke over lost magicka and stamina. Off draws
+		// the dead zone plain.
+		bool     barsLostFx{ true };
 
 		// [Labels] continued - behaviour that needs the main thread every frame
 		bool labelsFollow{ true };

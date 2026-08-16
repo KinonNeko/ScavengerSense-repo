@@ -172,10 +172,15 @@ namespace SS
 			std::uint32_t colour{ 0 };
 		};
 
-		// Health, magicka and stamina as fractions of their maximum. Permanent
-		// plus the temporary modifier is the ceiling as the game itself reckons
-		// it, so a fortify effect widens the bar instead of overflowing it.
-		void ReadVitals(RE::Actor* a_actor, float (&a_out)[3])
+		// Health, magicka and stamina as fractions of their maximum, plus how
+		// much of that maximum is actually available right now.
+		//
+		// The scale of the bar is the PEAK: the permanent value, widened by a
+		// fortify effect when one is up. A survival mod's fatigue lands as a
+		// negative temporary modifier, and that shrinks the available ceiling
+		// (a_cap) without shrinking the bar - so the span the mod has taken
+		// shows as a dead zone instead of the bar quietly rescaling.
+		void ReadVitals(RE::Actor* a_actor, float (&a_out)[3], float (&a_cap)[3])
 		{
 			auto* values = a_actor ? a_actor->AsActorValueOwner() : nullptr;
 			if (!values) {
@@ -185,10 +190,13 @@ namespace SS
 				RE::ActorValue::kMagicka, RE::ActorValue::kStamina };
 			for (int i = 0; i < 3; ++i) {
 				const float now = values->GetActorValue(kWanted[i]);
-				const float top = values->GetPermanentActorValue(kWanted[i]) +
-								  a_actor->GetActorValueModifier(
-									  RE::ACTOR_VALUE_MODIFIER::kTemporary, kWanted[i]);
-				a_out[i] = top > 0.0f ? std::clamp(now / top, 0.0f, 1.0f) : -1.0f;
+				const float temp = a_actor->GetActorValueModifier(
+					RE::ACTOR_VALUE_MODIFIER::kTemporary, kWanted[i]);
+				const float permanent = values->GetPermanentActorValue(kWanted[i]);
+				const float peak = permanent + std::max(temp, 0.0f);
+				const float ceiling = permanent + temp;
+				a_out[i] = peak > 0.0f ? std::clamp(now / peak, 0.0f, 1.0f) : -1.0f;
+				a_cap[i] = peak > 0.0f ? std::clamp(ceiling / peak, 0.0f, 1.0f) : 1.0f;
 			}
 		}
 
@@ -856,7 +864,7 @@ namespace SS
 				// polled per frame - a sweep is three seconds and this is a
 				// glance, not a combat readout.
 				if (settings->selfBars) {
-					ReadVitals(player, _labelBuffer.back().vitals);
+					ReadVitals(player, _labelBuffer.back().vitals, _labelBuffer.back().vitalsCap);
 					_labelBuffer.back().vitalsSelf = true;
 				}
 
@@ -929,7 +937,8 @@ namespace SS
 		}
 
 		float now[3]{ -1.0f, -1.0f, -1.0f };
-		ReadVitals(player, now);
+		float caps[3]{ 1.0f, 1.0f, 1.0f };
+		ReadVitals(player, now, caps);
 
 		// A hair of slack, so floating point noise in regeneration does not
 		// count as a change and hold the readout up forever.
@@ -946,7 +955,7 @@ namespace SS
 			_selfChangedAt = SS::RealNow();
 		}
 
-		Labels::GetSingleton()->SetSelfHud(now, _selfChangedAt);
+		Labels::GetSingleton()->SetSelfHud(now, caps, _selfChangedAt);
 	}
 
 	void Sense::Tick()
@@ -999,7 +1008,7 @@ namespace SS
 					// Leave it where it was rather than dropping it mid-fade.
 					_anchorBuffer.push_back(entry.world);
 					_speakingBuffer.push_back(false);
-					_vitalsBuffer.push_back({ entry.vitals[0], entry.vitals[1], entry.vitals[2], entry.vitalsAt });
+					_vitalsBuffer.push_back({ entry.vitals[0], entry.vitals[1], entry.vitals[2], entry.vitalsAt, entry.vitalsCap[0], entry.vitalsCap[1], entry.vitalsCap[2] });
 					continue;
 				}
 
@@ -1029,7 +1038,7 @@ namespace SS
 					const bool  wanted = entry.vitalsSelf ? live->selfBars : live->vitalsActors;
 					if (wanted) {
 						float before[3]{ entry.vitals[0], entry.vitals[1], entry.vitals[2] };
-						ReadVitals(actor, entry.vitals);
+						ReadVitals(actor, entry.vitals, entry.vitalsCap);
 						if (!entry.vitalsSelf && !live->vitalsActorsAll) {
 							entry.vitals[1] = -1.0f;
 							entry.vitals[2] = -1.0f;
@@ -1046,7 +1055,7 @@ namespace SS
 
 				_anchorBuffer.push_back(entry.world);
 				_speakingBuffer.push_back(speaking);
-				_vitalsBuffer.push_back({ entry.vitals[0], entry.vitals[1], entry.vitals[2], entry.vitalsAt });
+				_vitalsBuffer.push_back({ entry.vitals[0], entry.vitals[1], entry.vitals[2], entry.vitalsAt, entry.vitalsCap[0], entry.vitalsCap[1], entry.vitalsCap[2] });
 			}
 
 			Labels::GetSingleton()->MoveTo(_anchorBuffer, _speakingBuffer, _vitalsBuffer);
@@ -1314,7 +1323,7 @@ namespace SS
 							(!settings->vitalsActorsHostileOnly ||
 								disposition == Disposition::kHostile)) {
 							auto& fresh = _labelBuffer.back();
-							ReadVitals(a_ref->As<RE::Actor>(), fresh.vitals);
+							ReadVitals(a_ref->As<RE::Actor>(), fresh.vitals, fresh.vitalsCap);
 							if (!settings->vitalsActorsAll) {
 								fresh.vitals[1] = -1.0f;
 								fresh.vitals[2] = -1.0f;

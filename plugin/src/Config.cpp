@@ -601,6 +601,8 @@ namespace SS
 		Get(table, "self", "barPlace", selfBarPlace);
 		Get(table, "self", "barShear", selfBarShear);
 		Get(table, "self", "barSegments", selfBarSegments);
+		Get(table, "self", "barOffsetX", selfBarOffsetX);
+		Get(table, "self", "barOffsetY", selfBarOffsetY);
 		Get(table, "self", "barPerspective", selfBarPerspective);
 		Get(table, "self", "barGlow", selfBarGlow);
 		Get(table, "self", "frameColor", selfBarFrameColour);
@@ -616,6 +618,8 @@ namespace SS
 		Get(table, "vitals", "actorsAll", vitalsActorsAll);
 		Get(table, "vitals", "hostileOnly", vitalsActorsHostileOnly);
 		Get(table, "vitals", "actorsWhen", vitalsActorsWhen);
+		Get(table, "vitals", "lostMax", barsLostMax);
+		Get(table, "vitals", "lostFx", barsLostFx);
 
 		Get(table, "labels", "follow", labelsFollow);
 		Get(table, "labels", "speakerMode", labelSpeakerMode);
@@ -731,6 +735,8 @@ namespace SS
 		selfBarWidth = std::clamp(selfBarWidth, 20.0f, 600.0f);
 		selfBarHeight = std::clamp(selfBarHeight, 1.0f, 24.0f);
 		selfBarShear = std::clamp(selfBarShear, -3.0f, 3.0f);
+		selfBarOffsetX = std::clamp(selfBarOffsetX, -600.0f, 600.0f);
+		selfBarOffsetY = std::clamp(selfBarOffsetY, -600.0f, 600.0f);
 		selfBarSegments = std::clamp(selfBarSegments, 0, 40);
 		selfBarPerspective = std::clamp(selfBarPerspective, 0.0f, 0.6f);
 		selfHudLinger = std::clamp(selfHudLinger, 0.3f, 30.0f);
@@ -1082,6 +1088,10 @@ namespace SS
 		file << "barShear = " << selfBarShear << "\n";
 		file << "; Notches cut across the bar. 0 draws it smooth.\n";
 		file << "barSegments = " << selfBarSegments << "\n";
+		file << "; Nudge the over-head bar stack, in pixels, after barPlace has\n";
+		file << "; chosen a side. Positive X right, positive Y down.\n";
+		file << "barOffsetX = " << selfBarOffsetX << "\n";
+		file << "barOffsetY = " << selfBarOffsetY << "\n";
 		file << "; How far each row is set back from the one before, so the stack\n";
 		file << "; reads as angled away rather than painted flat. 0 stacks them square.\n";
 		file << "barPerspective = " << selfBarPerspective << "\n";
@@ -1115,6 +1125,11 @@ namespace SS
 		file << "hostileOnly = " << boolean(vitalsActorsHostileOnly) << "\n";
 		file << "; always, change (only someone just hurt) or notfull.\n";
 		file << "actorsWhen = " << kShowWhenNames[static_cast<std::size_t>(vitalsActorsWhen)] << "\n";
+		file << "; Draw the ceiling a survival mod has taken away as a dead zone at\n";
+		file << "; the end of the bar, instead of rescaling and pretending otherwise.\n";
+		file << "lostMax = " << boolean(barsLostMax) << "\n";
+		file << "; Frost over lost health, smoke over lost magicka and stamina.\n";
+		file << "lostFx = " << boolean(barsLostFx) << "\n";
 		file << "healthColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
 			 << (selfHealthColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
 		file << "magickaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)

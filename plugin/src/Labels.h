@@ -72,6 +72,11 @@ namespace SS
 			bool          vitalsSelf{ false };
 			// When any of them last moved, for "only someone just hurt".
 			float         vitalsAt{ -1000.0f };
+			// How much of each bar's scale is actually available: 1.0 normally,
+			// less when a survival mod has pulled the ceiling down. The span
+			// above it is drawn as a dead zone. (Positional initialisation:
+			// fields go at the END.)
+			float         vitalsCap[3]{ 1.0f, 1.0f, 1.0f };
 		};
 
 		// The sonar ring, sampled as a height field so the render thread never
@@ -110,14 +115,15 @@ namespace SS
 		// Move tags that are already on screen, without rebuilding them. Called
 		// every frame from the main thread while a wave is in flight; the vector
 		// is positional, matching the order Replace was last given.
+		// Vitals travel as {h, m, s, changedAt, capH, capM, capS} per entry.
 		void MoveTo(const std::vector<RE::NiPoint3>& a_anchors, const std::vector<bool>& a_speaking,
-			const std::vector<std::array<float, 4>>& a_vitals);
+			const std::vector<std::array<float, 7>>& a_vitals);
 		void Replace(std::vector<Entry> a_entries);
 
 		// The corner readout. Pushed from the main thread every frame while it
 		// is switched on; a_changedAt is when any of the three last moved, which
 		// is what the "only when it changes" rule is judged against.
-		void SetSelfHud(const float (&a_vitals)[3], float a_changedAt);
+		void SetSelfHud(const float (&a_vitals)[3], const float (&a_caps)[3], float a_changedAt);
 
 		void SetRing(Ring a_ring);
 		void StopRing();
@@ -144,6 +150,7 @@ namespace SS
 		std::vector<Entry> _entries;
 		Ring               _ring;
 		float              _selfHud[3]{ -1.0f, -1.0f, -1.0f };
+		float              _selfHudCap[3]{ 1.0f, 1.0f, 1.0f };
 		float              _selfHudAt{ -1000.0f };
 		float              _washBorn{ 0.0f };
 		float              _washDies{ 0.0f };
