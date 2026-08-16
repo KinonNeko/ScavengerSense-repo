@@ -53,6 +53,14 @@ namespace SS
 			bool forOthers{ true };
 
 			bool enabled{ true };
+
+			// Made in the menu rather than in the hand-written file. These live
+			// in ScavengerSense_titles_user.ini, written whole by SaveUserTitles.
+			bool userMade{ false };
+			// What the hand-written file said, so a save only records real
+			// differences - a menu tweak, not a copy of the whole table.
+			bool          fileEnabled{ true };
+			std::uint32_t fileColour{ 0xC9C9C9 };
 		};
 
 		[[nodiscard]] static Titles* GetSingleton();
@@ -71,6 +79,14 @@ namespace SS
 		void Unassign(RE::FormID a_form);
 		bool SaveAssignments() const;
 
+		// A title made in the menu: matches anybody whose name contains one of
+		// the comma-separated pieces. Persisted immediately.
+		bool AddUserRule(std::string a_text, std::uint32_t a_colour, const std::string& a_nameContains);
+		// Writes ScavengerSense_titles_user.ini: every menu-made title in
+		// full, plus enabled/colour for built-in rules where the menu
+		// disagrees with the hand-written file.
+		bool SaveUserTitles() const;
+
 		struct Assignment
 		{
 			RE::FormID  form{ 0 };
@@ -84,6 +100,8 @@ namespace SS
 
 	private:
 		Titles() = default;
+
+		void LoadUserTitles();
 
 		[[nodiscard]] int Match(RE::Actor* a_actor) const;
 

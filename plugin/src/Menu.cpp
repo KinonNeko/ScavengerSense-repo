@@ -1396,7 +1396,9 @@ namespace SS::Menu
 				igTextDisabled("%s", T("no titles loaded"));
 			}
 
-			if (igBeginTable("titles", 2, ImGuiTableFlags_SizingFixedFit, ImVec2{ 0.0f, 0.0f }, 0.0f)) {
+			static char typed[64]{};
+
+			if (igBeginTable("titles", 3, ImGuiTableFlags_SizingFixedFit, ImVec2{ 0.0f, 0.0f }, 0.0f)) {
 				for (std::size_t i = 0; i < titles->Rules().size(); ++i) {
 					auto& rule = titles->Rules()[i];
 					igPushID_Int(static_cast<int>(i));
@@ -1408,17 +1410,30 @@ namespace SS::Menu
 					igTableSetColumnIndex(1);
 					ColourPicker("##colour", rule.colour);
 
+					igTableSetColumnIndex(2);
+					if (igSmallButton(T("copy"))) {
+						std::snprintf(typed, sizeof(typed), "%s", rule.text.c_str());
+					}
+
 					igPopID();
 				}
 				igEndTable();
 			}
 			Help(
-				"Untick one and the next matching title takes over.");
+				"Untick one and the next matching title takes over. \"copy\" puts the\n"
+				"title's text in the box below, ready to give to somebody.");
+
+			igSpacing();
+			if (igButton(T("Save switches and colours"), ImVec2{ 220.0f, 0.0f })) {
+				titles->SaveUserTitles();
+			}
+			Help(
+				"Keeps what you just ticked or recoloured across restarts. Written to\n"
+				"its own file, so the hand-written title file is never touched.");
 
 			igSpacing();
 			igSeparatorText(T("Titles you give out yourself"));
 
-			static char        typed[64]{};
 			static std::string message;
 
 			igInputText(T("Title"), typed, sizeof(typed), 0, nullptr, nullptr);
@@ -1472,6 +1487,10 @@ namespace SS::Menu
 						remove = entry.form;
 					}
 					igSameLine(0.0f, -1.0f);
+					if (igSmallButton(T("copy"))) {
+						std::snprintf(typed, sizeof(typed), "%s", entry.title.c_str());
+					}
+					igSameLine(0.0f, -1.0f);
 					igText("%s%s%s", entry.title.c_str(),
 						entry.who.empty() ? "" : "  -  ", entry.who.c_str());
 					igPopID();
@@ -1480,6 +1499,38 @@ namespace SS::Menu
 					titles->Unassign(remove);
 					titles->SaveAssignments();
 				}
+			}
+
+			igSpacing();
+			if (igTreeNode_Str(T("Make a new title"))) {
+				static char        newTitle[64]{};
+				static char        newMatch[128]{};
+				static std::uint32_t newColour{ 0xC9C9C9 };
+				static std::string newMessage;
+
+				igInputText(T("New title"), newTitle, sizeof(newTitle), 0, nullptr, nullptr);
+				igInputText(T("For names containing"), newMatch, sizeof(newMatch), 0, nullptr, nullptr);
+				Help(
+					"Who gets it: anybody whose name contains one of these pieces,\n"
+					"comma separated - \"Guard, Watch\" catches both. Your own titles\n"
+					"outrank the built-in ones.");
+				ColourPicker(T("New title colour"), newColour);
+
+				if (igButton(T("Add it"), ImVec2{ 120.0f, 0.0f })) {
+					if (newTitle[0] == '\0' || newMatch[0] == '\0') {
+						newMessage = T("It needs both a title and who it is for.");
+					} else if (Titles::GetSingleton()->AddUserRule(newTitle, newColour, newMatch)) {
+						newMessage = T("saved");
+						newTitle[0] = '\0';
+						newMatch[0] = '\0';
+					} else {
+						newMessage = T("could not write the title file");
+					}
+				}
+				if (!newMessage.empty()) {
+					igTextDisabled("%s", newMessage.c_str());
+				}
+				igTreePop();
 			}
 
 			igSpacing();

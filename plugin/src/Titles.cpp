@@ -1,12 +1,17 @@
 #include "Titles.h"
 
 #include <fstream>
+#include <iomanip>
 
 namespace SS
 {
 	namespace
 	{
 		constexpr auto kPath = "Data/SKSE/Plugins/ScavengerSense_titles.ini";
+		// Menu-made titles and menu tweaks to the hand-written ones. A separate
+		// file so neither SaveAssignments nor deploy.ps1 ever fights over it:
+		// this one belongs to the game, like ScavengerSense.ini.
+		constexpr auto kUserPath = "Data/SKSE/Plugins/ScavengerSense_titles_user.ini";
 
 		std::string Trim(std::string_view a_in)
 		{
@@ -269,6 +274,15 @@ namespace SS
 		}
 		flush();
 
+		// What the hand-written file said, before the user file has its say -
+		// a save then only records real differences.
+		for (auto& rule : _rules) {
+			rule.fileEnabled = rule.enabled;
+			rule.fileColour = rule.colour;
+		}
+
+		LoadUserTitles();
+
 		std::stable_sort(_rules.begin(), _rules.end(), [](const Rule& a_lhs, const Rule& a_rhs) {
 			return a_lhs.priority > a_rhs.priority;
 		});
@@ -276,6 +290,181 @@ namespace SS
 		_status = std::format("{} titles, {} assigned by hand, {} references did not resolve",
 			_rules.size(), _assigned.size(), unresolved);
 		logger::info("titles: {}", _status);
+	}
+
+	// The user file knows two kinds of section: a menu-made title (text +
+	// nameContains, drawn in full), and a tweak to a hand-written rule (the
+	// section name matches one, and only enabled/colour/text are applied).
+	// Deliberately a small parser: the menu can only write these keys.
+	void Titles::LoadUserTitles()
+	{
+		std::ifstream file{ kUserPath };
+		if (!file) {
+			return;
+		}
+
+		Rule        current;
+		bool        open = false;
+		bool        sawColour = false;
+		std::size_t made = 0;
+		std::size_t tweaked = 0;
+
+		const auto flush = [&] {
+			if (!open) {
+				return;
+			}
+			if (auto existing = std::find_if(_rules.begin(), _rules.end(),
+					[&](const Rule& a_rule) { return a_rule.name == current.name; });
+				existing != _rules.end()) {
+				existing->enabled = current.enabled;
+				if (sawColour) {
+					existing->colour = current.colour;
+				}
+				if (!current.text.empty() && !existing->userMade) {
+					existing->text = current.text;
+				}
+				++tweaked;
+			} else if (!current.nameContains.empty()) {
+				if (current.text.empty()) {
+					current.text = current.name;
+				}
+				current.userMade = true;
+				_rules.push_back(current);
+				++made;
+			} else {
+				logger::warn("titles: user title [{}] matches nothing, skipped", current.name);
+			}
+			current = Rule{};
+			sawColour = false;
+		};
+
+		std::string line;
+		while (std::getline(file, line)) {
+			if (const auto cut = line.find_first_of(";#"); cut != std::string::npos) {
+				line.erase(cut);
+			}
+			auto trimmed = Trim(line);
+			if (trimmed.empty()) {
+				continue;
+			}
+
+			if (trimmed.front() == '[') {
+				flush();
+				const auto close = trimmed.find(']');
+				current.name = close == std::string::npos ? trimmed.substr(1)
+														  : trimmed.substr(1, close - 1);
+				current.priority = 90;  // a title you made yourself should win
+				open = true;
+				continue;
+			}
+
+			const auto eq = trimmed.find('=');
+			if (!open || eq == std::string::npos) {
+				continue;
+			}
+
+			auto key = Trim(trimmed.substr(0, eq));
+			auto value = Trim(trimmed.substr(eq + 1));
+			for (auto& c : key) {
+				c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+			}
+
+			if (key == "text") {
+				current.text = value;
+			} else if (key == "color" || key == "colour") {
+				current.colour = static_cast<std::uint32_t>(std::strtoul(value.c_str(), nullptr, 0));
+				sawColour = true;
+			} else if (key == "priority") {
+				current.priority = static_cast<int>(std::strtol(value.c_str(), nullptr, 0));
+			} else if (key == "enabled") {
+				current.enabled = Truthy(value);
+			} else if (key == "namecontains") {
+				for (auto& piece : Split(value)) {
+					current.nameContains.push_back(std::move(piece));
+				}
+			}
+		}
+		flush();
+
+		if (made || tweaked) {
+			logger::info("titles: user file adds {} and tweaks {}", made, tweaked);
+		}
+	}
+
+	bool Titles::AddUserRule(std::string a_text, std::uint32_t a_colour, const std::string& a_nameContains)
+	{
+		Rule rule;
+		rule.name = std::move(a_text);
+		rule.text = rule.name;
+		rule.colour = a_colour;
+		rule.fileColour = a_colour;
+		rule.priority = 90;
+		rule.userMade = true;
+		for (auto& piece : Split(a_nameContains)) {
+			rule.nameContains.push_back(std::move(piece));
+		}
+		if (rule.name.empty() || rule.nameContains.empty()) {
+			return false;
+		}
+
+		// Replace rather than duplicate if the menu makes the same title twice.
+		std::erase_if(_rules, [&](const Rule& a_rule) {
+			return a_rule.userMade && a_rule.name == rule.name;
+		});
+		_rules.push_back(std::move(rule));
+		std::stable_sort(_rules.begin(), _rules.end(), [](const Rule& a_lhs, const Rule& a_rhs) {
+			return a_lhs.priority > a_rhs.priority;
+		});
+		return SaveUserTitles();
+	}
+
+	bool Titles::SaveUserTitles() const
+	{
+		std::ofstream out{ kUserPath, std::ios::trunc };
+		if (!out) {
+			logger::warn("titles: cannot write {}", kUserPath);
+			return false;
+		}
+
+		out << "; Written by the in-game menu - edit ScavengerSense_titles.ini for\n";
+		out << "; the hand-written rules. Titles made in the menu live here in\n";
+		out << "; full; a section matching a hand-written rule's name only carries\n";
+		out << "; what the menu changed about it.\n\n";
+
+		for (const auto& rule : _rules) {
+			if (rule.userMade) {
+				out << "[" << rule.name << "]\n";
+				if (rule.text != rule.name) {
+					out << "text = " << rule.text << "\n";
+				}
+				out << "color = 0x" << std::hex << std::uppercase << std::setfill('0')
+					<< std::setw(6) << (rule.colour & 0xFFFFFF) << std::dec
+					<< std::nouppercase << std::setfill(' ') << "\n";
+				out << "priority = " << rule.priority << "\n";
+				out << "nameContains = ";
+				for (std::size_t i = 0; i < rule.nameContains.size(); ++i) {
+					out << (i ? ", " : "") << rule.nameContains[i];
+				}
+				out << "\n";
+				if (!rule.enabled) {
+					out << "enabled = false\n";
+				}
+				out << "\n";
+			} else if (rule.enabled != rule.fileEnabled || rule.colour != rule.fileColour) {
+				out << "[" << rule.name << "]\n";
+				if (rule.enabled != rule.fileEnabled) {
+					out << "enabled = " << (rule.enabled ? "true" : "false") << "\n";
+				}
+				if (rule.colour != rule.fileColour) {
+					out << "color = 0x" << std::hex << std::uppercase << std::setfill('0')
+						<< std::setw(6) << (rule.colour & 0xFFFFFF) << std::dec
+						<< std::nouppercase << std::setfill(' ') << "\n";
+				}
+				out << "\n";
+			}
+		}
+
+		return out.good();
 	}
 
 	int Titles::Match(RE::Actor* a_actor) const
