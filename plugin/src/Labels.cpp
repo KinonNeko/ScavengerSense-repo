@@ -932,6 +932,18 @@ namespace SS
 					continue;
 				}
 
+				// The last stretch of the linger fades on the shared Fading
+				// over time, mirroring the corner readout, so the stack leaves
+				// the way it arrived instead of popping off the screen.
+				float       alpha = 1.0f;
+				const float lifeLeft = c.diesAt - now;
+				if (lifeLeft <= 0.0f) {
+					continue;
+				}
+				if (settings->selfHudFade > 0.0f && lifeLeft < settings->selfHudFade) {
+					alpha = std::clamp(lifeLeft / settings->selfHudFade, 0.0f, 1.0f);
+				}
+
 				const float thick = std::max(1.0f, settings->selfBarHeight * c.scale);
 				const float span = settings->selfBarWidth * c.scale;
 				const float shear = settings->selfBarShear * thick;
@@ -959,7 +971,7 @@ namespace SS
 					DrawVitalBar(draw, origin, length, thick, shear, false, c.vitals[i],
 						settings->barsLostMax ? c.vitalsCap[i] : 1.0f,
 						settings->barsLostFx ? i : -1, now,
-						colours[i], settings->selfBarFrameColour, 1.0f,
+						colours[i], settings->selfBarFrameColour, alpha,
 						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
 				}
 			}

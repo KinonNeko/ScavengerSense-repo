@@ -1093,17 +1093,23 @@ namespace SS
 
 				// The rules are applied here, per bar, so the render side stays
 				// a dumb draw loop. Change tracking is PollSelf's, which runs
-				// just before this whenever the overhead stack is on.
-				const bool fresh = real - _selfChangedAt <= settings->selfHudLinger;
-				bool       any = false;
+				// just before this whenever the overhead stack is on. On-change
+				// bars get a real deadline so they fade out instead of popping.
+				const float selfLeft =
+					std::max(0.0f, _selfChangedAt + settings->selfHudLinger - real);
+				bool any = false;
 				for (int i = 0; i < 3; ++i) {
 					if (settings->selfBarsOverheadWhen == ShowWhen::kNotFull &&
 						entry.vitals[i] >= 0.999f) {
 						entry.vitals[i] = -1.0f;
-					} else if (settings->selfBarsOverheadWhen == ShowWhen::kOnChange && !fresh) {
+					} else if (settings->selfBarsOverheadWhen == ShowWhen::kOnChange &&
+							   selfLeft <= 0.0f) {
 						entry.vitals[i] = -1.0f;
 					}
 					any = any || entry.vitals[i] >= 0.0f;
+				}
+				if (settings->selfBarsOverheadWhen == ShowWhen::kOnChange) {
+					entry.diesAt = now + selfLeft;
 				}
 				if (any) {
 					_combatBuffer.push_back(std::move(entry));
@@ -1145,10 +1151,16 @@ namespace SS
 				continue;
 			}
 
+			// A real deadline rather than "far future": the render side fades
+			// the last stretch of the linger (the shared Fading over time), so
+			// the bar leaves the way it arrived instead of popping off.
+			const float left =
+				std::max(0.0f, it->second.lastEngagedAt + settings->combatLinger - real);
+
 			Labels::Entry entry{};
 			entry.world = TagAnchor(actor, true);
 			entry.bornAt = now - 1.0f;
-			entry.diesAt = now + 3600.0f;
+			entry.diesAt = engaged ? now + 3600.0f : now + left;
 			entry.scale = settings->labelActorScale;
 			entry.owner = actor->CreateRefHandle();
 			ReadVitals(actor, entry.vitals, entry.vitalsCap);
