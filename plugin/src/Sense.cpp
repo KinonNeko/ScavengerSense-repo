@@ -910,20 +910,38 @@ namespace SS
 		Labels::GetSingleton()->SetWash(_waveStart, _waveEnd);
 
 		if (settings->soundEnabled) {
-			if (auto* audio = RE::BSAudioManager::GetSingleton()) {
-				if (settings->soundFormID != 0) {
-					// A user override is somebody else's descriptor: it brings
-					// its own volume, we just fire it.
-					audio->Play(settings->soundFormID);
-				} else if (_sweepSound) {
-					// Our own chime goes through a handle so the volume slider
-					// works; the descriptor already routes it through the UI
-					// audio category, so the game's sliders stack on top.
-					RE::BSSoundHandle handle;
-					if (audio->GetSoundHandle(handle, _sweepSound) && handle.IsValid()) {
-						handle.SetVolume(std::clamp(settings->soundVolume, 0.0f, 1.0f));
-						handle.Play();
-					}
+			auto* audio = RE::BSAudioManager::GetSingleton();
+			if (!audio) {
+				logger::warn("chime: no audio manager");
+			} else if (settings->soundFormID != 0) {
+				// A user override is somebody else's descriptor: it brings
+				// its own volume, we just fire it.
+				const bool played = audio->Play(settings->soundFormID);
+				if (!played || settings->debug) {
+					logger::info("chime: override {:08X} -> {}", settings->soundFormID,
+						played ? "played" : "DID NOT PLAY");
+				}
+			} else if (!_sweepSound) {
+				logger::warn("chime: no descriptor - the esp in the load order predates it");
+			} else {
+				// Our own chime goes through a handle so the volume slider
+				// works; the descriptor already routes it through the UI
+				// audio category, so the game's sliders stack on top.
+				RE::BSSoundHandle handle;
+				bool              played = false;
+				if (audio->GetSoundHandle(handle, _sweepSound) && handle.IsValid()) {
+					handle.SetVolume(std::clamp(settings->soundVolume, 0.0f, 1.0f));
+					played = handle.Play();
+				}
+				if (!played) {
+					// The handle route can be starved by audio overhauls; the
+					// manager's own play path is the second try, at the cost of
+					// the volume slider.
+					played = audio->Play(static_cast<RE::BSISoundDescriptor*>(_sweepSound));
+					logger::info("chime: handle route failed, direct play -> {}",
+						played ? "ok" : "ALSO FAILED");
+				} else if (settings->debug) {
+					logger::info("chime: played at volume {:.2f}", settings->soundVolume);
 				}
 			}
 		}
@@ -1017,7 +1035,8 @@ namespace SS
 		// player: the player has no combat controller of their own, and their
 		// in-combat flag has proven unreliable exactly when it matters. The
 		// bandit swinging at you certainly knows the fight is on.
-		bool fighting = settings->combatBars && player && !_combatHits.empty();
+		const float real = SS::RealNow();
+		bool        fighting = settings->combatBars && player && !_combatHits.empty();
 		if (fighting && !player->IsInCombat()) {
 			fighting = false;
 			for (const auto& [id, track] : _combatHits) {
@@ -1027,16 +1046,17 @@ namespace SS
 					fighting = true;
 					break;
 				}
-				// A one-shot kill never reports combat from either side; give
-				// the corpse its linger anyway.
-				if (actor && actor->IsDead() &&
-					SS::RealNow() - track.lastHitAt < 4.0f) {
-					fighting = true;
-					break;
-				}
 			}
 		}
-		if (!fighting) {
+		if (fighting) {
+			_combatLastActive = real;
+		}
+
+		// The bars outlive the fight by the configured linger, still following
+		// their people, then everything clears in one go.
+		const bool grace = !fighting && !_combatHits.empty() &&
+		                   real - _combatLastActive <= settings->combatLinger;
+		if (!fighting && !grace) {
 			// The fight is over (or the feature just went off): the tracked set
 			// goes too, so the next fight starts clean.
 			if (_combatShown || !_combatHits.empty()) {
@@ -1074,8 +1094,8 @@ namespace SS
 			if (!drop) {
 				const auto life = actor->AsActorState()->GetLifeState();
 				if (life == RE::ACTOR_LIFE_STATE::kDying || life == RE::ACTOR_LIFE_STATE::kDead) {
-					// A few seconds of drained bar, so the kill reads.
-					drop = SS::RealNow() - it->second.lastHitAt > 4.0f;
+					// The drained bar keeps the linger, so the kill reads.
+					drop = real - it->second.lastHitAt > settings->combatLinger;
 				}
 			}
 
@@ -1091,7 +1111,7 @@ namespace SS
 			entry.scale = settings->labelActorScale;
 			entry.owner = actor->CreateRefHandle();
 			ReadVitals(actor, entry.vitals, entry.vitalsCap);
-			if (!settings->vitalsActorsAll) {
+			if (!settings->combatBarsAll) {
 				entry.vitals[1] = -1.0f;
 				entry.vitals[2] = -1.0f;
 			}

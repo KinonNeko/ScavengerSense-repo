@@ -1251,11 +1251,22 @@ namespace SS::Menu
 			igCheckbox(T("Bars over people I have hit"), &a_settings.combatBars);
 			Help(
 				"From your first hit until the fight ends, anyone you have struck\n"
-				"keeps bars over their head - no sweep needed. Dead ones linger a\n"
-				"few seconds so the kill reads.\n"
+				"keeps bars over their head - no sweep needed.\n"
 				"\n"
 				"If you run TrueHUD, its recent-damage bars already cover this -\n"
 				"leave it off rather than drawing two.");
+
+			if (a_settings.combatBars) {
+				igCheckbox(T("Also their magicka and stamina"), &a_settings.combatBarsAll);
+				Help(
+					"Its own switch, separate from the sweep one above: health-only\n"
+					"in a fight and all three on a sweep is a sensible pairing.");
+
+				igSliderFloat(T("Linger after the fight (s)"), &a_settings.combatLinger, 0.0f, 15.0f, "%.1f s", 0);
+				Help(
+					"How long the bars outlive the fight, and how long a fresh corpse\n"
+					"keeps its drained bar so the kill reads.");
+			}
 
 			igSpacing();
 		}

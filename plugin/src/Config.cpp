@@ -621,6 +621,8 @@ namespace SS
 		Get(table, "vitals", "lostMax", barsLostMax);
 		Get(table, "vitals", "lostFx", barsLostFx);
 		Get(table, "vitals", "combat", combatBars);
+		Get(table, "vitals", "combatAll", combatBarsAll);
+		Get(table, "vitals", "combatLinger", combatLinger);
 
 		Get(table, "labels", "follow", labelsFollow);
 		Get(table, "labels", "speakerMode", labelSpeakerMode);
@@ -713,6 +715,7 @@ namespace SS
 		tintStrength = std::clamp(tintStrength, 0.0f, 1.0f);
 		cooldown = std::clamp(cooldown, 0.0f, 30.0f);
 		soundVolume = std::clamp(soundVolume, 0.0f, 1.0f);
+		combatLinger = std::clamp(combatLinger, 0.0f, 30.0f);
 		labelMaxDistance = std::clamp(labelMaxDistance, 0.0f, 20000.0f);
 		washStrength = std::clamp(washStrength, 0.0f, 1.0f);
 		washFlat = std::clamp(washFlat, 0.0f, 1.0f);
@@ -1135,6 +1138,12 @@ namespace SS
 		file << "; the fight ends. If you run TrueHUD, leave this off - its\n";
 		file << "; recent-damage bars already cover it.\n";
 		file << "combat = " << boolean(combatBars) << "\n";
+		file << "; Magicka and stamina on the combat bars too. Its own switch, not\n";
+		file << "; actorsAll: mid-fight can want different information than a sweep.\n";
+		file << "combatAll = " << boolean(combatBarsAll) << "\n";
+		file << "; Seconds the combat bars outlive the fight, and how long a fresh\n";
+		file << "; corpse keeps its drained bar.\n";
+		file << "combatLinger = " << combatLinger << "\n";
 		file << "healthColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
 			 << (selfHealthColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
 		file << "magickaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)

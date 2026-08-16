@@ -407,6 +407,13 @@ namespace SS
 		// bars cover the same ground, so this is for load orders without a
 		// combat HUD.
 		bool     combatBars{ false };
+		// Deliberately its own switch, not vitalsActorsAll: mid-fight you want
+		// different information than mid-sweep. Health-only in combat with all
+		// three on a sweep is a perfectly sensible pairing.
+		bool     combatBarsAll{ false };
+		// How long the bars survive the end of the fight (and how long a fresh
+		// corpse keeps its drained bar, so the kill reads).
+		float    combatLinger{ 4.0f };
 
 		// [Labels] continued - behaviour that needs the main thread every frame
 		bool labelsFollow{ true };
