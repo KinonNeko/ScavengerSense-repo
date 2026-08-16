@@ -94,11 +94,14 @@ namespace SS
 		struct HitTrack
 		{
 			RE::ObjectRefHandle handle;
-			float               lastHitAt{ 0.0f };  // real time
+			float               lastHitAt{ 0.0f };      // real time
+			// Refreshed while they are alive and fighting the player; frozen
+			// by death or disengagement, and the entry fades linger seconds
+			// after it stops moving.
+			float               lastEngagedAt{ 0.0f };
 		};
 		std::unordered_map<RE::FormID, HitTrack> _combatHits;
 		std::vector<Labels::Entry>               _combatBuffer;
-		float                                    _combatLastActive{ -1000.0f };  // real time
 		bool                                     _combatShown{ false };
 		bool                                     _hitSinkRegistered{ false };
 		float                          _selfLast[3]{ -1.0f, -1.0f, -1.0f };

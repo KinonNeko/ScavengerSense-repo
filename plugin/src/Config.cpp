@@ -610,6 +610,8 @@ namespace SS
 		Get(table, "self", "barSegments", selfBarSegments);
 		Get(table, "self", "barOffsetX", selfBarOffsetX);
 		Get(table, "self", "barOffsetY", selfBarOffsetY);
+		Get(table, "self", "overheadOffsetX", overheadOffsetX);
+		Get(table, "self", "overheadOffsetY", overheadOffsetY);
 		Get(table, "self", "barPerspective", selfBarPerspective);
 		Get(table, "self", "barGlow", selfBarGlow);
 		Get(table, "self", "frameColor", selfBarFrameColour);
@@ -750,6 +752,8 @@ namespace SS
 		selfBarShear = std::clamp(selfBarShear, -3.0f, 3.0f);
 		selfBarOffsetX = std::clamp(selfBarOffsetX, -600.0f, 600.0f);
 		selfBarOffsetY = std::clamp(selfBarOffsetY, -600.0f, 600.0f);
+		overheadOffsetX = std::clamp(overheadOffsetX, -600.0f, 600.0f);
+		overheadOffsetY = std::clamp(overheadOffsetY, -600.0f, 600.0f);
 		selfBarSegments = std::clamp(selfBarSegments, 0, 40);
 		selfBarPerspective = std::clamp(selfBarPerspective, 0.0f, 0.6f);
 		selfHudLinger = std::clamp(selfHudLinger, 0.3f, 30.0f);
@@ -1101,10 +1105,13 @@ namespace SS
 		file << "barShear = " << selfBarShear << "\n";
 		file << "; Notches cut across the bar. 0 draws it smooth.\n";
 		file << "barSegments = " << selfBarSegments << "\n";
-		file << "; Nudge the over-head bar stack, in pixels, after barPlace has\n";
-		file << "; chosen a side. Positive X right, positive Y down.\n";
+		file << "; Nudges in pixels, positive X right, positive Y down. barOffset\n";
+		file << "; moves the bars hanging off a name tag; overheadOffset moves the\n";
+		file << "; no-sweep stacks (combat bars and the over-your-head ones).\n";
 		file << "barOffsetX = " << selfBarOffsetX << "\n";
 		file << "barOffsetY = " << selfBarOffsetY << "\n";
+		file << "overheadOffsetX = " << overheadOffsetX << "\n";
+		file << "overheadOffsetY = " << overheadOffsetY << "\n";
 		file << "; How far each row is set back from the one before, so the stack\n";
 		file << "; reads as angled away rather than painted flat. 0 stacks them square.\n";
 		file << "barPerspective = " << selfBarPerspective << "\n";

@@ -953,8 +953,8 @@ namespace SS
 
 					ImVec2 origin{ at.x - span * 0.5f + inset,
 						at.y + step * static_cast<float>(r) };
-					origin.x += settings->selfBarOffsetX * c.scale;
-					origin.y += settings->selfBarOffsetY * c.scale;
+					origin.x += settings->overheadOffsetX * c.scale;
+					origin.y += settings->overheadOffsetY * c.scale;
 
 					DrawVitalBar(draw, origin, length, thick, shear, false, c.vitals[i],
 						settings->barsLostMax ? c.vitalsCap[i] : 1.0f,

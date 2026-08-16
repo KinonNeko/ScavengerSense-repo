@@ -1027,7 +1027,8 @@ namespace SS
 			_combatHits.erase(oldest);
 		}
 
-		_combatHits[target->GetFormID()] = { target->CreateRefHandle(), SS::RealNow() };
+		const float real = SS::RealNow();
+		_combatHits[target->GetFormID()] = { target->CreateRefHandle(), real, real };
 		if (Settings::GetSingleton()->debug) {
 			const auto* name = target->GetDisplayFullName();
 			logger::info("combat bars: hit {} ({:08X}), {} tracked, player inCombat={}",
@@ -1042,52 +1043,14 @@ namespace SS
 		const auto* settings = Settings::GetSingleton();
 		auto*       player = RE::PlayerCharacter::GetSingleton();
 
-		// "Is there a fight on" is asked of the people we track as well as the
-		// player: the player has no combat controller of their own, and their
-		// in-combat flag has proven unreliable exactly when it matters. The
-		// bandit swinging at you certainly knows the fight is on.
 		const float real = SS::RealNow();
-		bool        fighting = settings->combatBars && player && !_combatHits.empty();
-		if (fighting && !player->IsInCombat()) {
-			fighting = false;
-			for (const auto& [id, track] : _combatHits) {
-				auto  ref = track.handle.get();
-				auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
-				if (!actor) {
-					continue;
-				}
-				// The life state, never Actor::IsDead() - the same lesson Judge
-				// learned. A corpse that reads as alive here keeps its stale
-				// in-combat flag pinning the bars up forever.
-				const auto life = actor->AsActorState()->GetLifeState();
-				if (life != RE::ACTOR_LIFE_STATE::kDying && life != RE::ACTOR_LIFE_STATE::kDead &&
-					actor->IsInCombat()) {
-					fighting = true;
-					break;
-				}
-			}
-		}
-		if (fighting) {
-			_combatLastActive = real;
-		}
+		const bool  wantSelf = settings->selfBarsOverhead && player;
+		const bool  wantCombat = settings->combatBars && player;
 
-		// The bars outlive the fight by the configured linger, still following
-		// their people, then everything clears in one go.
-		const bool grace = !fighting && !_combatHits.empty() &&
-		                   real - _combatLastActive <= settings->combatLinger;
-		const bool combatLive = fighting || grace;
-		const bool wantSelf = settings->selfBarsOverhead && player;
-
-		if (!combatLive && !_combatHits.empty()) {
-			// The fight is over (or the feature just went off): the tracked set
-			// goes, so the next fight starts clean.
-			if (_combatShown) {
-				logger::info("combat bars: fight over, cleared");
-			}
+		if (!wantCombat && !_combatHits.empty()) {
 			_combatHits.clear();
 		}
-
-		if (!combatLive && !wantSelf) {
+		if (!wantCombat && !wantSelf) {
 			if (_combatShown) {
 				_combatBuffer.clear();
 				Labels::GetSingleton()->SetCombatBars({});
@@ -1148,20 +1111,36 @@ namespace SS
 			}
 		}
 
+		// Each tracked person carries their own clock: alive and fighting YOU
+		// refreshes it, anything else - death, calming down, turning on
+		// somebody else - freezes it, and the entry fades linger seconds
+		// later. Deliberately no global "is the fight on": every global gate
+		// tried so far had a corner that either pinned bars up forever or
+		// cleared them mid-fight.
+		const auto playerHandle = player->CreateRefHandle();
 		for (auto it = _combatHits.begin(); it != _combatHits.end();) {
 			auto  ref = it->second.handle.get();
 			auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
-			bool  drop = !actor || !actor->Is3DLoaded();
-
-			if (!drop) {
-				const auto life = actor->AsActorState()->GetLifeState();
-				if (life == RE::ACTOR_LIFE_STATE::kDying || life == RE::ACTOR_LIFE_STATE::kDead) {
-					// The drained bar keeps the linger, so the kill reads.
-					drop = real - it->second.lastHitAt > settings->combatLinger;
-				}
+			if (!actor || !actor->Is3DLoaded()) {
+				it = _combatHits.erase(it);
+				continue;
 			}
 
-			if (drop) {
+			const auto life = actor->AsActorState()->GetLifeState();
+			const bool dead =
+				life == RE::ACTOR_LIFE_STATE::kDying || life == RE::ACTOR_LIFE_STATE::kDead;
+
+			// Fighting the player, specifically: a bandit who has turned on
+			// somebody else does not hold our bars up. The hard cap keeps a
+			// stuck combat flag from pinning an entry forever.
+			const bool engaged = !dead && actor->IsInCombat() &&
+			                     actor->GetActorRuntimeData().currentCombatTarget == playerHandle &&
+			                     real - it->second.lastHitAt < 120.0f;
+			if (engaged) {
+				it->second.lastEngagedAt = real;
+			}
+
+			if (!engaged && real - it->second.lastEngagedAt > settings->combatLinger) {
 				it = _combatHits.erase(it);
 				continue;
 			}

@@ -358,10 +358,15 @@ namespace SS
 		float         selfBarShear{ 0.9f };
 		// Notches cut across the bar. 0 draws it smooth.
 		std::int32_t  selfBarSegments{ 10 };
-		// Fine placement of the over-head bar stack, added after the place rule
-		// has chosen a side. Pixels at the tag's scale.
+		// Fine placement, added after the place rule has chosen a side, in
+		// pixels at the tag's scale. Two pairs: sweep-tag bars hang off a name
+		// tag, the no-sweep stacks (combat and over-your-head) hang off a bare
+		// anchor point, and the right nudge for one is rarely right for the
+		// other.
 		float         selfBarOffsetX{ 0.0f };
 		float         selfBarOffsetY{ 0.0f };
+		float         overheadOffsetX{ 0.0f };
+		float         overheadOffsetY{ 0.0f };
 		// Each row set back a little from the one before, so the stack reads as
 		// lying on a surface angled away rather than painted flat on the screen.
 		float         selfBarPerspective{ 0.10f };

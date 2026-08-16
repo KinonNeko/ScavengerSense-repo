@@ -1099,18 +1099,21 @@ namespace SS::Menu
 			igCheckbox(T("Glow"), &a_settings.selfBarGlow);
 			Help("A soft halo under the filled part.");
 
-			if (igTreeNode_Str(T("Fine placement"))) {
-				// Drags, not sliders: one pixel of mouse travel is one pixel of
-				// bar travel, and Ctrl+click types an exact number.
-				igDragFloat(T("Nudge across"), &a_settings.selfBarOffsetX, 1.0f, -600.0f, 600.0f, "%.0f px", 0);
-				igDragFloat(T("Nudge down"), &a_settings.selfBarOffsetY, 1.0f, -600.0f, 600.0f, "%.0f px", 0);
-				Help(
-					"Moves every over-head bar stack - yours, other people's, and the\n"
-					"in-combat ones - from wherever \"Where\" put it. Drag for single\n"
-					"pixels, Ctrl+click to type a number. The corner readout has its\n"
-					"own margins under Mine.");
-				igTreePop();
-			}
+			igSpacing();
+			igSeparatorText(T("Fine placement"));
+			// Drags, not sliders: one pixel of mouse travel is one pixel of
+			// bar travel, and Ctrl+click types an exact number. In the open,
+			// not behind a fold - a control nobody finds does not exist.
+			igDragFloat(T("Sweep bars across"), &a_settings.selfBarOffsetX, 1.0f, -600.0f, 600.0f, "%.0f px", 0);
+			igDragFloat(T("Sweep bars down"), &a_settings.selfBarOffsetY, 1.0f, -600.0f, 600.0f, "%.0f px", 0);
+			Help(
+				"The bars hanging off name tags during a sweep. Drag for single\n"
+				"pixels, Ctrl+click to type a number.");
+			igDragFloat(T("Overhead bars across"), &a_settings.overheadOffsetX, 1.0f, -600.0f, 600.0f, "%.0f px", 0);
+			igDragFloat(T("Overhead bars down"), &a_settings.overheadOffsetY, 1.0f, -600.0f, 600.0f, "%.0f px", 0);
+			Help(
+				"The no-sweep stacks: combat bars and the ones over your own head.\n"
+				"The corner readout has its own margins under Mine.");
 
 			igSpacing();
 			igCheckbox(T("Show what a survival mod has taken"), &a_settings.barsLostMax);
