@@ -435,7 +435,7 @@ namespace SS::Menu
 
 			igSpacing();
 			igCheckbox(T("Press again to cancel"), &a_settings.toggle);
-			igSliderFloat(T("Cooldown (s)"), &a_settings.cooldown, 0.0f, 10.0f, "%.2f", 0);
+			igSliderFloat(T("Cooldown"), &a_settings.cooldown, 0.0f, 10.0f, "%.2f s", 0);
 
 			igSpacing();
 		}
@@ -1284,7 +1284,7 @@ namespace SS::Menu
 					"Its own switch, separate from the sweep one above: health-only\n"
 					"in a fight and all three on a sweep is a sensible pairing.");
 
-				igSliderFloat(T("Linger after the fight (s)"), &a_settings.combatLinger, 0.0f, 15.0f, "%.1f s", 0);
+				igSliderFloat(T("Linger after the fight"), &a_settings.combatLinger, 0.0f, 15.0f, "%.1f s", 0);
 				Help(
 					"How long the bars outlive the fight, and how long a fresh corpse\n"
 					"keeps its drained bar so the kill reads.");
@@ -1473,14 +1473,6 @@ namespace SS::Menu
 				"title's text in the box below, ready to give to somebody.");
 
 			igSpacing();
-			if (igButton(T("Save switches and colours"), ImVec2{ 220.0f, 0.0f })) {
-				titles->SaveUserTitles();
-			}
-			Help(
-				"Keeps what you just ticked or recoloured across restarts. Written to\n"
-				"its own file, so the hand-written title file is never touched.");
-
-			igSpacing();
 			igSeparatorText(T("Titles you give out yourself"));
 
 			static std::string message;
@@ -1583,6 +1575,13 @@ namespace SS::Menu
 			}
 
 			igSpacing();
+			if (igButton(T("Save switches and colours"), ImVec2{ 220.0f, 0.0f })) {
+				titles->SaveUserTitles();
+			}
+			Help(
+				"Keeps what you ticked or recoloured in the table across restarts.\n"
+				"Written to its own file; the hand-written title file is never touched.");
+			igSameLine(0.0f, -1.0f);
 			if (igButton(T("Reload titles"), ImVec2{ 150.0f, 0.0f })) {
 				titles->Load();
 			}

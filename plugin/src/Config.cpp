@@ -595,6 +595,13 @@ namespace SS
 		Get(table, "self", "barsWhen", selfBarsWhen);
 		Get(table, "self", "barWidth", selfBarWidth);
 		Get(table, "self", "barHeight", selfBarHeight);
+		// The menu's Save used to write these three under [Vitals] while the
+		// loader only ever looked in [Self], so a custom bar colour silently
+		// reset every round trip. Read the old location first; [Self] wins
+		// when both are present, and Save now writes [Self] only.
+		Get(table, "vitals", "healthColor", selfHealthColour);
+		Get(table, "vitals", "magickaColor", selfMagickaColour);
+		Get(table, "vitals", "staminaColor", selfStaminaColour);
 		Get(table, "self", "healthColor", selfHealthColour);
 		Get(table, "self", "magickaColor", selfMagickaColour);
 		Get(table, "self", "staminaColor", selfStaminaColour);
@@ -1102,6 +1109,14 @@ namespace SS
 		file << "; reads as angled away rather than painted flat. 0 stacks them square.\n";
 		file << "barPerspective = " << selfBarPerspective << "\n";
 		file << "barGlow = " << boolean(selfBarGlow) << "\n";
+		file << "; One set of colours for every bar drawn anywhere - yours, the corner\n";
+		file << "; readout, other people's.\n";
+		file << "healthColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
+			 << (selfHealthColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+		file << "magickaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
+			 << (selfMagickaColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+		file << "staminaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
+			 << (selfStaminaColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
 		file << "frameColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
 			 << (selfBarFrameColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
 
@@ -1150,13 +1165,7 @@ namespace SS
 		file << "combatAll = " << boolean(combatBarsAll) << "\n";
 		file << "; Seconds the combat bars outlive the fight, and how long a fresh\n";
 		file << "; corpse keeps its drained bar.\n";
-		file << "combatLinger = " << combatLinger << "\n";
-		file << "healthColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (selfHealthColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-		file << "magickaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (selfMagickaColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-		file << "staminaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (selfStaminaColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n\n\n";
+		file << "combatLinger = " << combatLinger << "\n\n\n";
 
 		file << "[Titles]\n\n";
 		file << "; A small word above the name - Jarl, Blacksmith, Thane of Whiterun -\n";
