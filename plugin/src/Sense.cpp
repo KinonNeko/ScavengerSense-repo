@@ -507,6 +507,7 @@ namespace SS
 					const bool  idleWork = settings->selfHudCorner != Corner::kOff ||
 					                      settings->hideGameHud ||
 					                      settings->combatBars ||
+					                      settings->selfBarsOverhead ||
 					                      GameMenus::GetSingleton()->HasHidden();
 					if (!_active && !idleWork) {
 						continue;
@@ -959,7 +960,9 @@ namespace SS
 	void Sense::PollSelf()
 	{
 		const auto* settings = Settings::GetSingleton();
-		if (settings->selfHudCorner == Corner::kOff) {
+		// The over-head stack leans on the change tracking done here, so it
+		// keeps this alive even with the corner readout off.
+		if (settings->selfHudCorner == Corner::kOff && !settings->selfBarsOverhead) {
 			return;
 		}
 
@@ -1006,6 +1009,14 @@ namespace SS
 			return RE::BSEventNotifyControl::kContinue;
 		}
 
+		// Whacking a corpse fires this event too. A killing blow still tracks:
+		// it lands while the target is alive, the death comes after.
+		if (const auto life = target->AsActorState()->GetLifeState();
+			(life == RE::ACTOR_LIFE_STATE::kDying || life == RE::ACTOR_LIFE_STATE::kDead) &&
+			!_combatHits.contains(target->GetFormID())) {
+			return RE::BSEventNotifyControl::kContinue;
+		}
+
 		// Newest hits win the space. 24 bars is already an unreadable fight.
 		constexpr std::size_t kMaxTracked = 24;
 		if (_combatHits.size() >= kMaxTracked && !_combatHits.contains(target->GetFormID())) {
@@ -1042,7 +1053,15 @@ namespace SS
 			for (const auto& [id, track] : _combatHits) {
 				auto  ref = track.handle.get();
 				auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
-				if (actor && !actor->IsDead() && actor->IsInCombat()) {
+				if (!actor) {
+					continue;
+				}
+				// The life state, never Actor::IsDead() - the same lesson Judge
+				// learned. A corpse that reads as alive here keeps its stale
+				// in-combat flag pinning the bars up forever.
+				const auto life = actor->AsActorState()->GetLifeState();
+				if (life != RE::ACTOR_LIFE_STATE::kDying && life != RE::ACTOR_LIFE_STATE::kDead &&
+					actor->IsInCombat()) {
 					fighting = true;
 					break;
 				}
@@ -1056,14 +1075,20 @@ namespace SS
 		// their people, then everything clears in one go.
 		const bool grace = !fighting && !_combatHits.empty() &&
 		                   real - _combatLastActive <= settings->combatLinger;
-		if (!fighting && !grace) {
+		const bool combatLive = fighting || grace;
+		const bool wantSelf = settings->selfBarsOverhead && player;
+
+		if (!combatLive && !_combatHits.empty()) {
 			// The fight is over (or the feature just went off): the tracked set
-			// goes too, so the next fight starts clean.
-			if (_combatShown || !_combatHits.empty()) {
-				if (_combatShown) {
-					logger::info("combat bars: fight over, cleared");
-				}
-				_combatHits.clear();
+			// goes, so the next fight starts clean.
+			if (_combatShown) {
+				logger::info("combat bars: fight over, cleared");
+			}
+			_combatHits.clear();
+		}
+
+		if (!combatLive && !wantSelf) {
+			if (_combatShown) {
 				_combatBuffer.clear();
 				Labels::GetSingleton()->SetCombatBars({});
 				_combatShown = false;
@@ -1086,6 +1111,43 @@ namespace SS
 
 		const auto now = SS::Now();
 		_combatBuffer.clear();
+
+		// Your own head, first. Third person only - in first person there is
+		// no head on screen, and the corner readout owns that case. When a
+		// sweep has already tagged you with bars, the render pass skips this
+		// one rather than stacking two.
+		if (wantSelf) {
+			auto* camera = RE::PlayerCamera::GetSingleton();
+			if ((!camera || !camera->IsInFirstPerson()) && player->Is3DLoaded()) {
+				Labels::Entry entry{};
+				entry.world = TagAnchor(player, true);
+				entry.bornAt = now - 1.0f;
+				entry.diesAt = now + 3600.0f;
+				entry.scale = settings->selfScale * settings->labelActorScale;
+				entry.owner = player->CreateRefHandle();
+				entry.vitalsSelf = true;
+				ReadVitals(player, entry.vitals, entry.vitalsCap);
+
+				// The rules are applied here, per bar, so the render side stays
+				// a dumb draw loop. Change tracking is PollSelf's, which runs
+				// just before this whenever the overhead stack is on.
+				const bool fresh = real - _selfChangedAt <= settings->selfHudLinger;
+				bool       any = false;
+				for (int i = 0; i < 3; ++i) {
+					if (settings->selfBarsOverheadWhen == ShowWhen::kNotFull &&
+						entry.vitals[i] >= 0.999f) {
+						entry.vitals[i] = -1.0f;
+					} else if (settings->selfBarsOverheadWhen == ShowWhen::kOnChange && !fresh) {
+						entry.vitals[i] = -1.0f;
+					}
+					any = any || entry.vitals[i] >= 0.0f;
+				}
+				if (any) {
+					_combatBuffer.push_back(std::move(entry));
+				}
+			}
+		}
+
 		for (auto it = _combatHits.begin(); it != _combatHits.end();) {
 			auto  ref = it->second.handle.get();
 			auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
@@ -1123,9 +1185,10 @@ namespace SS
 		Labels::GetSingleton()->SetCombatBars(_combatBuffer);
 		// Transitions only - this runs sixty times a second.
 		if (!_combatShown && !_combatBuffer.empty()) {
-			logger::info("combat bars: up over {} people", _combatBuffer.size());
+			logger::info("overhead bars: up over {} ({} from combat)",
+				_combatBuffer.size(), _combatHits.size());
 		} else if (_combatShown && _combatBuffer.empty()) {
-			logger::info("combat bars: down, nobody left to show");
+			logger::info("overhead bars: down, nothing left to show");
 		}
 		_combatShown = !_combatBuffer.empty();
 	}

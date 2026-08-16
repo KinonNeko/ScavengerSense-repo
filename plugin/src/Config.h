@@ -373,6 +373,14 @@ namespace SS
 		std::uint32_t selfStaminaColour{ 0x8FA86B };
 		std::uint32_t selfBarFrameColour{ 0x3A4A57 };
 
+		// The same stack over your own head with no sweep running, following
+		// you in third person - the player's answer to the combat bars. Its
+		// own ShowWhen, so "always over the enemy, only-on-change over me" is
+		// expressible. First person has no head to hang them over; that is
+		// what the corner readout is for.
+		bool     selfBarsOverhead{ false };
+		ShowWhen selfBarsOverheadWhen{ ShowWhen::kOnChange };
+
 		// A persistent readout pinned to a corner of the screen, drawn whether
 		// or not a sweep is running. Off by default: this mod is a sweep, and
 		// turning it into an always-on HUD should be the player's decision.

@@ -1100,12 +1100,15 @@ namespace SS::Menu
 			Help("A soft halo under the filled part.");
 
 			if (igTreeNode_Str(T("Fine placement"))) {
-				igSliderFloat(T("Nudge across"), &a_settings.selfBarOffsetX, -300.0f, 300.0f, "%.0f px", 0);
-				igSliderFloat(T("Nudge down"), &a_settings.selfBarOffsetY, -300.0f, 300.0f, "%.0f px", 0);
+				// Drags, not sliders: one pixel of mouse travel is one pixel of
+				// bar travel, and Ctrl+click types an exact number.
+				igDragFloat(T("Nudge across"), &a_settings.selfBarOffsetX, 1.0f, -600.0f, 600.0f, "%.0f px", 0);
+				igDragFloat(T("Nudge down"), &a_settings.selfBarOffsetY, 1.0f, -600.0f, 600.0f, "%.0f px", 0);
 				Help(
 					"Moves every over-head bar stack - yours, other people's, and the\n"
-					"in-combat ones - from wherever \"Where\" put it. The corner readout\n"
-					"has its own margins below.");
+					"in-combat ones - from wherever \"Where\" put it. Drag for single\n"
+					"pixels, Ctrl+click to type a number. The corner readout has its\n"
+					"own margins under Mine.");
 				igTreePop();
 			}
 
@@ -1170,6 +1173,24 @@ namespace SS::Menu
 			}
 
 			igSpacing();
+			igSeparatorText(T("Over my head"));
+			igCheckbox(T("Bars over my head without a sweep"), &a_settings.selfBarsOverhead);
+			Help(
+				"The same stack the combat bars use, following you in third person\n"
+				"whether or not anything else is happening. In first person there is\n"
+				"no head to hang them over - that is what the corner readout below\n"
+				"is for.");
+			if (a_settings.selfBarsOverhead) {
+				int overheadWhen = static_cast<int>(a_settings.selfBarsOverheadWhen);
+				if (igCombo_Str_arr(T("Show these"), &overheadWhen, Translated(kWhen, 3), 3, -1)) {
+					a_settings.selfBarsOverheadWhen = static_cast<ShowWhen>(std::clamp(overheadWhen, 0, 2));
+				}
+				Help(
+					"\"When something changes\" uses the same linger and fade the other\n"
+					"bars do, set under Bar style.");
+			}
+
+			igSpacing();
 			igSeparatorText(T("Pinned to the screen"));
 
 			static const char* const kCorners[] = { "Off", "Top left", "Top right",
@@ -1197,8 +1218,9 @@ namespace SS::Menu
 					"shows the bars for a few seconds and fades them out again.");
 
 				igSliderFloat(T("Corner size"), &a_settings.selfHudScale, 0.5f, 4.0f, "%.2fx", 0);
-				igSliderFloat(T("Margin across"), &a_settings.selfHudX, 0.0f, 600.0f, "%.0f px", 0);
-				igSliderFloat(T("Margin down"), &a_settings.selfHudY, 0.0f, 600.0f, "%.0f px", 0);
+				igDragFloat(T("Margin across"), &a_settings.selfHudX, 1.0f, 0.0f, 600.0f, "%.0f px", 0);
+				igDragFloat(T("Margin down"), &a_settings.selfHudY, 1.0f, 0.0f, 600.0f, "%.0f px", 0);
+				Help("Drag for single pixels, Ctrl+click to type a number.");
 			}
 
 			igSpacing();

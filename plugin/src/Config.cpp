@@ -606,6 +606,8 @@ namespace SS
 		Get(table, "self", "barPerspective", selfBarPerspective);
 		Get(table, "self", "barGlow", selfBarGlow);
 		Get(table, "self", "frameColor", selfBarFrameColour);
+		Get(table, "self", "overhead", selfBarsOverhead);
+		Get(table, "self", "overheadWhen", selfBarsOverheadWhen);
 		Get(table, "self", "hudCorner", selfHudCorner);
 		Get(table, "self", "hudShow", selfHudShow);
 		Get(table, "self", "hudLinger", selfHudLinger);
@@ -1103,6 +1105,11 @@ namespace SS
 		file << "frameColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
 			 << (selfBarFrameColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
 
+		file << "; The same stack over your own head with no sweep running, third\n";
+		file << "; person only - the player's answer to the combat bars.\n";
+		file << "overhead = " << boolean(selfBarsOverhead) << "\n";
+		file << "; always, change (a few seconds after a value moves) or notfull.\n";
+		file << "overheadWhen = " << kShowWhenNames[static_cast<std::size_t>(selfBarsOverheadWhen)] << "\n";
 		file << "; A readout pinned to a corner of the screen, drawn whether or not a\n";
 		file << "; sweep is running: off, topleft, topright, bottomleft, bottomright.\n";
 		file << "hudCorner = " << kCornerNames[static_cast<std::size_t>(selfHudCorner)] << "\n";
