@@ -9,7 +9,7 @@ Fragments carry only the keys their answer changes.
 """
 import os, re, shutil, sys
 
-ROOT  = os.path.dirname(os.path.abspath(__file__))
+ROOT  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOD   = os.path.join(ROOT, "mod")
 BUILD = os.path.join(ROOT, "fomod-build")
 SETUP = "SKSE/Plugins/ScavengerSense_setup"
@@ -121,7 +121,93 @@ actorFilter = living
 actor = true
 actorFilter = all
 """),
+
+    "50 Sweep bars - hostile": ("70-sweepbars.ini", "sweep bars over hostiles", """
+[Vitals]
+actors = true
+hostileOnly = true
+"""),
+    "51 Sweep bars - everyone": ("70-sweepbars.ini", "sweep bars over everyone lit", """
+[Vitals]
+actors = true
+hostileOnly = false
+"""),
+
+    "52 Combat bars": ("71-combatbars.ini", "bars over people you have hit", """
+[Vitals]
+combat = true
+"""),
+
+    "53 My overhead bars": ("72-overhead.ini", "bars over your own head", """
+[Self]
+overhead = true
+"""),
+
+    "54 Survival - plain": ("73-survival.ini", "plain dead zone on the bars", """
+[Vitals]
+lostFx = false
+"""),
+    "55 Survival - off": ("73-survival.ini", "no dead zone on the bars", """
+[Vitals]
+lostMax = false
+"""),
+
+    "56 Chime - off": ("74-chime.ini", "no sweep chime", """
+[Sound]
+enabled = false
+"""),
 }
+
+
+def sync_payload():
+    """Rebuild every non-fragment payload folder from the repo, so the tree
+    can never ship a stale DLL, esp or data file. The DLL comes from the last
+    build, the esp from make_esp.py's output at the repo root."""
+    plugins = os.path.join(MOD, "SKSE/Plugins")
+
+    for d in ("00 Core", "01 Chinese menu", "02 CJK font", "03 OStim add-on",
+              "04 Oathvein preset", "fomod"):
+        p = os.path.join(BUILD, d)
+        if os.path.isdir(p):
+            shutil.rmtree(p)
+
+    def put(src, dst):
+        if not os.path.exists(src):
+            sys.exit(f"missing payload source: {src}")
+        dst = os.path.join(BUILD, dst)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copy2(src, dst)
+
+    dll = next((p for p in (os.path.join(ROOT, "plugin/build/Release/ScavengerSense.dll"),
+                            os.path.join(ROOT, "plugin/build/ScavengerSense.dll"))
+                if os.path.exists(p)), None)
+    if not dll:
+        sys.exit("no built DLL - build first")
+    put(dll, "00 Core/SKSE/Plugins/ScavengerSense.dll")
+    put(os.path.join(ROOT, "ScavengerSense.esp"), "00 Core/ScavengerSense.esp")
+    put(os.path.join(MOD, "README.md"), "00 Core/README.md")
+    put(os.path.join(ROOT, "LICENSE"), "00 Core/SKSE/Plugins/ScavengerSense/LICENSE.txt")
+    put(os.path.join(plugins, "ScavengerSense_marks.ini"),
+        "00 Core/SKSE/Plugins/ScavengerSense_marks.ini")
+    put(os.path.join(plugins, "ScavengerSense_titles.ini"),
+        "00 Core/SKSE/Plugins/ScavengerSense_titles.ini")
+    icons = os.path.join(plugins, "ScavengerSense/icons")
+    for icon in sorted(os.listdir(icons)):
+        put(os.path.join(icons, icon), f"00 Core/SKSE/Plugins/ScavengerSense/icons/{icon}")
+    put(os.path.join(MOD, "Sound/FX/ScavengerSense/sweep.wav"),
+        "00 Core/Sound/FX/ScavengerSense/sweep.wav")
+    put(os.path.join(MOD, "Sound/FX/ScavengerSense/README-sound.txt"),
+        "00 Core/Sound/FX/ScavengerSense/README-sound.txt")
+
+    put(os.path.join(plugins, "ScavengerSense_chinese.ini"),
+        "01 Chinese menu/SKSE/Plugins/ScavengerSense_chinese.ini")
+    for f in ("MainFont.ttf", "OFL.txt", "README-font.txt"):
+        put(os.path.join(plugins, "fonts", f), f"02 CJK font/SKSE/Plugins/fonts/{f}")
+    put(os.path.join(plugins, "ScavengerSense_marks_ostim.ini"),
+        "03 OStim add-on/SKSE/Plugins/ScavengerSense_marks_ostim.ini")
+    put(os.path.join(plugins, "ScavengerSense/presets/Oathvein.ini"),
+        "04 Oathvein preset/SKSE/Plugins/ScavengerSense/presets/Oathvein.ini")
+    put(os.path.join(ROOT, "fomod/info.xml"), "fomod/info.xml")
 
 
 def write_payload():
@@ -361,6 +447,78 @@ def build_xml():
                "04 Oathvein preset"),
     ])
 
+    sweepbars = group("Vitals bars during a sweep", "SelectExactlyOne", [
+        plugin("None",
+               "A sweep names people and outlines them; nobody gets a health bar over "
+               "their head.\n\nThe default: bars are for the two options below, or for a "
+               "combat HUD mod.",
+               type_="Recommended"),
+        plugin("Over hostiles the wave reaches",
+               "Everyone hostile to you that a sweep lights carries their bars for the "
+               "length of the sweep - through walls, across the whole radius. A sweep "
+               "through a bandit camp tells you what you are walking into.",
+               "50 Sweep bars - hostile"),
+        plugin("Over everyone lit",
+               "As above, but friend and stranger too, not just enemies.",
+               "51 Sweep bars - everyone"),
+    ])
+
+    combat = group("Bars over people you fight", "SelectExactlyOne", [
+        plugin("Off",
+               "No bars in combat beyond what a sweep shows.\n\nThe default, and the "
+               "right answer if you run TrueHUD - its recent-damage bars already cover "
+               "this ground.",
+               type_="Recommended"),
+        plugin("On - from your first hit to the end of the fight",
+               "Anyone you have struck keeps bars over their head until the fight ends, "
+               "no sweep needed. The dead keep a drained bar a few seconds so the kill "
+               "reads. Health only by default; magicka and stamina are a switch in the "
+               "menu.",
+               "52 Combat bars"),
+    ])
+
+    overhead = group("Bars over your own head", "SelectExactlyOne", [
+        plugin("Off",
+               "Your own bars appear on your sweep tag and, if you turn it on in the "
+               "menu, pinned to a screen corner.\n\nThe default.",
+               type_="Recommended"),
+        plugin("On - third person, no sweep needed",
+               "The same stack the combat bars use, following you in third person "
+               "whether or not anything else is happening. Shows a few seconds after a "
+               "value moves; the rule is changeable in the menu. First person is what "
+               "the corner readout is for.",
+               "53 My overhead bars"),
+    ])
+
+    survival = group("When a survival mod lowers your maximum", "SelectExactlyOne", [
+        plugin("Show it, dressed in frost and smoke",
+               "The bar keeps its full length and the span a survival mod has taken "
+               "becomes a dead zone: frost creeps over lost health, lost magicka and "
+               "stamina smoulder in their own colour.\n\nHow the mod is meant to look. "
+               "Harmless without a survival mod - the zone simply never appears.",
+               type_="Recommended"),
+        plugin("Show it plainly",
+               "The same dead zone, undressed: just a dimmed span at the end of the "
+               "bar.",
+               "54 Survival - plain"),
+        plugin("Do not show it",
+               "Bars rescale to the reduced maximum and say nothing about it.",
+               "55 Survival - off"),
+    ])
+
+    chime = group("Sweep chime", "SelectExactlyOne", [
+        plugin("A quiet two-note chime",
+               "A short chime when a sweep starts, played through the game's UI audio "
+               "so its volume sliders apply. The sound is one wav on disk - replace it "
+               "with any wav to make it yours; a note beside it says how.\n\nVolume and "
+               "the switch live in the menu.",
+               type_="Recommended"),
+        plugin("Silence",
+               "Sweeps start without a sound. The wav still installs, so you can turn "
+               "the chime on later from the menu.",
+               "56 Chime - off"),
+    ])
+
     xml = ('<?xml version="1.0" encoding="utf-8"?>\n'
            '<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n'
            '        xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">\n\n'
@@ -370,6 +528,7 @@ def build_xml():
            "  </requiredInstallFiles>\n\n"
            '  <installSteps order="Explicit">\n\n')
     xml += step("How it should look", [tags, effect, lights, people, keys]) + "\n"
+    xml += step("Vitals bars and sound / 状态条与提示音", [sweepbars, combat, overhead, survival, chime]) + "\n"
     xml += step("Menu language / 菜单语言", [language]) + "\n"
     xml += step("Optional extras / 可选内容", [font, addons, builtin, preset])
     xml += "\n  </installSteps>\n\n</config>\n"
@@ -384,6 +543,7 @@ if __name__ == "__main__":
             p = os.path.join(BUILD, "04 Oathvein preset", SETUP)
         if os.path.isdir(p):
             shutil.rmtree(p)
+    sync_payload()
     write_payload()
     open(os.path.join(BUILD, "fomod/ModuleConfig.xml"), "w", encoding="utf-8").write(build_xml())
     n = sum(len(fs) for _, _, fs in os.walk(BUILD))

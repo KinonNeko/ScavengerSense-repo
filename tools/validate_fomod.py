@@ -3,7 +3,7 @@
 import os, sys, re
 import xml.etree.ElementTree as ET
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD = os.path.join(ROOT, "fomod-build")
 errors, warnings = [], []
 
