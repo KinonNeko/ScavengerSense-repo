@@ -70,6 +70,7 @@ namespace SS
 		std::vector<RE::TESEffectShader*>         _pool;
 		std::unordered_set<RE::TESEffectShader*>  _poolSet;
 		RE::TESImageSpaceModifier*                _imod{ nullptr };
+		RE::BGSSoundDescriptorForm*               _sweepSound{ nullptr };
 
 		std::vector<Pending> _pending;
 		std::size_t          _next{ 0 };      // index of the next pending entry to fire

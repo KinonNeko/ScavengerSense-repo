@@ -305,19 +305,52 @@ def imad(duration=6.0, saturation=0.25, brightness=0.85, contrast=1.15) -> bytes
     return rec(b"IMAD", IMOD_FORMID, body)
 
 
+# ------------------------------------------------------------------- SNDR
+
+SNDR_FORMID = 0x000890
+
+
+def sweep_sound() -> bytes:
+    """Sound descriptor for the sweep chime.
+
+    Field-for-field copy of the shape Skyrim.esm's own UI descriptors use
+    (UIMenuFocus and friends, dumped from the esm): the CNAM type tag is the
+    constant 0x1EEF540A (BGSStandardSoundDef) every vanilla SNDR carries,
+    GNAM is AudioCategoryUI so the game's master/UI sliders apply, and ONAM
+    is the 2D UI output model - no 3D positioning, same in both ears.
+    """
+    return rec(
+        b"SNDR",
+        SNDR_FORMID,
+        b"".join(
+            [
+                sub(b"EDID", zstr("SS_SweepChime")),
+                sub(b"CNAM", struct.pack("<I", 0x1EEF540A)),
+                sub(b"GNAM", struct.pack("<I", 0x00064451)),  # AudioCategoryUI
+                sub(b"ANAM", zstr(r"Data\Sound\FX\ScavengerSense\sweep.wav")),
+                sub(b"ONAM", struct.pack("<I", 0x000B4058)),  # UI output model
+                sub(b"LNAM", struct.pack("<I", 0x00000001)),
+                # % freq shift, % freq variance, priority, dB variance,
+                # static attenuation (dB x100) - flat, default priority
+                sub(b"BNAM", struct.pack("<bbBBH", 0, 0, 0x80, 0, 0)),
+            ]
+        ),
+    )
+
+
 # ------------------------------------------------------------------- header
 
 
 def build() -> bytes:
     shaders = b"".join(effect_shader(i) for i in range(SHADER_COUNT))
-    groups = grup(b"EFSH", shaders) + grup(b"IMAD", imad())
+    groups = grup(b"EFSH", shaders) + grup(b"IMAD", imad()) + grup(b"SNDR", sweep_sound())
 
     header_body = b"".join(
         [
             sub(
                 b"HEDR",
                 # version, record count (including TES4), next free object ID
-                struct.pack("<fiI", 1.71, SHADER_COUNT + 2, (IMOD_FORMID & 0xFFFFFF) + 0x10),
+                struct.pack("<fiI", 1.71, SHADER_COUNT + 3, (SNDR_FORMID & 0xFFFFFF) + 0x10),
             ),
             sub(b"CNAM", zstr("KShakes")),
             sub(b"SNAM", zstr("Scavenger Sense - radius highlight shaders and tint")),

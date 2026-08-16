@@ -662,6 +662,8 @@ namespace SS
 		Get(table, "tint", "overlayStrength", washStrength);
 		Get(table, "tint", "overlayFlat", washFlat);
 
+		Get(table, "sound", "enabled", soundEnabled);
+		Get(table, "sound", "volume", soundVolume);
 		Get(table, "sound", "formID", soundFormID);
 
 		// Older INIs only had a boolean here. Read it first so an existing file
@@ -1170,7 +1172,13 @@ namespace SS
 		file << "maraAtFull = " << boolean(ostimMaraAtFull) << "\n\n\n";
 
 		file << "[Sound]\n\n";
-		file << "; Raw form ID of a sound played when a sweep starts, 0 disables.\n";
+		file << "; The chime played when a sweep starts. The sound itself lives at\n";
+		file << "; Sound\\FX\\ScavengerSense\\sweep.wav - overwrite that file with any\n";
+		file << "; 16-bit PCM wav to make it yours.\n";
+		file << "enabled = " << boolean(soundEnabled) << "\n";
+		file << "volume = " << soundVolume << "\n\n";
+		file << "; Raw form ID of a sound descriptor to play INSTEAD of the shipped\n";
+		file << "; chime, 0 uses the chime.\n";
 		file << "; Examples: 0x000C7A54 = MAGDetectLifeCast, 0x0003F925 = UIMenuOK\n";
 		file << "formID = 0x" << std::hex << std::uppercase << soundFormID << std::dec << std::nouppercase << "\n\n\n";
 

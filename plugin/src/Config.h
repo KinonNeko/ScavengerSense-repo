@@ -308,6 +308,11 @@ namespace SS
 		float         washFlat{ 0.12f };  // share of the strength used flat, 0..1
 
 		// [Sound]
+		// The chime shipped in the esp plays unless a formID override says
+		// otherwise; the override exists for people who want a vanilla sound
+		// (or another mod's) instead of editing the wav on disk.
+		bool          soundEnabled{ true };
+		float         soundVolume{ 0.6f };
 		std::uint32_t soundFormID{ 0 };
 
 		ActorFilter actorFilter{ ActorFilter::kAll };

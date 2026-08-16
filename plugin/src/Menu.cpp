@@ -438,6 +438,16 @@ namespace SS::Menu
 			igSliderFloat(T("Cooldown (s)"), &a_settings.cooldown, 0.0f, 10.0f, "%.2f", 0);
 
 			igSpacing();
+			igCheckbox(T("Chime when the sweep starts"), &a_settings.soundEnabled);
+			Help(
+				"A short, quiet two-note chime. The sound itself is the file\n"
+				"Sound\\FX\\ScavengerSense\\sweep.wav - overwrite it with any wav\n"
+				"to make it yours.");
+			if (a_settings.soundEnabled) {
+				igSliderFloat(T("Chime volume"), &a_settings.soundVolume, 0.0f, 1.0f, "%.2f", 0);
+			}
+
+			igSpacing();
 		}
 
 		void DrawScan(Settings& a_settings)

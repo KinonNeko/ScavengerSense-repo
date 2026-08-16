@@ -19,6 +19,7 @@ namespace SS
 		constexpr auto  kShaderBase = static_cast<RE::FormID>(0x000800);
 		constexpr auto  kShaderCount = std::size_t{ 128 };
 		constexpr auto  kImodFormID = static_cast<RE::FormID>(0x000880);
+		constexpr auto  kSweepSoundFormID = static_cast<RE::FormID>(0x000890);
 		constexpr float kTickSeconds = 1.0f / 60.0f;
 
 		[[nodiscard]] RE::Color ToColor(std::uint32_t a_rgb, float a_scale)
@@ -393,6 +394,13 @@ namespace SS
 		}
 
 		_imod = handler->LookupForm<RE::TESImageSpaceModifier>(kImodFormID, kPluginFile);
+
+		// Absent from esps made before the chime existed; everything else works
+		// without it, so a warning is all it rates.
+		_sweepSound = handler->LookupForm<RE::BGSSoundDescriptorForm>(kSweepSoundFormID, kPluginFile);
+		if (!_sweepSound) {
+			logger::warn("sweep chime descriptor {:08X} not found - the esp predates it", kSweepSoundFormID);
+		}
 
 		if (_pool.empty()) {
 			logger::error(
@@ -879,9 +887,22 @@ namespace SS
 		BeginTint(_waveEnd - _waveStart);
 		Labels::GetSingleton()->SetWash(_waveStart, _waveEnd);
 
-		if (settings->soundFormID != 0) {
+		if (settings->soundEnabled) {
 			if (auto* audio = RE::BSAudioManager::GetSingleton()) {
-				audio->Play(settings->soundFormID);
+				if (settings->soundFormID != 0) {
+					// A user override is somebody else's descriptor: it brings
+					// its own volume, we just fire it.
+					audio->Play(settings->soundFormID);
+				} else if (_sweepSound) {
+					// Our own chime goes through a handle so the volume slider
+					// works; the descriptor already routes it through the UI
+					// audio category, so the game's sliders stack on top.
+					RE::BSSoundHandle handle;
+					if (audio->GetSoundHandle(handle, _sweepSound) && handle.IsValid()) {
+						handle.SetVolume(std::clamp(settings->soundVolume, 0.0f, 1.0f));
+						handle.Play();
+					}
+				}
 			}
 		}
 
