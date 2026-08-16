@@ -104,11 +104,15 @@ def effect_shader_data(colour=(0xFF, 0xD2, 0x4A)) -> bytes:
     tint = (r, g, b, 0)
 
     # 0x000 flags (the record carries them twice, here and at 0x180):
-    #   0x02 GreyscaleToColor   - fill texture luminance indexes the colour keys
-    #   0x04 GreyscaleToAlpha   - fill texture luminance drives alpha
-    #   0x08 DisableParticleShader
-    #   0x40 IgnoreTexAlpha
-    flags = 0x02 | 0x04 | 0x08 | 0x40
+    #   0x02  GreyscaleToColor   - fill texture luminance indexes the colour keys
+    #   0x04  GreyscaleToAlpha   - fill texture luminance drives alpha
+    #   0x08  DisableParticleShader
+    #   0x40  IgnoreTexAlpha
+    #   0x100 IgnoreBaseGeomTexAlpha - without this the membrane inherits the
+    #         target mesh's own alpha test, and on alpha-carded foliage
+    #         (mountain flowers and friends) the whole membrane fails the
+    #         cutoff: name tag, no glow. Solid meshes are unaffected.
+    flags = 0x02 | 0x04 | 0x08 | 0x40 | 0x100
     u32(0x000, flags)
 
     # membrane blend state: SRCALPHA, ADD, dest ONE -> additive glow.

@@ -1168,6 +1168,12 @@ namespace SS
 		data.membraneShaderZTestFunction =
 			settings->throughWalls ? RE::D3DCMPFUNC::kAlways : RE::D3DCMPFUNC::kEqual;
 
+		// Written here as well as in the esp so a stale esp copy still gets it:
+		// without it the membrane inherits the target mesh's own alpha test,
+		// and on alpha-carded foliage (mountain flowers and friends) the whole
+		// membrane fails the cutoff - name tag, no glow.
+		data.flags.set(RE::EffectShaderData::Flags::kIgnoreBaseGeomTexAlpha);
+
 		const auto edge = ToColor(colour, settings->glowStrength);
 		const auto fill = ToColor(colour, settings->glowStrength * 0.5f);
 
@@ -1310,12 +1316,17 @@ namespace SS
 							  _appliedThisWave == total * 3 / 4 || _appliedThisWave == total));
 
 		if (settings->debug || checkpoint) {
+			// Ghost actors (mannequins are the everyday case) are suspected of
+			// swallowing membranes; say so next to the apply result so a report
+			// of "tag but no glow" comes with the evidence attached.
+			const auto* asActor = a_ref->As<RE::Actor>();
 			logger::info(
-				"apply {}/{} at t+{:.2f}s: ref {:08X} ({}) {:.0f} units -> {}",
+				"apply {}/{} at t+{:.2f}s: ref {:08X} ({}) {:.0f} units -> {}{}",
 				_appliedThisWave, total, SS::Now() - _waveStart,
 				a_ref->GetFormID(), CategoryName(a_category),
 				RE::PlayerCharacter::GetSingleton()->GetPosition().GetDistance(a_ref->GetPosition()),
-				effect ? "ok" : "ENGINE RETURNED NULL");
+				effect ? "ok" : "ENGINE RETURNED NULL",
+				asActor && asActor->IsGhost() ? " [ghost]" : "");
 		}
 	}
 
