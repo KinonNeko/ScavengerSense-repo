@@ -38,6 +38,8 @@ $jobs = @(
     @{ From = $dll;                                              To = "SKSE\Plugins\ScavengerSense.dll" }
     @{ From = "$repo\ScavengerSense.esp";                        To = "ScavengerSense.esp" }
     @{ From = "$repo\mod\README.md";                             To = "README.md" }
+    @{ From = "$repo\mod\Sound\FX\ScavengerSense\sweep.wav";     To = "Sound\FX\ScavengerSense\sweep.wav" }
+    @{ From = "$repo\mod\Sound\FX\ScavengerSense\README-sound.txt"; To = "Sound\FX\ScavengerSense\README-sound.txt" }
 )
 foreach ($f in Get-ChildItem "$repo\mod\SKSE\Plugins" -Filter "ScavengerSense*.ini" -ErrorAction SilentlyContinue) {
     # Never the settings file: that one belongs to the game, not to the repo.

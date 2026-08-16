@@ -707,6 +707,7 @@ namespace SS
 		tintContrast = std::clamp(tintContrast, 0.0f, 4.0f);
 		tintStrength = std::clamp(tintStrength, 0.0f, 1.0f);
 		cooldown = std::clamp(cooldown, 0.0f, 30.0f);
+		soundVolume = std::clamp(soundVolume, 0.0f, 1.0f);
 		labelMaxDistance = std::clamp(labelMaxDistance, 0.0f, 20000.0f);
 		washStrength = std::clamp(washStrength, 0.0f, 1.0f);
 		washFlat = std::clamp(washFlat, 0.0f, 1.0f);
