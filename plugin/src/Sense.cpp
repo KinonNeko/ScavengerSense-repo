@@ -11,6 +11,10 @@
 #include "Timing.h"
 #include "Vision.h"
 
+#include <Windows.h>
+
+#include "TrueHUDAPI.h"
+
 namespace SS
 {
 	namespace
@@ -21,6 +25,10 @@ namespace SS
 		constexpr auto  kImodFormID = static_cast<RE::FormID>(0x000880);
 		constexpr auto  kSweepSoundFormID = static_cast<RE::FormID>(0x000890);
 		constexpr float kTickSeconds = 1.0f / 60.0f;
+
+		// TrueHUD's plugin API, when TrueHUD is in the load order. Only used
+		// to ask it to dismiss its own bar over somebody ours is covering.
+		TRUEHUD_API::IVTrueHUD1* g_trueHud = nullptr;
 
 		[[nodiscard]] RE::Color ToColor(std::uint32_t a_rgb, float a_scale)
 		{
@@ -403,6 +411,14 @@ namespace SS
 
 		_imod = handler->LookupForm<RE::TESImageSpaceModifier>(kImodFormID, kPluginFile);
 
+		// TrueHUD, if present. kDataLoaded is comfortably after kPostLoad, so
+		// the dll is loaded by now or not installed at all.
+		if (!g_trueHud) {
+			g_trueHud = static_cast<TRUEHUD_API::IVTrueHUD1*>(
+				TRUEHUD_API::RequestPluginAPI(TRUEHUD_API::InterfaceVersion::V1));
+			logger::info("TrueHUD API: {}", g_trueHud ? "acquired" : "not present");
+		}
+
 		// Hits feed the in-combat bars. Registered once even though
 		// OnDataLoaded may run again.
 		if (!_hitSinkRegistered) {
@@ -610,6 +626,22 @@ namespace SS
 				++a_stats.deadActor;
 				return false;
 			}
+
+			// Only people who mean you harm: hostile by nature, or hostile
+			// because of something you did - anyone you have struck counts.
+			// The living only; a corpse is loot, and actorFilter above already
+			// decides whether loot-shaped people show.
+			if (settings->actorEnemiesOnly && !dead) {
+				auto*      player = RE::PlayerCharacter::GetSingleton();
+				auto*      whom = a_ref->As<RE::Actor>();  // IsHostileToActor is non-const
+				const bool enemy = player && whom &&
+				                   (whom->IsHostileToActor(player) ||
+									   _combatHits.contains(whom->GetFormID()));
+				if (!enemy) {
+					++a_stats.notEnemy;
+					return false;
+				}
+			}
 		}
 
 		if (settings->ignoreUnnamed) {
@@ -740,10 +772,10 @@ namespace SS
 
 		logger::info(
 			"scan @ radius {}: visited={} accepted={} highActors={} | rejected: wrongType={} categoryOff={} "
-			"disabled={} no3D={} harvested={} unnamed={} | actors seen={} castFailed={} dead={}",
+			"disabled={} no3D={} harvested={} unnamed={} | actors seen={} castFailed={} dead={} notEnemy={}",
 			settings->radius, stats.visited, stats.accepted, stats.highActors, stats.wrongType, stats.categoryOff,
 			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed,
-			stats.actorsSeen, stats.actorCastFailed, stats.deadActor);
+			stats.actorsSeen, stats.actorCastFailed, stats.deadActor, stats.notEnemy);
 
 		if (hits.empty()) {
 			logger::warn("scan found nothing to light");
@@ -1028,7 +1060,7 @@ namespace SS
 		}
 
 		const float real = SS::RealNow();
-		_combatHits[target->GetFormID()] = { target->CreateRefHandle(), real, real };
+		_combatHits[target->GetFormID()] = { target->CreateRefHandle(), real, real, 0.0f };
 		if (Settings::GetSingleton()->debug) {
 			const auto* name = target->GetDisplayFullName();
 			logger::info("combat bars: hit {} ({:08X}), {} tracked, player inCombat={}",
@@ -1156,6 +1188,15 @@ namespace SS
 			// the bar leaves the way it arrived instead of popping off.
 			const float left =
 				std::max(0.0f, it->second.lastEngagedAt + settings->combatLinger - real);
+
+			// Ours wins the head: TrueHUD is asked to dismiss its bar for this
+			// person. Once a second, since it re-adds on its own triggers.
+			if (g_trueHud && settings->pushTrueHUDAside &&
+				real - it->second.lastPushAt > 1.0f) {
+				g_trueHud->RemoveActorInfoBar(actor->GetHandle(),
+					TRUEHUD_API::WidgetRemovalMode::Immediate);
+				it->second.lastPushAt = real;
+			}
 
 			Labels::Entry entry{};
 			entry.world = TagAnchor(actor, true);
@@ -1555,6 +1596,12 @@ namespace SS
 								fresh.vitals[2] = -1.0f;
 							}
 							fresh.vitalsAt = now;
+
+							// Sweep bars win the head too, for their few seconds.
+							if (g_trueHud && settings->pushTrueHUDAside) {
+								g_trueHud->RemoveActorInfoBar(a_ref->As<RE::Actor>()->GetHandle(),
+									TRUEHUD_API::WidgetRemovalMode::Immediate);
+							}
 						}
 					}
 

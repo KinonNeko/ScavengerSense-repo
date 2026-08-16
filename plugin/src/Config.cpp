@@ -634,6 +634,7 @@ namespace SS
 		Get(table, "vitals", "combat", combatBars);
 		Get(table, "vitals", "combatAll", combatBarsAll);
 		Get(table, "vitals", "combatLinger", combatLinger);
+		Get(table, "vitals", "pushTrueHUD", pushTrueHUDAside);
 
 		Get(table, "labels", "follow", labelsFollow);
 		Get(table, "labels", "speakerMode", labelSpeakerMode);
@@ -692,6 +693,7 @@ namespace SS
 			actorFilter = ActorFilter::kLivingOnly;
 		}
 		Get(table, "categories", "actorFilter", actorFilter);
+		Get(table, "categories", "enemiesOnly", actorEnemiesOnly);
 		Get(table, "categories", "actorByDisposition", actorByDisposition);
 		Get(table, "categories", "actorByRelationship", actorByRelationship);
 		Get(table, "categories", "rivalColor", rivalColour);
@@ -1172,7 +1174,11 @@ namespace SS
 		file << "combatAll = " << boolean(combatBarsAll) << "\n";
 		file << "; Seconds the combat bars outlive the fight, and how long a fresh\n";
 		file << "; corpse keeps its drained bar.\n";
-		file << "combatLinger = " << combatLinger << "\n\n\n";
+		file << "combatLinger = " << combatLinger << "\n";
+		file << "; Whenever this mod draws bars over somebody, ask TrueHUD to dismiss\n";
+		file << "; its own bar for them, so the two never stack. Does nothing when\n";
+		file << "; TrueHUD is not installed.\n";
+		file << "pushTrueHUD = " << boolean(pushTrueHUDAside) << "\n\n\n";
 
 		file << "[Titles]\n\n";
 		file << "; A small word above the name - Jarl, Blacksmith, Thane of Whiterun -\n";
@@ -1242,6 +1248,10 @@ namespace SS
 		file << ";   living - only the ones still breathing\n";
 		file << ";   dead   - only the bodies, for finding a kill in tall grass\n";
 		file << "actorFilter = " << ActorFilterName(actorFilter) << "\n\n";
+		file << "; Only sense people who mean you harm: hostile by nature, or hostile\n";
+		file << "; because of something you did - anyone you have struck counts.\n";
+		file << "; Corpses stay with actorFilter above.\n";
+		file << "enemiesOnly = " << boolean(actorEnemiesOnly) << "\n\n";
 		file << "; Colour people by what they are to you rather than by the fact that\n";
 		file << "; they are people. \"Someone is there\" is much less useful than\n";
 		file << "; \"someone is there and they want to kill you\". This overrides the\n";

@@ -46,6 +46,7 @@ namespace SS
 			std::uint32_t harvested{};
 			std::uint32_t unnamed{};
 			std::uint32_t deadActor{};
+			std::uint32_t notEnemy{};
 			std::uint32_t actorsSeen{};
 			std::uint32_t actorCastFailed{};
 			std::uint32_t highActors{};
@@ -99,6 +100,9 @@ namespace SS
 			// by death or disengagement, and the entry fades linger seconds
 			// after it stops moving.
 			float               lastEngagedAt{ 0.0f };
+			// Last time TrueHUD was asked to dismiss its bar for them; asked
+			// once a second, because TrueHUD re-adds on its own triggers.
+			float               lastPushAt{ 0.0f };
 		};
 		std::unordered_map<RE::FormID, HitTrack> _combatHits;
 		std::vector<Labels::Entry>               _combatBuffer;

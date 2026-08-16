@@ -318,6 +318,10 @@ namespace SS
 		std::uint32_t soundFormID{ 0 };
 
 		ActorFilter actorFilter{ ActorFilter::kAll };
+		// Only sense people who mean you harm: hostile by nature, or hostile
+		// because of something you did - anyone you have struck counts.
+		// Applies to the living; corpses stay with actorFilter.
+		bool        actorEnemiesOnly{ false };
 
 		// Colour people by whether they want to kill you rather than by the fact
 		// that they are people. "There is someone there" is much less useful
@@ -427,6 +431,10 @@ namespace SS
 		// How long the bars survive the end of the fight (and how long a fresh
 		// corpse keeps its drained bar, so the kill reads).
 		float    combatLinger{ 4.0f };
+		// Whenever this mod draws bars over somebody, ask TrueHUD (through its
+		// own API) to dismiss its bar for them, so the two never stack. Does
+		// nothing when TrueHUD is not installed.
+		bool     pushTrueHUDAside{ true };
 
 		// [Labels] continued - behaviour that needs the main thread every frame
 		bool labelsFollow{ true };

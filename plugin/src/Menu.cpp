@@ -727,6 +727,12 @@ namespace SS::Menu
 				"Bodies count as people - they can be looted. Dead only is for finding a\n"
 				"kill in tall grass.");
 
+			igCheckbox(T("Only enemies"), &a_settings.actorEnemiesOnly);
+			Help(
+				"Only people who mean you harm: hostile by nature, or hostile because\n"
+				"of something you did - anyone you have struck counts. Monsters too.\n"
+				"Corpses still follow the box above.");
+
 			igSpacing();
 			ClipboardBar();
 			Help(
@@ -1292,6 +1298,13 @@ namespace SS::Menu
 					"How long the bars outlive the fight, and how long a fresh corpse\n"
 					"keeps its drained bar so the kill reads.");
 			}
+
+			igSpacing();
+			igCheckbox(T("Ask TrueHUD to step aside"), &a_settings.pushTrueHUDAside);
+			Help(
+				"Whenever this mod draws bars over somebody, TrueHUD is asked -\n"
+				"through its own API - to dismiss its bar for that person, so the\n"
+				"two never stack. Does nothing when TrueHUD is not installed.");
 
 			igSpacing();
 		}
