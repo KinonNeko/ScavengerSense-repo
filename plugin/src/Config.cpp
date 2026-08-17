@@ -869,6 +869,7 @@ namespace SS
 		Get(table, "categories", "actorFilter", actorFilter);
 		Get(table, "categories", "enemiesOnly", actorEnemiesOnly);
 		Get(table, "categories", "hideEmpty", hideEmptyContainers);
+		Get(table, "categories", "hideStealing", hideStealing);
 		Get(table, "categories", "actorByDisposition", actorByDisposition);
 		Get(table, "categories", "actorByRelationship", actorByRelationship);
 		Get(table, "categories", "rivalColor", rivalColour);
@@ -1530,7 +1531,9 @@ namespace SS
 		file << "; Corpses stay with actorFilter above.\n";
 		file << "enemiesOnly = " << boolean(actorEnemiesOnly) << "\n\n";
 		file << "; An empty chest is an answer, not a find.\n";
-		file << "hideEmpty = " << boolean(hideEmptyContainers) << "\n\n";
+		file << "hideEmpty = " << boolean(hideEmptyContainers) << "\n";
+		file << "; Nothing whose taking would be theft lights or gets a tag.\n";
+		file << "hideStealing = " << boolean(hideStealing) << "\n\n";
 		file << "; Colour people by what they are to you rather than by the fact that\n";
 		file << "; they are people. \"Someone is there\" is much less useful than\n";
 		file << "; \"someone is there and they want to kill you\". This overrides the\n";

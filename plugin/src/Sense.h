@@ -67,6 +67,7 @@ namespace SS
 			std::uint32_t unnamed{};
 			std::uint32_t placeholder{};
 			std::uint32_t emptyContainer{};
+			std::uint32_t owned{};
 			std::uint32_t deadActor{};
 			std::uint32_t notEnemy{};
 			std::uint32_t actorsSeen{};

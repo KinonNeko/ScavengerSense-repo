@@ -448,6 +448,9 @@ namespace SS
 		bool        actorEnemiesOnly{ false };
 		// An empty chest is an answer, not a find.
 		bool        hideEmptyContainers{ false };
+		// Nothing whose taking would be theft - the red hand - lights or
+		// gets a tag. For scavengers with principles.
+		bool        hideStealing{ false };
 
 		// Colour people by whether they want to kill you rather than by the fact
 		// that they are people. "There is someone there" is much less useful

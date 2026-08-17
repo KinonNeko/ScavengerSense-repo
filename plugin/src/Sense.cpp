@@ -723,10 +723,25 @@ namespace SS
 			++a_stats.disabled;
 			return false;
 		}
-		// An empty chest is an answer, not a find.
-		if (a_category == Category::kContainer && settings->hideEmptyContainers &&
-			a_ref->GetInventoryCounts().empty()) {
-			++a_stats.emptyContainer;
+		// An empty chest is an answer, not a find. Looted containers keep
+		// zero-count residue entries in their inventory map, so "empty"
+		// means no entry with anything actually in it - .empty() on the map
+		// let every cleaned-out chest through.
+		if (a_category == Category::kContainer && settings->hideEmptyContainers) {
+			const auto counts = a_ref->GetInventoryCounts();
+			const bool holdsAnything = std::ranges::any_of(
+				counts, [](const auto& a_pair) { return a_pair.second > 0; });
+			if (!holdsAnything) {
+				++a_stats.emptyContainer;
+				return false;
+			}
+		}
+
+		// Taking it would be theft: the red hand. For players who only want
+		// what is honestly theirs to find.
+		if (settings->hideStealing && a_category != Category::kActor &&
+			a_ref->IsCrimeToActivate()) {
+			++a_stats.owned;
 			return false;
 		}
 		if (!a_ref->Is3DLoaded()) {
@@ -959,10 +974,10 @@ namespace SS
 
 		logger::info(
 			"scan @ radius {}: visited={} accepted={} highActors={} | rejected: wrongType={} categoryOff={} "
-			"disabled={} no3D={} harvested={} unnamed={} placeholder={} emptyChest={} | actors seen={} castFailed={} dead={} notEnemy={}",
+			"disabled={} no3D={} harvested={} unnamed={} placeholder={} emptyChest={} owned={} | actors seen={} castFailed={} dead={} notEnemy={}",
 			settings->radius, stats.visited, stats.accepted, stats.highActors, stats.wrongType, stats.categoryOff,
 			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed, stats.placeholder, stats.emptyContainer,
-			stats.actorsSeen, stats.actorCastFailed, stats.deadActor, stats.notEnemy);
+			stats.owned, stats.actorsSeen, stats.actorCastFailed, stats.deadActor, stats.notEnemy);
 
 		if (hits.empty()) {
 			logger::warn("scan found nothing to light");

@@ -315,39 +315,37 @@ namespace SS::Menu
 			return igCollapsingHeader_TreeNodeFlags(a_label, ImGuiTreeNodeFlags_DefaultOpen);
 		}
 
-		// ------------------------------------------------------------ sections
+		// Which binding on the Keys page is listening for a press. One slot
+		// for the whole page, so two captures can never fight.
+		int g_bindSlot = -1;
 
-		void DrawHotkey(Settings& a_settings)
+		// One key binding, drawn the same for every shortcut in the mod: pick
+		// from the list, press the key itself, type the raw code, and choose
+		// the gamepad button. The gesture, where one applies, is the caller's.
+		void BindingControls(int a_slot, std::int32_t& a_key, std::int32_t& a_pad)
 		{
-			if (!Header(T("Hotkey"))) {
-				return;
-			}
+			igPushID_Int(a_slot + 900);
 
-			// Pick from a list, or press the key you want. The raw number is
-			// still there underneath for anything the list does not cover, but
-			// nobody should have to know that Y is 21.
 			int current = -1;
 			for (int i = 0; i < static_cast<int>(std::size(kKeyChoices)); ++i) {
-				if (kKeyChoices[i].code == a_settings.keyboard) {
+				if (kKeyChoices[i].code == a_key) {
 					current = i;
 					break;
 				}
 			}
-
 			const auto label = [&]() -> std::string {
 				if (current >= 0) {
 					return T(kKeyChoices[current].label);
 				}
-				auto name = SKSE::InputMap::GetKeyName(static_cast<std::uint32_t>(a_settings.keyboard));
-				return name.empty() ? std::format("code {}", a_settings.keyboard)
-									: std::format("{} ({})", name, a_settings.keyboard);
+				auto name = SKSE::InputMap::GetKeyName(static_cast<std::uint32_t>(a_key));
+				return name.empty() ? std::format("code {}", a_key)
+									: std::format("{} ({})", name, a_key);
 			}();
-
 			if (igBeginCombo(T("Key"), label.c_str(), 0)) {
 				for (int i = 0; i < static_cast<int>(std::size(kKeyChoices)); ++i) {
 					const bool selected = i == current;
 					if (igSelectable_Bool(T(kKeyChoices[i].label), selected, 0, ImVec2{ 0.0f, 0.0f })) {
-						a_settings.keyboard = kKeyChoices[i].code;
+						a_key = kKeyChoices[i].code;
 					}
 					if (selected) {
 						igSetItemDefaultFocus();
@@ -356,51 +354,60 @@ namespace SS::Menu
 				igEndCombo();
 			}
 
-			if (g_capture.active) {
+			if (g_bindSlot == a_slot) {
 				igTextColored(ImVec4{ 1.0f, 0.85f, 0.4f, 1.0f }, "%s",
 					T("press any key or mouse button - Esc cancels"));
-
 				const auto captured = PollCapture();
 				if (captured == -2) {
-					g_capture.active = false;
+					g_bindSlot = -1;
 				} else if (captured > 0) {
-					a_settings.keyboard = captured;
-					g_capture.active = false;
+					a_key = captured;
+					g_bindSlot = -1;
 				}
 			} else if (igButton(T("Press a key to bind"), ImVec2{ 190.0f, 0.0f })) {
+				g_bindSlot = a_slot;
 				g_capture.active = true;
 				g_capture.startedAt = RealNow();
 			}
-
 			igSameLine(0.0f, -1.0f);
 			if (igButton(T("Clear"), ImVec2{ 80.0f, 0.0f })) {
-				a_settings.keyboard = -1;
-				g_capture.active = false;
+				a_key = -1;
+				if (g_bindSlot == a_slot) {
+					g_bindSlot = -1;
+				}
 			}
-			Help("Unbinds the key. The gamepad button is set separately, below.");
 
 			if (igTreeNodeEx_Str(T("Exact scan code"), 0)) {
-				igInputInt("##scancode", &a_settings.keyboard, 1, 10, 0);
+				igInputInt("##scancode", &a_key, 1, 10, 0);
 				Help(
 					"For a key the list above does not have. Mouse buttons are 256 left,\n"
 					"257 right, 258 middle. -1 unbinds.");
 				igTreePop();
 			}
 
-			// Gamepad buttons live at 266..281 in SKSE's macro space; index 0 of
-			// the combo is "none", so the mapping is keycode = 265 + index.
-			int selected = 0;
-			if (a_settings.gamepad >= SKSE::InputMap::kMacro_GamepadOffset &&
-				a_settings.gamepad < SKSE::InputMap::kMaxMacros) {
-				selected = a_settings.gamepad - SKSE::InputMap::kMacro_GamepadOffset + 1;
+			int pad = 0;
+			if (a_pad >= SKSE::InputMap::kMacro_GamepadOffset &&
+				a_pad < SKSE::InputMap::kMaxMacros) {
+				pad = a_pad - SKSE::InputMap::kMacro_GamepadOffset + 1;
+			}
+			if (igCombo_Str_arr(T("Gamepad button"), &pad,
+					Translated(kGamepadNames, static_cast<int>(std::size(kGamepadNames))),
+					static_cast<int>(std::size(kGamepadNames)), -1)) {
+				a_pad = pad == 0 ? -1 : SKSE::InputMap::kMacro_GamepadOffset + pad - 1;
 			}
 
-			if (igCombo_Str_arr(T("Gamepad button"), &selected, Translated(kGamepadNames, static_cast<int>(std::size(kGamepadNames))),
-					static_cast<int>(std::size(kGamepadNames)), -1)) {
-				a_settings.gamepad = selected == 0
-										 ? -1
-										 : SKSE::InputMap::kMacro_GamepadOffset + selected - 1;
+			igPopID();
+		}
+
+		// ------------------------------------------------------------ sections
+
+		void DrawHotkey(Settings& a_settings)
+		{
+			if (!Header(T("Sweep key"))) {
+				return;
 			}
+
+			BindingControls(0, a_settings.keyboard, a_settings.gamepad);
 			Help(
 				"The button keeps doing its normal job as well, so pick a spare one.");
 
@@ -794,6 +801,12 @@ namespace SS::Menu
 				"A chest with nothing in it neither lights nor gets a tag. Saves\n"
 				"walking to a barrel that holds air - but respawning containers\n"
 				"you have cleared stay dark until they refill.");
+
+			igCheckbox(T("Skip what I would be stealing"), &a_settings.hideStealing);
+			Help(
+				"Anything the red hand would appear on - somebody else's goods,\n"
+				"an owned chest - stays dark. The sense only shows what is\n"
+				"honestly yours to take.");
 
 			igSpacing();
 			igSeparatorText(T("Colours"));
@@ -1253,124 +1266,80 @@ namespace SS::Menu
 				}
 
 				igTextDisabled("%s", T("A marked quarry glows in their mark colour on every sweep."));
+				igTextDisabled("%s", T("The trail key lives on the Keys page."));
+			}
 
-				igSpacing();
-				igSeparatorText(T("Trail key"));
+			igSpacing();
+		}
 
-				static const char* const kKeyModes[] = { "One key does it all",
-					"A key per action" };
-				int keyMode = static_cast<int>(a_settings.trailMode);
-				if (igCombo_Str_arr(T("Control layout"), &keyMode, Translated(kKeyModes, 2), 2, -1)) {
-					a_settings.trailMode = static_cast<TrailKeyMode>(std::clamp(keyMode, 0, 1));
+		// Every tracking shortcut, in the same dress as the sweep key above it.
+		void DrawTrailKeys(Settings& a_settings)
+		{
+			if (!Header(T("Trail key"))) {
+				return;
+			}
+
+			static const char* const kKeyModes[] = { "One key does it all",
+				"A key per action" };
+			int keyMode = static_cast<int>(a_settings.trailMode);
+			if (igCombo_Str_arr(T("Control layout"), &keyMode, Translated(kKeyModes, 2), 2, -1)) {
+				a_settings.trailMode = static_cast<TrailKeyMode>(std::clamp(keyMode, 0, 1));
+			}
+			Help(
+				"One key: a press marks or releases what the aim finds, and the\n"
+				"wipe rides its own gesture - showing is the reveal rule's job.\n"
+				"Or split the actions across keys of your choosing, hide and\n"
+				"show included, each with its own gesture.");
+
+			const auto gestureCombo = [&](Trigger& a_gesture) {
+				int gesture = static_cast<int>(a_gesture);
+				if (igCombo_Str_arr(T("Gesture"), &gesture,
+						Translated(kTriggerLabels, static_cast<int>(std::size(kTriggerLabels))),
+						static_cast<int>(std::size(kTriggerLabels)), -1)) {
+					a_gesture = static_cast<Trigger>(
+						std::clamp(gesture, 0, static_cast<int>(Trigger::kCount) - 1));
+				}
+			};
+
+			if (a_settings.trailMode == TrailKeyMode::kSingle) {
+				igTextDisabled("%s", T("Aim at someone - or their footprints - and press to track them. Hold to wipe everything."));
+				BindingControls(1, a_settings.trailKey, a_settings.trailGamepad);
+
+				static const char* const kWipeGestures[] = { "Hold the key", "Double-tap it",
+					"Never" };
+				int wipe = static_cast<int>(a_settings.trailWipe);
+				if (igCombo_Str_arr(T("Wipe everything by"), &wipe, Translated(kWipeGestures, 3), 3, -1)) {
+					a_settings.trailWipe = static_cast<TrailWipe>(std::clamp(wipe, 0, 2));
 				}
 				Help(
-					"One key: a press marks or releases what the aim finds, and the\n"
-					"wipe rides its own gesture - showing is the reveal rule's job.\n"
-					"Or split the actions across keys of your choosing, hide and\n"
-					"show included, each with its own gesture.");
-
-				// Shared by both modes: how a key's name is shown.
-				const auto keyLabel = [&](std::int32_t a_key) -> std::string {
-					if (a_key < 0) {
-						return T("unbound");
-					}
-					auto name = SKSE::InputMap::GetKeyName(static_cast<std::uint32_t>(a_key));
-					return name.empty() ? std::format("code {}", a_key)
-										: std::format("{} ({})", name, a_key);
-				};
-				// Which binding is listening for a key right now: 0 the single
-				// key, 1..3 the multi-mode rows. 0 means nobody.
-				static int trailCaptureFor = -1;
-				const auto bindControls = [&](int a_slot, std::int32_t& a_key, std::int32_t& a_pad) {
-					igText("%s: %s", T("Key"), keyLabel(a_key).c_str());
-					if (trailCaptureFor == a_slot) {
-						igTextColored(ImVec4{ 1.0f, 0.85f, 0.4f, 1.0f }, "%s",
-							T("press any key or mouse button - Esc cancels"));
-						const auto captured = PollCapture();
-						if (captured == -2) {
-							trailCaptureFor = -1;
-						} else if (captured > 0) {
-							a_key = captured;
-							trailCaptureFor = -1;
-						}
-					} else if (igButton(T("Press a key to bind##trail"), ImVec2{ 190.0f, 0.0f })) {
-						trailCaptureFor = a_slot;
-						g_capture.active = true;
-						g_capture.startedAt = RealNow();
-					}
-					igSameLine(0.0f, -1.0f);
-					if (igButton(T("Clear##trail"), ImVec2{ 80.0f, 0.0f })) {
-						a_key = -1;
-						if (trailCaptureFor == a_slot) {
-							trailCaptureFor = -1;
-						}
-					}
-
-					int pad = 0;
-					if (a_pad >= SKSE::InputMap::kMacro_GamepadOffset &&
-						a_pad < SKSE::InputMap::kMaxMacros) {
-						pad = a_pad - SKSE::InputMap::kMacro_GamepadOffset + 1;
-					}
-					if (igCombo_Str_arr(T("Gamepad button##trail"), &pad,
-							Translated(kGamepadNames, static_cast<int>(std::size(kGamepadNames))),
-							static_cast<int>(std::size(kGamepadNames)), -1)) {
-						a_pad = pad == 0 ? -1 : SKSE::InputMap::kMacro_GamepadOffset + pad - 1;
-					}
-				};
-
-				if (a_settings.trailMode == TrailKeyMode::kSingle) {
-					igTextDisabled("%s", T("Aim at someone - or their footprints - and press to track them. Hold to wipe everything."));
-					bindControls(0, a_settings.trailKey, a_settings.trailGamepad);
-				} else {
-					const auto gestureCombo = [&](Trigger& a_gesture) {
-						int gesture = static_cast<int>(a_gesture);
-						if (igCombo_Str_arr(T("Gesture"), &gesture,
-								Translated(kTriggerLabels, static_cast<int>(std::size(kTriggerLabels))),
-								static_cast<int>(std::size(kTriggerLabels)), -1)) {
-							a_gesture = static_cast<Trigger>(
-								std::clamp(gesture, 0, static_cast<int>(Trigger::kCount) - 1));
-						}
-					};
-
-					igPushID_Int(1);
-					igSeparatorText(T("Mark what I aim at"));
-					bindControls(1, a_settings.trailMarkKey, a_settings.trailMarkGamepad);
-					gestureCombo(a_settings.trailMarkGesture);
-					igPopID();
-
-					igPushID_Int(2);
-					igSeparatorText(T("Hide and show trails"));
-					bindControls(2, a_settings.trailShowKey, a_settings.trailShowGamepad);
-					gestureCombo(a_settings.trailShowGesture);
-					igPopID();
-
-					igPushID_Int(3);
-					igSeparatorText(T("Wipe everything"));
-					bindControls(3, a_settings.trailWipeKey, a_settings.trailWipeGamepad);
-					gestureCombo(a_settings.trailWipeGesture);
-					igPopID();
-
+					"The clean slate: every mark, trail and open recording goes at\n"
+					"once. Pick the gesture, or take it off the key entirely.");
+				if (a_settings.trailWipe == TrailWipe::kHold) {
 					igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
-					Help(
-						"Shared by every action whose gesture is a hold; the double\n"
-						"tap shares the sweep key's window.");
-					igSpacing();
 				}
+			} else {
+				igPushID_Int(1);
+				igSeparatorText(T("Mark what I aim at"));
+				BindingControls(2, a_settings.trailMarkKey, a_settings.trailMarkGamepad);
+				gestureCombo(a_settings.trailMarkGesture);
+				igPopID();
 
-				if (a_settings.trailMode == TrailKeyMode::kSingle) {
-					static const char* const kWipeGestures[] = { "Hold the key", "Double-tap it",
-						"Never" };
-					int wipe = static_cast<int>(a_settings.trailWipe);
-					if (igCombo_Str_arr(T("Wipe everything by"), &wipe, Translated(kWipeGestures, 3), 3, -1)) {
-						a_settings.trailWipe = static_cast<TrailWipe>(std::clamp(wipe, 0, 2));
-					}
-					Help(
-						"The clean slate: every mark, trail and open recording goes at\n"
-						"once. Pick the gesture, or take it off the key entirely.");
-					if (a_settings.trailWipe == TrailWipe::kHold) {
-						igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
-					}
-				}
+				igPushID_Int(2);
+				igSeparatorText(T("Hide and show trails"));
+				BindingControls(3, a_settings.trailShowKey, a_settings.trailShowGamepad);
+				gestureCombo(a_settings.trailShowGesture);
+				igPopID();
+
+				igPushID_Int(3);
+				igSeparatorText(T("Wipe everything"));
+				BindingControls(4, a_settings.trailWipeKey, a_settings.trailWipeGamepad);
+				gestureCombo(a_settings.trailWipeGesture);
+				igPopID();
+
+				igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
+				Help(
+					"Shared by every action whose gesture is a hold; the double\n"
+					"tap shares the sweep key's window.");
 			}
 
 			igSpacing();
@@ -2259,10 +2228,18 @@ namespace SS::Menu
 
 			if (igBeginTabItem(T("Sweep"), nullptr, 0)) {
 				igSpacing();
-				DrawHotkey(settings);
 				DrawScan(settings);
 				DrawPulse(settings);
 				DrawChime(settings);
+				igEndTabItem();
+			}
+
+			if (igBeginTabItem(T("Keys"), nullptr, 0)) {
+				igSpacing();
+				DrawHotkey(settings);
+				DrawTrailKeys(settings);
+				igTextDisabled("%s",
+					T("The settings menu itself opens on SKSE Menu Framework's key - F1 out of the box, set in its own INI."));
 				igEndTabItem();
 			}
 
