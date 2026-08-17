@@ -138,12 +138,21 @@ namespace SS
 			RE::ObjectRefHandle handle;
 			float               untilAt{ 0.0f };  // real time recording window
 		};
+		struct TrailPoint
+		{
+			RE::NiPoint3 pos;
+			float        bornAt{ 0.0f };  // real time
+			// Where the mark was laid: the interior cell, or the worldspace.
+			// Drawn only when the player is in the same place - an interior's
+			// coordinates are nonsense anywhere else.
+			RE::FormID   place{ 0 };
+		};
 		struct Trail
 		{
 			std::string   name;
 			std::uint32_t colour{ 0xCBCBCB };
 			float         lastSampleAt{ -1000.0f };
-			std::vector<std::pair<RE::NiPoint3, float>> points;  // pos, bornAt (real)
+			std::vector<TrailPoint> points;
 		};
 		std::unordered_map<RE::FormID, Quarry> _quarry;
 		std::unordered_map<RE::FormID, Trail>  _trails;
@@ -157,10 +166,13 @@ namespace SS
 		};
 		std::unordered_map<RE::FormID, Marked> _marked;
 		std::atomic_bool                       _trailsHidden{ false };
-		// Where the player was last tick, for the transition wipe.
+		// Where the player was last tick, for the transition wipe; _placeId is
+		// the current place itself (interior cell or worldspace), stamped onto
+		// every trail point laid there.
 		bool        _placeKnown{ false };
 		bool        _wasInterior{ false };
 		RE::FormID  _lastWorldspace{ 0 };
+		RE::FormID  _placeId{ 0 };
 		float                                    _lastHudPush{ 0.0f };  // real time
 		// True while we are actively keeping other HUDs' enemy bars down.
 		// Atomic because the worker thread reads it to keep the tick alive

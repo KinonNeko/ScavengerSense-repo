@@ -314,6 +314,178 @@ namespace SS
 			}
 		}
 
+		// The racial emblems. Each lives in the same box as a weapon glyph and
+		// leans on one recognisable silhouette per race - a horned helm, a
+		// crested one, cat ears - because at tag size that is all the eye gets.
+		void DrawRaceIcon(ImDrawList* a_draw, RaceKind a_kind, ImVec2 a_c, float a_size, ImU32 a_colour)
+		{
+			const float r = a_size * 0.5f;
+			const float stroke = std::max(a_size * 0.13f, 1.2f);
+
+			const auto line = [&](float x1, float y1, float x2, float y2, float a_width) {
+				ImDrawList_AddLine(a_draw, ImVec2{ a_c.x + x1 * r, a_c.y + y1 * r },
+					ImVec2{ a_c.x + x2 * r, a_c.y + y2 * r }, a_colour, a_width);
+			};
+			const auto at = [&](float x, float y) {
+				return ImVec2{ a_c.x + x * r, a_c.y + y * r };
+			};
+			// The shared skull: a dome open at the bottom, the base every
+			// helmeted head builds on.
+			const auto dome = [&](float a_r, float a_lift) {
+				ImDrawList_PathArcTo(a_draw, ImVec2{ a_c.x, a_c.y + a_lift * r }, a_r * r,
+					3.1415926f, 2.0f * 3.1415926f, 12);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+			};
+
+			switch (a_kind) {
+			case RaceKind::kNord:
+				// The horned helm.
+				dome(0.55f, 0.4f);
+				line(-0.55f, 0.3f, -0.9f, -0.65f, stroke);
+				line(0.55f, 0.3f, 0.9f, -0.65f, stroke);
+				line(-0.55f, 0.4f, 0.55f, 0.4f, stroke);
+				break;
+
+			case RaceKind::kImperial:
+				// The legion galea: a dome with a crest fanned over the top.
+				dome(0.55f, 0.35f);
+				line(-0.55f, 0.35f, 0.55f, 0.35f, stroke);
+				ImDrawList_PathArcTo(a_draw, ImVec2{ a_c.x, a_c.y + 0.35f * r }, 0.95f * r,
+					3.1415926f * 1.15f, 3.1415926f * 1.85f, 10);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+				break;
+
+			case RaceKind::kBreton:
+				// A High Rock tower: body and three merlons.
+				line(-0.5f, 0.9f, -0.5f, -0.35f, stroke);
+				line(0.5f, 0.9f, 0.5f, -0.35f, stroke);
+				line(-0.5f, 0.9f, 0.5f, 0.9f, stroke);
+				line(-0.5f, -0.35f, -0.5f, -0.85f, stroke);
+				line(0.5f, -0.35f, 0.5f, -0.85f, stroke);
+				line(0.0f, -0.35f, 0.0f, -0.85f, stroke);
+				line(-0.6f, -0.35f, 0.6f, -0.35f, stroke);
+				break;
+
+			case RaceKind::kRedguard:
+				// The Alik'r crescent.
+				ImDrawList_PathArcTo(a_draw, a_c, 0.8f * r, 0.9f, 5.4f, 16);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+				ImDrawList_AddCircleFilled(a_draw, at(0.55f, -0.3f), 0.16f * r, a_colour, 8);
+				break;
+
+			case RaceKind::kAltmer:
+				// The rising sun of the Summerset Isles.
+				ImDrawList_AddCircle(a_draw, ImVec2{ a_c.x, a_c.y + 0.15f * r }, 0.38f * r,
+					a_colour, 12, stroke);
+				for (int ray = 0; ray < 5; ++ray) {
+					const float ang = 3.1415926f * (1.0f + static_cast<float>(ray) / 4.0f);
+					const float cx = std::cos(ang);
+					const float cy = std::sin(ang);
+					line(cx * 0.55f, 0.15f + cy * 0.55f, cx * 0.9f, 0.15f + cy * 0.9f,
+						stroke * 0.8f);
+				}
+				break;
+
+			case RaceKind::kBosmer:
+				// A leaf: a lens of two arcs sharing their tips - measured to
+				// actually meet, tip (0.55,-0.75) to stem (-0.55,0.75) - with
+				// the midrib along the chord and a short stem past it.
+				ImDrawList_PathArcTo(a_draw, at(0.296f, 0.217f), 1.0f * r, -3.704f, -1.314f, 10);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+				ImDrawList_PathArcTo(a_draw, at(-0.296f, -0.217f), 1.0f * r, -0.562f, 1.828f, 10);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+				line(0.55f, -0.75f, -0.55f, 0.75f, stroke * 0.7f);
+				line(-0.55f, 0.75f, -0.75f, 0.95f, stroke);
+				break;
+
+			case RaceKind::kDunmer:
+				// The ancestral flame: a licking teardrop.
+				ImDrawList_PathArcTo(a_draw, at(-0.15f, 0.1f), 0.6f * r, -1.2f, 2.4f, 12);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+				ImDrawList_PathArcTo(a_draw, at(0.55f, -0.35f), 0.75f * r, 1.9f, 2.9f, 8);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+				ImDrawList_AddCircleFilled(a_draw, at(-0.05f, 0.35f), 0.18f * r, a_colour, 8);
+				break;
+
+			case RaceKind::kOrc:
+				// The under-jaw with both tusks up.
+				ImDrawList_PathArcTo(a_draw, ImVec2{ a_c.x, a_c.y - 0.15f * r }, 0.6f * r,
+					0.35f, 2.8f, 12);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+				line(-0.55f, 0.15f, -0.7f, -0.6f, stroke);
+				line(0.55f, 0.15f, 0.7f, -0.6f, stroke);
+				ImDrawList_AddCircleFilled(a_draw, at(-0.7f, -0.6f), 0.13f * r, a_colour, 6);
+				ImDrawList_AddCircleFilled(a_draw, at(0.7f, -0.6f), 0.13f * r, a_colour, 6);
+				break;
+
+			case RaceKind::kKhajiit:
+				// A cat: round head, two sharp ears.
+				ImDrawList_AddCircle(a_draw, ImVec2{ a_c.x, a_c.y + 0.2f * r }, 0.5f * r,
+					a_colour, 12, stroke);
+				{
+					const ImVec2 earL[3]{ at(-0.5f, -0.05f), at(-0.6f, -0.85f), at(-0.1f, -0.28f) };
+					const ImVec2 earR[3]{ at(0.5f, -0.05f), at(0.6f, -0.85f), at(0.1f, -0.28f) };
+					ImDrawList_AddConvexPolyFilled(a_draw, earL, 3, a_colour);
+					ImDrawList_AddConvexPolyFilled(a_draw, earR, 3, a_colour);
+				}
+				break;
+
+			case RaceKind::kArgonian:
+				// A lizard's head with the crest swept back.
+				ImDrawList_AddCircle(a_draw, ImVec2{ a_c.x - 0.1f * r, a_c.y + 0.25f * r },
+					0.48f * r, a_colour, 12, stroke);
+				line(0.2f, -0.15f, 0.75f, -0.75f, stroke);
+				line(-0.1f, -0.25f, 0.25f, -0.95f, stroke);
+				line(-0.4f, -0.2f, -0.35f, -0.8f, stroke);
+				break;
+
+			case RaceKind::kMan:
+			default:
+				// A plain bust: head over shoulders.
+				ImDrawList_AddCircle(a_draw, ImVec2{ a_c.x, a_c.y - 0.25f * r }, 0.38f * r,
+					a_colour, 12, stroke);
+				ImDrawList_PathArcTo(a_draw, ImVec2{ a_c.x, a_c.y + 0.95f * r }, 0.65f * r,
+					3.1415926f * 1.15f, 3.1415926f * 1.85f, 10);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+				break;
+			}
+		}
+
+		// The rider after the emblem: what the race has become.
+		void DrawRaceMarkIcon(ImDrawList* a_draw, RaceMark a_mark, ImVec2 a_c, float a_size,
+			ImU32 a_colour)
+		{
+			const float r = a_size * 0.5f;
+			const float stroke = std::max(a_size * 0.13f, 1.2f);
+			const auto  at = [&](float x, float y) {
+				return ImVec2{ a_c.x + x * r, a_c.y + y * r };
+			};
+
+			switch (a_mark) {
+			case RaceMark::kVampire:
+				// Fangs: the lip line and two teeth below it.
+				ImDrawList_AddLine(a_draw, at(-0.7f, -0.4f), at(0.7f, -0.4f), a_colour, stroke);
+				{
+					const ImVec2 fangL[3]{ at(-0.55f, -0.4f), at(-0.15f, -0.4f), at(-0.35f, 0.55f) };
+					const ImVec2 fangR[3]{ at(0.15f, -0.4f), at(0.55f, -0.4f), at(0.35f, 0.55f) };
+					ImDrawList_AddConvexPolyFilled(a_draw, fangL, 3, a_colour);
+					ImDrawList_AddConvexPolyFilled(a_draw, fangR, 3, a_colour);
+				}
+				break;
+
+			case RaceMark::kWerewolf:
+				// A paw print: the pad and three toes.
+				ImDrawList_AddCircleFilled(a_draw, at(0.0f, 0.35f), 0.38f * r, a_colour, 10);
+				ImDrawList_AddCircleFilled(a_draw, at(-0.55f, -0.25f), 0.18f * r, a_colour, 8);
+				ImDrawList_AddCircleFilled(a_draw, at(0.0f, -0.5f), 0.18f * r, a_colour, 8);
+				ImDrawList_AddCircleFilled(a_draw, at(0.55f, -0.25f), 0.18f * r, a_colour, 8);
+				break;
+
+			default:
+				break;
+			}
+		}
+
 		void DrawIcon(ImDrawList* a_draw, Disposition a_icon, ImVec2 a_centre, float a_size, ImU32 a_colour)
 		{
 			const auto r = a_size * 0.5f;
@@ -722,31 +894,31 @@ namespace SS
 				std::uint8_t  glyph{ 0 };  // WeaponKind, or the specials below
 				std::string   text;
 				std::uint32_t tint{ 0 };
-				// Boxed race letters drawn ahead of the glyph, empty for none.
-				std::string   chip;
+				// The racial emblem and its vampire/werewolf rider, 0 for none.
+				std::uint8_t  race{ 0 };
+				std::uint8_t  raceMark{ 0 };
 			};
 			constexpr std::uint8_t kGlyphCoin = 200;
 			constexpr std::uint8_t kGlyphWeight = 201;
 			constexpr std::uint8_t kGlyphFlake = 202;
 
-			// With race chips on, the level takes the race as its mark and the
-			// weapon stands alone - otherwise the two shared one glyph.
-			const bool raceChip = settings->raceIcons && !stats.race.empty();
+			// With race emblems on, the level's mark is the race and nothing
+			// else: the weapon already rides beside the name on tags and the
+			// overhead chip, so repeating it here says nothing new.
+			const bool raceChip = settings->raceIcons && stats.race != 0;
 
 			std::vector<Piece> pieces;
-			if (stats.weapon != 0 || stats.level >= 0) {
+			if (raceChip || stats.weapon != 0 || stats.level >= 0) {
 				Piece piece;
 				piece.glyph = raceChip ? std::uint8_t{ 0 } : stats.weapon;
 				if (raceChip) {
-					piece.chip = stats.race;
+					piece.race = stats.race;
+					piece.raceMark = stats.raceMark;
 				}
 				if (stats.level >= 0) {
 					piece.text = std::format("Lv {}", stats.level);
 				}
 				pieces.push_back(std::move(piece));
-				if (raceChip && stats.weapon != 0) {
-					pieces.push_back({ stats.weapon, {}, 0, {} });
-				}
 			}
 			if (stats.gold >= 0) {
 				pieces.push_back({ kGlyphCoin, std::to_string(stats.gold), 0 });
@@ -777,11 +949,11 @@ namespace SS
 						std::numeric_limits<float>::max(), 0.0f, piece.text.c_str(), nullptr, nullptr);
 				}
 				float chipW = 0.0f;
-				if (!piece.chip.empty()) {
-					ImVec2 chipSz{};
-					ImFont_CalcTextSizeA(&chipSz, font, fontSize * 0.72f,
-						std::numeric_limits<float>::max(), 0.0f, piece.chip.c_str(), nullptr, nullptr);
-					chipW = chipSz.x + fontSize * 0.36f + fontSize * 0.18f;
+				if (piece.race != 0) {
+					chipW = fontSize + fontSize * 0.2f;
+					if (piece.raceMark != 0) {
+						chipW += fontSize * 0.85f + fontSize * 0.15f;
+					}
 				}
 				const float w =
 					chipW + (piece.glyph ? fontSize + fontSize * 0.2f : 0.0f) + sizeOf.x;
@@ -798,23 +970,17 @@ namespace SS
 			for (std::size_t i = 0; i < pieces.size(); ++i) {
 				const auto& piece = pieces[i];
 				float       x = statsX;
-				if (!piece.chip.empty()) {
-					const float chipFontSz = fontSize * 0.72f;
-					ImVec2      chipSz{};
-					ImFont_CalcTextSizeA(&chipSz, font, chipFontSz,
-						std::numeric_limits<float>::max(), 0.0f, piece.chip.c_str(), nullptr, nullptr);
-					const float  padX = fontSize * 0.18f;
-					const ImVec2 boxMin{ x, statsY + fontSize * 0.06f };
-					const ImVec2 boxMax{ x + chipSz.x + padX * 2.0f, statsY + fontSize * 0.98f };
-					ImDrawList_AddRectFilled(draw, boxMin, boxMax,
-						PackColour(0x000000, alpha * 0.45f), fontSize * 0.16f, 0);
-					ImDrawList_AddRect(draw, boxMin, boxMax, ink, fontSize * 0.16f, 0,
-						std::max(1.0f, fontSize * 0.06f));
-					const ImVec2 at{ boxMin.x + padX,
-						(boxMin.y + boxMax.y - chipSz.y) * 0.5f };
-					ImDrawList_AddText_FontPtr(draw, font, chipFontSz, at, ink,
-						piece.chip.c_str(), nullptr, 0.0f, nullptr);
-					x = boxMax.x + fontSize * 0.18f;
+				if (piece.race != 0) {
+					const ImVec2 centre{ x + fontSize * 0.5f, statsY + fontSize * 0.52f };
+					DrawRaceIcon(draw, static_cast<RaceKind>(piece.race), centre,
+						fontSize * 0.95f, ink);
+					x += fontSize + fontSize * 0.2f;
+					if (piece.raceMark != 0) {
+						DrawRaceMarkIcon(draw, static_cast<RaceMark>(piece.raceMark),
+							ImVec2{ x + fontSize * 0.35f, statsY + fontSize * 0.52f },
+							fontSize * 0.7f, ink);
+						x += fontSize * 0.85f + fontSize * 0.15f;
+					}
 				}
 				if (piece.glyph) {
 					const ImVec2 centre{ x + fontSize * 0.5f, statsY + fontSize * 0.52f };
@@ -1260,18 +1426,25 @@ namespace SS
 				(settings->labelFontSize > 0.0f ? settings->labelFontSize : igGetFontSize() * 0.5f) * 0.8f);
 
 			for (const auto& trail : trailSnapshot) {
-				ImVec2 prev{};
-				bool   hasPrev = false;
-				ImVec2 freshest{};
-				float  freshestFade = 0.0f;
-				bool   hasFreshest = false;
-				int    stride = 0;  // left foot, right foot
+				ImVec2       prev{};
+				RE::NiPoint3 prevWorld{};
+				bool         hasPrev = false;
+				ImVec2       freshest{};
+				float        freshestFade = 0.0f;
+				bool         hasFreshest = false;
+				int          stride = 0;  // left foot, right foot
 
 				for (const auto& mark : trail.marks) {
 					ImVec2 at;
 					if (!Project(mark.world, width, height, at)) {
 						hasPrev = false;
 						continue;
+					}
+					// A jump no one walked - a revisit after time away, or a
+					// door the recording crossed. Break the line, never bridge
+					// it: the fastest sprint lays marks a tenth of this apart.
+					if (hasPrev && mark.world.GetDistance(prevWorld) > 512.0f) {
+						hasPrev = false;
 					}
 					if (hasPrev) {
 						const float dx = at.x - prev.x;
@@ -1336,6 +1509,7 @@ namespace SS
 						}
 					}
 					prev = at;
+					prevWorld = mark.world;
 					hasPrev = true;
 					freshest = at;
 					freshestFade = mark.fade;
@@ -1432,23 +1606,36 @@ namespace SS
 
 				// A small chip above the stack: race, level, and what they hold.
 				// Reads as a nameplate for a stack that has no name.
-				if (chipFont && (c.weapon != 0 || c.level >= 0 || !c.race.empty())) {
+				if (chipFont && (c.weapon != 0 || c.level >= 0 || c.race != 0)) {
 					const float chipSize = std::max(10.0f, chipBase * 0.85f * c.scale);
 					std::string levelText = c.level >= 0 ? std::to_string(c.level) : std::string{};
-					if (!c.race.empty()) {
-						levelText = levelText.empty() ? c.race : c.race + " " + levelText;
-					}
 					ImVec2      textSize{};
 					if (!levelText.empty()) {
 						ImFont_CalcTextSizeA(&textSize, chipFont, chipSize,
 							std::numeric_limits<float>::max(), 0.0f, levelText.c_str(), nullptr, nullptr);
 					}
+					const float race = c.race != 0 ? chipSize : 0.0f;
+					const float raceMark = c.raceMark != 0 ? chipSize * 0.78f : 0.0f;
+					const float raceGap = race > 0.0f ? chipSize * 0.25f : 0.0f;
 					const float glyph = c.weapon != 0 ? chipSize : 0.0f;
 					const float gap = glyph > 0.0f && !levelText.empty() ? chipSize * 0.25f : 0.0f;
-					const float total = glyph + gap + textSize.x;
+					const float total = race + raceMark + raceGap + glyph + gap + textSize.x;
 					float       x = at.x - total * 0.5f + settings->overheadOffsetX * c.scale;
 					const float y = at.y - chipSize * 1.15f + settings->overheadOffsetY * c.scale;
 
+					if (race > 0.0f) {
+						DrawRaceIcon(draw, static_cast<RaceKind>(c.race),
+							ImVec2{ x + race * 0.5f, y + chipSize * 0.5f }, race,
+							PackColour(0xE8E8E8, alpha * 0.9f));
+						x += race;
+						if (raceMark > 0.0f) {
+							DrawRaceMarkIcon(draw, static_cast<RaceMark>(c.raceMark),
+								ImVec2{ x + raceMark * 0.5f, y + chipSize * 0.55f }, raceMark,
+								PackColour(0xE8E8E8, alpha * 0.9f));
+							x += raceMark;
+						}
+						x += raceGap;
+					}
 					if (glyph > 0.0f) {
 						DrawWeaponIcon(draw, static_cast<WeaponKind>(c.weapon),
 							ImVec2{ x + glyph * 0.5f, y + chipSize * 0.5f }, glyph,
@@ -1631,18 +1818,18 @@ namespace SS
 			const float starSize = hasStar ? thisSize * 0.68f : 0.0f;
 			const float starGap = hasStar ? thisSize * 0.18f : 0.0f;
 
-			// The race chip: two boxed letters ahead of the weapon icon, filled
-			// by the main thread only when the option is on.
-			const bool hasRace = settings->labelIcons && !entry.race.empty();
-			const auto raceFontSize = thisSize * 0.62f;
-			ImVec2     raceTextSize{};
-			float      raceBoxW = 0.0f;
-			float      raceW = 0.0f;
+			// The racial emblem ahead of the weapon icon, filled by the main
+			// thread only when the option is on. A vampire or werewolf gets
+			// their rider after it.
+			const bool  hasRace = settings->labelIcons && entry.race != 0;
+			const float raceIconSize = thisSize * 0.72f;
+			const float raceMarkSize = entry.raceMark != 0 ? thisSize * 0.56f : 0.0f;
+			float       raceW = 0.0f;
 			if (hasRace) {
-				ImFont_CalcTextSizeA(&raceTextSize, font, raceFontSize,
-					std::numeric_limits<float>::max(), 0.0f, entry.race.c_str(), nullptr, nullptr);
-				raceBoxW = raceTextSize.x + thisSize * 0.24f;
-				raceW = raceBoxW + thisSize * 0.16f;
+				raceW = raceIconSize + thisSize * 0.2f;
+				if (entry.raceMark != 0) {
+					raceW += raceMarkSize + thisSize * 0.12f;
+				}
 			}
 
 			// Arousal rides on the right of the name. Everything else a tag can
@@ -1749,20 +1936,21 @@ namespace SS
 
 			if (hasRace) {
 				const float  midY = topLeft.y + size.y * 0.5f;
-				const float  boxLeft = topLeft.x + starSize + starGap;
-				const ImVec2 boxMin{ boxLeft, midY - raceFontSize * 0.66f };
-				const ImVec2 boxMax{ boxLeft + raceBoxW, midY + raceFontSize * 0.66f };
-				ImDrawList_AddRectFilled(draw, boxMin, boxMax,
-					PackColour(0x000000, alpha * 0.4f), thisSize * 0.12f, 0);
-				ImDrawList_AddRect(draw, boxMin, boxMax, PackColour(entry.colour, alpha * 0.85f),
-					thisSize * 0.12f, 0, std::max(1.0f, thisSize * 0.05f));
-				const ImVec2 raceAt{ boxLeft + thisSize * 0.12f,
-					midY - raceTextSize.y * 0.5f };
-				ImDrawList_AddText_FontPtr(draw, font, raceFontSize,
-					ImVec2{ raceAt.x + 1.0f, raceAt.y + 1.0f }, PackColour(0x000000, alpha * 0.7f),
-					entry.race.c_str(), nullptr, 0.0f, nullptr);
-				ImDrawList_AddText_FontPtr(draw, font, raceFontSize, raceAt,
-					PackColour(entry.colour, alpha), entry.race.c_str(), nullptr, 0.0f, nullptr);
+				const ImVec2 centre{ topLeft.x + starSize + starGap + raceIconSize * 0.5f, midY };
+				const auto   kind = static_cast<RaceKind>(entry.race);
+				DrawRaceIcon(draw, kind, ImVec2{ centre.x + 1.0f, centre.y + 1.0f }, raceIconSize,
+					PackColour(0x000000, alpha * 0.7f));
+				DrawRaceIcon(draw, kind, centre, raceIconSize, PackColour(entry.colour, alpha));
+				if (entry.raceMark != 0) {
+					const auto   mark = static_cast<RaceMark>(entry.raceMark);
+					const ImVec2 markAt{ centre.x + raceIconSize * 0.5f + thisSize * 0.12f +
+											 raceMarkSize * 0.5f,
+						midY };
+					DrawRaceMarkIcon(draw, mark, ImVec2{ markAt.x + 1.0f, markAt.y + 1.0f },
+						raceMarkSize, PackColour(0x000000, alpha * 0.7f));
+					DrawRaceMarkIcon(draw, mark, markAt, raceMarkSize,
+						PackColour(entry.colour, alpha));
+				}
 			}
 
 			if (hasIcon) {

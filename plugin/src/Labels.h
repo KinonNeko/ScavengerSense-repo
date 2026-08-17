@@ -82,8 +82,10 @@ namespace SS
 			// the aggregate initialisers count on it.
 			std::int16_t  level{ -1 };
 			std::uint8_t  weapon{ 0 };
-			// The race chip text, empty for none. Still the END.
-			std::string   race;
+			// The racial emblem as a RaceKind, and a RaceMark rider for
+			// vampires and werewolves. Still the END.
+			std::uint8_t  race{ 0 };
+			std::uint8_t  raceMark{ 0 };
 		};
 
 		// The stats row under the corner readout. Values below zero hide the
@@ -97,7 +99,8 @@ namespace SS
 			float        coldMax{ 0.0f };
 			std::int16_t level{ -1 };
 			std::uint8_t weapon{ 0 };
-			std::string  race;
+			std::uint8_t race{ 0 };      // RaceKind
+			std::uint8_t raceMark{ 0 };  // RaceMark
 		};
 
 		// The sonar ring, sampled as a height field so the render thread never

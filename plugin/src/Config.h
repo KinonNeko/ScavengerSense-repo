@@ -93,6 +93,38 @@ namespace SS
 		kCount
 	};
 
+	// A race reduced to a drawable emblem. Classified from the race's editor
+	// id, so it survives localisation; creatures come out kNone - their name
+	// already says what they are.
+	enum class RaceKind : std::uint8_t
+	{
+		kNone = 0,
+		kMan,  // a humanoid we cannot place - Elder, Dremora, mod races
+		kNord,
+		kImperial,
+		kBreton,
+		kRedguard,
+		kAltmer,
+		kBosmer,
+		kDunmer,
+		kOrc,
+		kKhajiit,
+		kArgonian,
+
+		kCount
+	};
+
+	// What has happened to that race: a vampire's or werewolf's emblem rides
+	// after the racial one.
+	enum class RaceMark : std::uint8_t
+	{
+		kNone = 0,
+		kVampire,
+		kWerewolf,
+
+		kCount
+	};
+
 	// Which actors are worth sensing. Corpses are lootable, so they count by
 	// default; dead-only is the "where did that kill land" case.
 	enum class ActorFilter : std::uint32_t
@@ -461,6 +493,12 @@ namespace SS
 		// coordinates mean nothing outside. Cleared on interior/worldspace
 		// transitions unless the player says otherwise.
 		bool         trailsClearOnTransition{ true };
+		// The transition wipe spares a marked quarry by default: their points
+		// are tagged with the place they were laid in, drawn only there, and
+		// recording carries on wherever the owner turns up. This makes the
+		// wipe take the marks too, for players who want a hunt to end at the
+		// door.
+		bool         trailsForgetMarked{ false };
 		TrailStyle   trailStyle{ TrailStyle::kChevrons };
 		// A key of its own: press it to hide or show every trail; press it
 		// while aiming at somebody to start or stop tracking them.
@@ -489,8 +527,9 @@ namespace SS
 		// The tag icon follows the drawn weapon - yours and theirs - instead
 		// of the relationship shape. The colour still says friend or foe.
 		bool        weaponIcons{ false };
-		// A small race chip - the first letters of the race's own localised
-		// name - beside people's tags and on your stats row's level entry.
+		// A small racial emblem beside people's tags and on your stats row's
+		// level entry, followed by a fang or paw mark for vampires and
+		// werewolves.
 		bool        raceIcons{ false };
 		// Where the stats row lives: riding the over-head bars by default, so
 		// everything about you sits in one glance.

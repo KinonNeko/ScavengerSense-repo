@@ -259,30 +259,60 @@ namespace SS
 			return WeaponKind::kFists;
 		}
 
-		// The race chip: the first letters of the race's own localised name -
-		// "No" for Nord, one hanzi in Chinese - which is right for every race
-		// including modded ones, with no table to maintain.
-		[[nodiscard]] std::string RaceTag(RE::Actor* a_actor)
+		// The racial emblem: classified from the race's editor id, which
+		// survives localisation, with the vampire and werewolf riders read
+		// from the keywords the game itself conditions on - so a modded
+		// strain that copied them counts too. Creatures come out kNone;
+		// their name already says what they are.
+		[[nodiscard]] std::pair<RaceKind, RaceMark> ClassifyRace(RE::Actor* a_actor)
 		{
-			auto* base = a_actor ? a_actor->GetActorBase() : nullptr;
-			auto* race = base ? base->GetRace() : nullptr;
-			const char* name = race ? race->GetName() : nullptr;
-			if (!name || !name[0]) {
-				return {};
+			auto* race = a_actor ? a_actor->GetRace() : nullptr;
+			if (!race) {
+				return { RaceKind::kNone, RaceMark::kNone };
 			}
 
-			const auto text = ToUtf8(name);
-			const auto lead = static_cast<unsigned char>(text[0]);
-			if (lead < 0x80) {
-				// ASCII: two letters distinguish every vanilla pair.
-				return text.substr(0, std::min<std::size_t>(2, text.size()));
+			std::string id;
+			if (const char* edid = race->GetFormEditorID(); edid) {
+				id = edid;
 			}
-			// One whole multi-byte character - a single hanzi carries plenty.
-			const std::size_t bytes = (lead & 0xE0) == 0xC0 ? 2
-			                          : (lead & 0xF0) == 0xE0 ? 3
-			                          : (lead & 0xF8) == 0xF0 ? 4
-			                                                  : 1;
-			return text.substr(0, std::min(bytes, text.size()));
+			std::transform(id.begin(), id.end(), id.begin(),
+				[](unsigned char a_ch) { return static_cast<char>(std::tolower(a_ch)); });
+
+			auto mark = RaceMark::kNone;
+			if (a_actor->HasKeywordString("WerewolfKeyword") || id.contains("werewolf")) {
+				mark = RaceMark::kWerewolf;
+			} else if (a_actor->HasKeywordString("Vampire") || id.contains("vampire")) {
+				mark = RaceMark::kVampire;
+			}
+
+			auto kind = RaceKind::kNone;
+			if (id.contains("nord")) {
+				kind = RaceKind::kNord;
+			} else if (id.contains("imperial")) {
+				kind = RaceKind::kImperial;
+			} else if (id.contains("breton")) {
+				kind = RaceKind::kBreton;
+			} else if (id.contains("redguard")) {
+				kind = RaceKind::kRedguard;
+			} else if (id.contains("highelf") || id.contains("altmer")) {
+				kind = RaceKind::kAltmer;
+			} else if (id.contains("woodelf") || id.contains("bosmer")) {
+				kind = RaceKind::kBosmer;
+			} else if (id.contains("darkelf") || id.contains("dunmer")) {
+				kind = RaceKind::kDunmer;
+			} else if (id.contains("orc")) {
+				kind = RaceKind::kOrc;
+			} else if (id.contains("khajiit")) {
+				kind = RaceKind::kKhajiit;
+			} else if (id.contains("argonian")) {
+				kind = RaceKind::kArgonian;
+			} else if (mark != RaceMark::kNone || race->HasKeywordString("ActorTypeNPC")) {
+				// A humanoid we cannot place - Elder, Dremora, a mod race -
+				// still deserves a bust rather than silence.
+				kind = RaceKind::kMan;
+			}
+
+			return { kind, mark };
 		}
 
 		// What the player currently is. Three states, in the order that matters:
@@ -1068,7 +1098,9 @@ namespace SS
 					_labelBuffer.back().weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
 				}
 				if (settings->raceIcons) {
-					_labelBuffer.back().race = RaceTag(player);
+					const auto [kind, mod] = ClassifyRace(player);
+					_labelBuffer.back().race = static_cast<std::uint8_t>(kind);
+					_labelBuffer.back().raceMark = static_cast<std::uint8_t>(mod);
 				}
 
 				Labels::GetSingleton()->Replace(_labelBuffer);
@@ -1209,7 +1241,9 @@ namespace SS
 			stats.coldMax = settings->coldMax;
 		}
 		if (settings->raceIcons) {
-			stats.race = RaceTag(player);
+			const auto [kind, mod] = ClassifyRace(player);
+			stats.race = static_cast<std::uint8_t>(kind);
+			stats.raceMark = static_cast<std::uint8_t>(mod);
 		}
 		Labels::GetSingleton()->SetSelfStats(stats);
 	}
@@ -1424,7 +1458,9 @@ namespace SS
 					entry.weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
 				}
 				if (settings->raceIcons) {
-					entry.race = RaceTag(player);
+					const auto [kind, mod] = ClassifyRace(player);
+					entry.race = static_cast<std::uint8_t>(kind);
+					entry.raceMark = static_cast<std::uint8_t>(mod);
 				}
 
 				// The rules are applied here, per bar, so the render side stays
@@ -1511,7 +1547,9 @@ namespace SS
 				entry.weapon = static_cast<std::uint8_t>(ClassifyWeapon(actor));
 			}
 			if (settings->raceIcons) {
-				entry.race = RaceTag(actor);
+				const auto [kind, mod] = ClassifyRace(actor);
+				entry.race = static_cast<std::uint8_t>(kind);
+				entry.raceMark = static_cast<std::uint8_t>(mod);
 			}
 			entry.vitalsAt = now;
 			_combatBuffer.push_back(std::move(entry));
@@ -1629,25 +1667,18 @@ namespace SS
 			return;
 		}
 
-		auto* target = [&]() -> RE::Actor* {
-			if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
-				if (auto ref = pick->target.get(); ref) {
-					if (auto* actor = ref->As<RE::Actor>(); actor) {
-						return actor;
-					}
-				}
-			}
-			return PickByView(hotkeySettings->trackRange);
-		}();
-
-		if (target && !target->IsPlayerRef()) {
-			const auto  id = target->GetFormID();
-			const auto* name = target->GetDisplayFullName();
-			const auto  who = name && name[0] ? ToUtf8(name) : std::string{ "?" };
-
+		// Marking and releasing share one shape whether the press landed on a
+		// person or on their footprints.
+		const auto toggleMark = [&](RE::FormID a_id, RE::ObjectRefHandle a_handle,
+									const std::string& a_who) {
 			std::string note;
-			if (_marked.erase(id) > 0) {
+			if (_marked.erase(a_id) > 0) {
 				note = Locale::T("No longer tracking {}");
+				// The owner may be unloaded, in which case no poll will re-tint
+				// their trail; hand it back to neutral here.
+				if (const auto trail = _trails.find(a_id); trail != _trails.end()) {
+					trail->second.colour = hotkeySettings->neutralColour;
+				}
 			} else {
 				if (!hotkeySettings->multiMark) {
 					// One quarry at a time: the new mark replaces the old.
@@ -1663,16 +1694,83 @@ namespace SS
 						break;
 					}
 				}
-				_marked[id] = { target->CreateRefHandle(),
-					static_cast<std::uint8_t>(slot % std::size(kMarkPalette)) };
+				slot = static_cast<std::uint8_t>(slot % std::size(kMarkPalette));
+				_marked[a_id] = { a_handle, slot };
+				if (const auto trail = _trails.find(a_id); trail != _trails.end()) {
+					trail->second.colour = kMarkPalette[slot];
+				}
 				note = Locale::T("Tracking {}");
 			}
 			if (const auto at = note.find("{}"); at != std::string::npos) {
-				note.replace(at, 2, who);
+				note.replace(at, 2, a_who);
 			}
 			RE::SendHUDMessage::ShowHUDMessage(note.c_str());
 			logger::info("trails: {} ({} marked)", note, _marked.size());
+		};
+
+		auto* target = [&]() -> RE::Actor* {
+			if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
+				if (auto ref = pick->target.get(); ref) {
+					if (auto* actor = ref->As<RE::Actor>(); actor) {
+						return actor;
+					}
+				}
+			}
+			return PickByView(hotkeySettings->trackRange);
+		}();
+
+		if (target && !target->IsPlayerRef()) {
+			const auto* name = target->GetDisplayFullName();
+			toggleMark(target->GetFormID(), target->CreateRefHandle(),
+				name && name[0] ? ToUtf8(name) : std::string{ "?" });
 			return;
+		}
+
+		// Nobody under the aim - but maybe their footprints are. Seeing
+		// Hulda's trail on the ground and marking the trail itself is how a
+		// tracker hunts someone they have not caught up with yet.
+		if (auto* camera = RE::Main::WorldRootCamera(); camera && !_trails.empty()) {
+			auto*      player = RE::PlayerCharacter::GetSingleton();
+			const auto origin = player ? player->GetPosition() : RE::NiPoint3{};
+			RE::FormID bestId = 0;
+			float      bestOff = 0.05f;  // same view window the actor pick uses
+			for (const auto& [id, trail] : _trails) {
+				for (const auto& point : trail.points) {
+					if (point.place != _placeId ||
+						origin.GetDistance(point.pos) > hotkeySettings->trackRange) {
+						continue;
+					}
+					float x{}, y{}, z{};
+					RE::NiCamera::WorldPtToScreenPt3(camera->GetRuntimeData().worldToCam,
+						camera->GetRuntimeData2().port, point.pos, x, y, z, 1e-5f);
+					if (z <= 0.0f) {
+						continue;
+					}
+					const float dx = x - 0.5f;
+					const float dy = y - 0.5f;
+					const float off = std::sqrt(dx * dx + dy * dy);
+					if (off < bestOff) {
+						bestOff = off;
+						bestId = id;
+					}
+				}
+			}
+			if (bestId != 0) {
+				// The owner might be a cell away; the quarry's handle still
+				// reaches them, and failing that the form itself does, so the
+				// recording resumes the moment they are loaded again.
+				RE::ObjectRefHandle handle;
+				if (const auto quarry = _quarry.find(bestId); quarry != _quarry.end()) {
+					handle = quarry->second.handle;
+				}
+				if (!handle.get()) {
+					if (auto* actor = RE::TESForm::LookupByID<RE::Actor>(bestId)) {
+						handle = actor->CreateRefHandle();
+					}
+				}
+				toggleMark(bestId, handle, _trails[bestId].name);
+				return;
+			}
 		}
 
 		const bool hidden = !_trailsHidden.load();
@@ -1718,10 +1816,25 @@ namespace SS
 		const auto  worldspace = currentWs ? currentWs->GetFormID() : RE::FormID{ 0 };
 		const bool placeChanged =
 			_placeKnown && (interior != _wasInterior || (!interior && worldspace != _lastWorldspace));
+		_placeId = interior ? (cell ? cell->GetFormID() : RE::FormID{ 0 }) : worldspace;
 		if (placeChanged && settings->trailsClearOnTransition) {
-			_trails.clear();
-			_quarry.clear();
-			logger::info("trails: place changed, wiped");
+			if (settings->trailsForgetMarked) {
+				// The hunt ends at the door: marks released, everything wiped.
+				_trails.clear();
+				_quarry.clear();
+				_marked.clear();
+				logger::info("trails: place changed, wiped marks and all");
+			} else {
+				// A marked quarry survives the wipe. Their points are stamped
+				// with the place they were laid in and drawn only there, so
+				// stale coordinates never bleed into the wrong world - and
+				// recording carries on wherever the owner next turns up.
+				std::erase_if(_trails,
+					[&](const auto& a_pair) { return !_marked.contains(a_pair.first); });
+				std::erase_if(_quarry,
+					[&](const auto& a_pair) { return !_marked.contains(a_pair.first); });
+				logger::info("trails: place changed, wiped ({} marked kept)", _trails.size());
+			}
 		}
 
 		// On arriving anywhere, the sense can remember the room from the
@@ -1787,10 +1900,13 @@ namespace SS
 					                                                 : settings->neutralColour;
 					if (real - trail.lastSampleAt > 0.4f) {
 						const auto at = actor->GetPosition();
-						if (trail.points.empty() ||
-							at.GetDistance(trail.points.back().first) > 24.0f) {
+						// The stride check only means anything against a point
+						// in the same place; against another cell's coordinates
+						// it is noise that happens to pass.
+						if (trail.points.empty() || trail.points.back().place != _placeId ||
+							at.GetDistance(trail.points.back().pos) > 24.0f) {
 							trail.lastSampleAt = real;
-							trail.points.emplace_back(at, real);
+							trail.points.push_back({ at, real, _placeId });
 						}
 					}
 				}
@@ -1814,7 +1930,7 @@ namespace SS
 		for (auto it = _trails.begin(); it != _trails.end();) {
 			auto& trail = it->second;
 			std::erase_if(trail.points,
-				[&](const auto& a_point) { return real - a_point.second > lifetime; });
+				[&](const auto& a_point) { return real - a_point.bornAt > lifetime; });
 			if (trail.points.empty()) {
 				it = _trails.erase(it);
 				continue;
@@ -1822,6 +1938,15 @@ namespace SS
 
 			const bool isMarked = _marked.contains(it->first);
 			if (senseGate && !isMarked) {
+				++it;
+				continue;
+			}
+
+			// Only the points laid in this place are drawable; the rest wait
+			// for the player to go back to where they were laid.
+			const bool anyHere = std::ranges::any_of(trail.points,
+				[&](const auto& a_point) { return a_point.place == _placeId; });
+			if (!anyHere) {
 				++it;
 				continue;
 			}
@@ -1841,8 +1966,11 @@ namespace SS
 				drawable.label = std::move(form);
 			}
 			drawable.marks.reserve(trail.points.size());
-			for (const auto& [pos, born] : trail.points) {
-				drawable.marks.push_back({ pos, 1.0f - (real - born) / lifetime });
+			for (const auto& point : trail.points) {
+				if (point.place != _placeId) {
+					continue;
+				}
+				drawable.marks.push_back({ point.pos, 1.0f - (real - point.bornAt) / lifetime });
 			}
 			out.push_back(std::move(drawable));
 			++it;
@@ -2263,7 +2391,9 @@ namespace SS
 								ClassifyWeapon(a_ref->As<RE::Actor>()));
 						}
 						if (isActor && settings->raceIcons) {
-							_labelBuffer.back().race = RaceTag(a_ref->As<RE::Actor>());
+							const auto [kind, mod] = ClassifyRace(a_ref->As<RE::Actor>());
+							_labelBuffer.back().race = static_cast<std::uint8_t>(kind);
+							_labelBuffer.back().raceMark = static_cast<std::uint8_t>(mod);
 						}
 
 						// Vitals over other people last exactly as long as the

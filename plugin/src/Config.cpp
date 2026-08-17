@@ -672,6 +672,7 @@ namespace SS
 		Get(table, "tracks", "lifetime", trailLifetime);
 		Get(table, "tracks", "names", trailNames);
 		Get(table, "tracks", "clearOnTransition", trailsClearOnTransition);
+		Get(table, "tracks", "forgetMarked", trailsForgetMarked);
 		Get(table, "tracks", "style", trailStyle);
 		Get(table, "tracks", "key", trailKey);
 		Get(table, "tracks", "gamepad", trailGamepad);
@@ -1235,8 +1236,8 @@ namespace SS
 		file << "; Tag icons follow the drawn weapon - yours and theirs - instead of\n";
 		file << "; the relationship shape. The colour still says friend or foe.\n";
 		file << "weaponIcons = " << boolean(weaponIcons) << "\n";
-		file << "; A race chip - first letters of the race's own localised name -\n";
-		file << "; beside people's tags and on your level entry.\n";
+		file << "; A racial emblem beside people's tags and on your level entry,\n";
+		file << "; with a fang or paw mark after it for vampires and werewolves.\n";
 		file << "raceIcons = " << boolean(raceIcons) << "\n";
 		file << "; Where the stats row lives: bars (riding the over-head stack),\n";
 		file << "; corner (under the corner readout), or both.\n";
@@ -1255,6 +1256,8 @@ namespace SS
 		file << "; Marks from another place are nonsense in this one; cleared on\n";
 		file << "; interior/worldspace transitions unless told otherwise.\n";
 		file << "clearOnTransition = " << boolean(trailsClearOnTransition) << "\n";
+		file << "; The wipe spares a marked quarry unless this says otherwise.\n";
+		file << "forgetMarked = " << boolean(trailsForgetMarked) << "\n";
 		file << "; chevrons or footprints.\n";
 		file << "style = " << kTrailStyleNames[static_cast<std::size_t>(trailStyle)] << "\n";
 		file << "; A key of its own: press to hide or show every trail; press while\n";

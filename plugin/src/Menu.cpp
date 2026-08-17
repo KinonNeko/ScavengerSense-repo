@@ -1116,8 +1116,15 @@ namespace SS::Menu
 				igCheckbox(T("Forget trails when I change place"), &a_settings.trailsClearOnTransition);
 				Help(
 					"An interior's marks are nonsense outside it, so trails are wiped\n"
-					"when you pass a load door or change worldspace. Untick to keep\n"
-					"them anyway.");
+					"when you pass a load door or change worldspace. A marked quarry\n"
+					"is spared: their trail pauses, keeps recording wherever they\n"
+					"are loaded, and each stretch shows in the place it was laid.");
+
+				igCheckbox(T("Forget marked trails as well"), &a_settings.trailsForgetMarked);
+				Help(
+					"The hunt ends at the door: changing place releases every mark\n"
+					"and wipes their trails with the rest. Leave off to track someone\n"
+					"across cells.");
 
 				igCheckbox(T("Trails only while sensing"), &a_settings.trailsOnlyWhileSensing);
 				Help(
@@ -1134,7 +1141,7 @@ namespace SS::Menu
 
 				igSpacing();
 				igSeparatorText(T("Trail key"));
-				igTextDisabled("%s", T("Aim at someone and press it to track them; press at nothing to hide or show trails. Hold it to wipe everything."));
+				igTextDisabled("%s", T("Aim at someone - or their footprints - and press it to track them; press at nothing to hide or show trails. Hold it to wipe everything."));
 
 				const auto trailKeyName = [&]() -> std::string {
 					if (a_settings.trailKey < 0) {
@@ -1242,9 +1249,10 @@ namespace SS::Menu
 
 				igCheckbox(T("Race beside the level"), &a_settings.raceIcons);
 				Help(
-					"A small chip from the race name - No for Nord, Im for Imperial -\n"
-					"joins the level, so the level's mark stops repeating the weapon\n"
-					"shape. On other people it sits before their weapon icon.");
+					"A racial emblem - a horned helm for a Nord, cat ears for a\n"
+					"Khajiit - marks the level instead of repeating the weapon shape,\n"
+					"with fangs or a paw after it for a vampire or werewolf. On other\n"
+					"people it sits before their weapon icon.");
 				igSpacing();
 			}
 		}
