@@ -113,6 +113,11 @@ namespace SS
 		// long enough to hand everything back when the feature turns off.
 		std::atomic_bool                         _enemyHudOwned{ false };
 		bool                                     _targetControlHeld{ false };
+		// Where the vanilla enemy health element normally sits. Captured the
+		// first time we park it off screen - hiding by position, because the
+		// HUD's own ActionScript re-drives visibility every target update and
+		// wins any fight over _visible.
+		float                                    _enemyHealthHomeY{ -100000.0f };
 		bool                                     _combatShown{ false };
 		bool                                     _hitSinkRegistered{ false };
 		float                          _selfLast[3]{ -1.0f, -1.0f, -1.0f };

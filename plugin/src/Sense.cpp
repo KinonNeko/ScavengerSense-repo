@@ -1092,16 +1092,27 @@ namespace SS
 		// Owning the enemy bars outright: TrueHUD's target widget is claimed
 		// through its API so it never appears, its per-actor widgets are
 		// dismissed on a half-second pulse, and the vanilla enemy health
-		// element is hidden the same way. Before the early returns below, so
-		// everything is handed back the moment the feature turns off.
-		constexpr auto kEnemyHealthPath = "_root.HUDMovieBaseInstance.EnemyHealth_mc._visible";
-		const bool     wantOwn = wantCombat && settings->pushTrueHUDAside;
+		// element is parked off screen - by POSITION, not visibility, because
+		// the HUD's own ActionScript re-drives _visible on every target update
+		// and wins that fight. Before the early returns below, so everything
+		// is handed back the moment the feature turns off.
+		constexpr auto  kEnemyHealth = "_root.HUDMovieBaseInstance.EnemyHealth_mc";
+		constexpr float kUnset = -100000.0f;
+		constexpr float kParkedY = -4000.0f;
+		const bool      wantOwn = wantCombat && settings->pushTrueHUDAside;
+
+		const auto hudMovie = [&]() -> RE::GFxMovie* {
+			auto* ui = RE::UI::GetSingleton();
+			auto  menu = ui ? ui->GetMenu(RE::HUDMenu::MENU_NAME) : nullptr;
+			return menu && menu->uiMovie ? menu->uiMovie.get() : nullptr;
+		};
+
 		if (!wantOwn && _enemyHudOwned.load()) {
-			if (auto* ui = RE::UI::GetSingleton()) {
-				if (auto menu = ui->GetMenu(RE::HUDMenu::MENU_NAME); menu && menu->uiMovie) {
-					menu->uiMovie->SetVariable(kEnemyHealthPath, RE::GFxValue{ true });
-				}
+			if (auto* movie = hudMovie(); movie && _enemyHealthHomeY > kUnset + 1.0f) {
+				movie->SetVariable((std::string{ kEnemyHealth } + "._y").c_str(),
+					RE::GFxValue{ static_cast<double>(_enemyHealthHomeY) });
 			}
+			_enemyHealthHomeY = kUnset;
 			if (g_trueHud && _targetControlHeld) {
 				g_trueHud->ReleaseTargetControl(SKSE::GetPluginHandle());
 				_targetControlHeld = false;
@@ -1120,11 +1131,27 @@ namespace SS
 				logger::info("TrueHUD target control -> {}", _targetControlHeld ? "held" : "refused");
 			}
 
-			// The vanilla element re-shows itself on HUD reloads, which is why
-			// this is a pulse rather than a one-off.
-			if (auto* ui = RE::UI::GetSingleton()) {
-				if (auto menu = ui->GetMenu(RE::HUDMenu::MENU_NAME); menu && menu->uiMovie) {
-					menu->uiMovie->SetVariable(kEnemyHealthPath, RE::GFxValue{ false });
+			// Re-applied on a pulse because a HUD reload rebuilds the element
+			// at its home position. The home Y is captured once, before the
+			// first parking, and only from a sane-looking value so a pulse can
+			// never capture our own -4000.
+			if (auto* movie = hudMovie()) {
+				RE::GFxValue y;
+				const auto   yPath = std::string{ kEnemyHealth } + "._y";
+				if (!movie->GetVariable(&y, yPath.c_str()) || !y.IsNumber()) {
+					static bool saidMissing = false;
+					if (!saidMissing) {
+						saidMissing = true;
+						logger::warn("vanilla enemy health element not found at {} - "
+									 "cannot hide it", kEnemyHealth);
+					}
+				} else {
+					const auto current = static_cast<float>(y.GetNumber());
+					if (current > kParkedY + 1.0f && _enemyHealthHomeY < kUnset + 1.0f) {
+						_enemyHealthHomeY = current;
+						logger::info("vanilla enemy health parked (home y={:.0f})", current);
+					}
+					movie->SetVariable(yPath.c_str(), RE::GFxValue{ static_cast<double>(kParkedY) });
 				}
 			}
 
