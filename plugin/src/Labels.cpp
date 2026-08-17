@@ -579,6 +579,21 @@ namespace SS
 		_trailsLit = a_lit;
 	}
 
+	void Labels::Expire(float a_fade)
+	{
+		std::scoped_lock guard{ _lock };
+		const auto by = Now() + a_fade;
+		for (auto& entry : _entries) {
+			entry.diesAt = std::min(entry.diesAt, by);
+		}
+		if (_washDies > by) {
+			_washDies = by;
+		}
+		if (_ring.endAt > by) {
+			_ring.endAt = by;
+		}
+	}
+
 	// The corner readout: the same bars as the tag, pinned to the screen.
 	//
 	// Its own draw rather than a fake tag, because a tag needs somewhere in the

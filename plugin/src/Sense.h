@@ -27,8 +27,12 @@ namespace SS
 		// nothing it hides or shows every trail.
 		void OnTrailHotkey();
 
-		// Cancel everything immediately (used on load/exit as well as by the toggle).
+		// Cancel everything immediately (used on load/exit and the menu button).
 		void Cancel();
+
+		// The hotkey's way out: everything fades over the sweep's own fade-out
+		// instead of vanishing on a frame.
+		void FadeOut();
 
 		[[nodiscard]] bool Ready() const { return _ready; }
 		[[nodiscard]] bool LabelsAvailable() const;
@@ -76,6 +80,9 @@ namespace SS
 		void PollTrails();
 		void ApplyTo(RE::TESObjectREFR* a_ref, Category a_category);
 		void ClearOurEffects();
+		// Shortens our live shader effects so the engine plays their own
+		// fade-out, rather than killing them.
+		void SoftenOurEffects(float a_fade);
 		void BeginTint(float a_duration);
 		void EndTint();
 

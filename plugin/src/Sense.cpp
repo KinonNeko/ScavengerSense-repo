@@ -744,8 +744,8 @@ namespace SS
 		logger::info("sweep requested (active={}, trigger={})", _active.load(), TriggerName(settings->trigger));
 
 		if (_active && settings->toggle) {
-			logger::info("a wave was already running - cancelling it instead");
-			Cancel();
+			logger::info("a wave was already running - fading it out instead");
+			FadeOut();
 			return;
 		}
 
@@ -763,11 +763,10 @@ namespace SS
 		_lastFired = now;
 
 		if (_active) {
-			// Toggle is off, so the press is not a cancel - but a wave that is
-			// somehow still flagged active has to be cleared before a new one,
-			// or the two share a pending list.
-			logger::warn("a wave was still marked active without toggle on - clearing it first");
-			Cancel();
+			// Toggle is off, so this press starts a fresh wave over the old
+			// one. The old wave's shaders are softened rather than killed -
+			// Start() below owns that - so the handoff reads as one motion.
+			logger::info("a wave was still running - starting a fresh one over its fade");
 		}
 
 		Start();
@@ -917,7 +916,11 @@ namespace SS
 		{
 			std::scoped_lock guard{ _lock };
 
-			ClearOurEffects();
+			// A previous wave's glow fades under the new one instead of being
+			// killed on the frame the key lands - the re-press reads as one
+			// continuous motion. The pool is 128 shaders round-robin, so a
+			// fading straggler only ever shares a shader after a full lap.
+			SoftenOurEffects(std::max(settings->fadeOut, 0.15f));
 
 			_pending.clear();
 			_pending.reserve(keepAlso);
@@ -1441,18 +1444,81 @@ namespace SS
 		_combatShown = !_combatBuffer.empty();
 	}
 
+	namespace
+	{
+		// The actor nearest the centre of the screen within range: hunting
+		// picks a deer across a valley, far beyond the crosshair's activate
+		// reach, so the mark aims by view rather than by touch.
+		[[nodiscard]] RE::Actor* PickByView(float a_maxRange)
+		{
+			auto* camera = RE::Main::WorldRootCamera();
+			auto* player = RE::PlayerCharacter::GetSingleton();
+			auto* lists = RE::ProcessLists::GetSingleton();
+			if (!camera || !player || !lists) {
+				return nullptr;
+			}
+
+			const auto origin = player->GetPosition();
+			RE::Actor* best = nullptr;
+			float      bestOff = 0.05f;  // normalised screen distance from centre
+
+			lists->ForEachHighActor([&](RE::Actor* a_actor) {
+				if (!a_actor || a_actor->IsPlayerRef() || !a_actor->Is3DLoaded()) {
+					return RE::BSContainer::ForEachResult::kContinue;
+				}
+				const auto life = a_actor->AsActorState()->GetLifeState();
+				if (life == RE::ACTOR_LIFE_STATE::kDying || life == RE::ACTOR_LIFE_STATE::kDead) {
+					return RE::BSContainer::ForEachResult::kContinue;
+				}
+				const auto at = a_actor->GetPosition() + RE::NiPoint3{ 0.0f, 0.0f, 64.0f };
+				if (origin.GetDistance(at) > a_maxRange) {
+					return RE::BSContainer::ForEachResult::kContinue;
+				}
+
+				float x{}, y{}, z{};
+				RE::NiCamera::WorldPtToScreenPt3(camera->GetRuntimeData().worldToCam,
+					camera->GetRuntimeData2().port, at, x, y, z, 1e-5f);
+				if (z <= 0.0f) {
+					return RE::BSContainer::ForEachResult::kContinue;
+				}
+				const float dx = x - 0.5f;
+				const float dy = y - 0.5f;
+				const float off = std::sqrt(dx * dx + dy * dy);
+				if (off < bestOff) {
+					bestOff = off;
+					best = a_actor;
+				}
+				return RE::BSContainer::ForEachResult::kContinue;
+			});
+
+			return best;
+		}
+	}
+
 	// A small toast so the key never feels dead; the message names the person
 	// when there is one.
 	void Sense::OnTrailHotkey()
 	{
+		const auto* hotkeySettings = Settings::GetSingleton();
+
 		auto* target = [&]() -> RE::Actor* {
 			if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
 				if (auto ref = pick->target.get(); ref) {
-					return ref->As<RE::Actor>();
+					if (auto* actor = ref->As<RE::Actor>(); actor) {
+						return actor;
+					}
 				}
 			}
-			return nullptr;
+			return PickByView(hotkeySettings->trackRange);
 		}();
+
+		// Marking is part of the sense: without a live sweep the press falls
+		// through to hide/show, and the toast says why.
+		if (target && hotkeySettings->markNeedsSense && !_active) {
+			RE::SendHUDMessage::ShowHUDMessage(Locale::T("The sense is closed - sweep first to mark"));
+			logger::info("trails: mark refused, no sweep running");
+			return;
+		}
 
 		if (target && !target->IsPlayerRef()) {
 			const auto  id = target->GetFormID();
@@ -2055,6 +2121,76 @@ namespace SS
 			}
 			return RE::BSContainer::ForEachResult::kContinue;
 		});
+	}
+
+	void Sense::SoftenOurEffects(float a_fade)
+	{
+		auto* processLists = RE::ProcessLists::GetSingleton();
+		if (!processLists) {
+			return;
+		}
+
+		// The EFSH fade-out window sits at the end of the lifetime, so pulling
+		// the lifetime in to age + fade makes the engine start that fade now.
+		processLists->ForEachShaderEffect([&](RE::ShaderReferenceEffect* a_effect) {
+			if (a_effect && a_effect->effectData && _poolSet.contains(a_effect->effectData) &&
+				a_effect->lifetime > a_effect->age + a_fade) {
+				a_effect->lifetime = a_effect->age + a_fade;
+			}
+			return RE::BSContainer::ForEachResult::kContinue;
+		});
+	}
+
+	void Sense::FadeOut()
+	{
+		const auto* settings = Settings::GetSingleton();
+		const float fade = std::max(settings->fadeOut, 0.15f);
+
+		{
+			std::scoped_lock guard{ _lock };
+			if (!_active) {
+				return;
+			}
+			// Nothing new lights; everything lit leaves on its own fade. The
+			// normal finish in Tick() does the bookkeeping when the fade ends.
+			_pending.clear();
+			_next = 0;
+			SoftenOurEffects(fade);
+			_waveEnd = SS::Now() + fade;
+		}
+
+		Labels::GetSingleton()->Expire(fade);
+
+		// The image space route would otherwise hold the tint at full strength
+		// to the last frame and then pop: give it a short envelope that eases
+		// from the current grade back to neutral over the fade.
+		if (settings->tintUseImod && _imod) {
+			const auto ease = [&](RE::NiFloatInterpolator* a_interp, float a_from) {
+				if (!a_interp) {
+					return;
+				}
+				auto* data = a_interp->floatData.get();
+				if (!data || !data->keys || data->numKeys != 4 || data->keySize != 8) {
+					return;
+				}
+				auto* keys = reinterpret_cast<float*>(data->keys);
+				keys[0] = 0.0f;
+				keys[1] = a_from;
+				keys[2] = 0.05f * fade;
+				keys[3] = a_from;
+				keys[4] = 0.9f * fade;
+				keys[5] = 1.0f;
+				keys[6] = fade;
+				keys[7] = 1.0f;
+			};
+			_imod->data.duration = fade;
+			ease(_imod->cinematic.saturation.mult.get(), settings->tintSaturation);
+			ease(_imod->cinematic.brightness.mult.get(), settings->tintBrightness);
+			ease(_imod->cinematic.contrast.mult.get(), settings->tintContrast);
+			RE::ImageSpaceModifierInstanceForm::Trigger(_imod, settings->tintStrength, nullptr);
+		}
+
+		logger::info("wave fading out over {:.2f}s", fade);
 	}
 
 	void Sense::BeginTint(float a_duration)

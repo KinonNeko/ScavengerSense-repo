@@ -457,6 +457,11 @@ namespace SS
 		// while aiming at somebody to start or stop tracking them.
 		std::int32_t trailKey{ -1 };
 		std::int32_t trailGamepad{ -1 };
+		// How far the mark reaches: real hunting picks a deer across a valley,
+		// far beyond the crosshair's activate range.
+		float        trackRange{ 4096.0f };
+		// Marking is part of the sense: it only works while a sweep is live.
+		bool         markNeedsSense{ true };
 
 		// Their level in parentheses after the name - enemies very much
 		// included; knowing you are outmatched is the point.

@@ -1154,6 +1154,17 @@ namespace SS::Menu
 						trailPad == 0 ? -1 : SKSE::InputMap::kMacro_GamepadOffset + trailPad - 1;
 				}
 
+				igSliderFloat(T("Marking reach"), &a_settings.trackRange, 500.0f, 10000.0f, "%.0f units", 0);
+				Help(
+					"How far the mark can pick somebody out. It aims by view - the\n"
+					"creature nearest your screen centre within reach - so a deer\n"
+					"across a valley is fair game.");
+
+				igCheckbox(T("Marking needs an open sense"), &a_settings.markNeedsSense);
+				Help(
+					"Marking only works while a sweep is live, as if the sense itself\n"
+					"is what latches on. Hiding and showing trails always works.");
+
 				igTextDisabled("%s", T("Tracked people leave a gold trail that never fades while they are near."));
 			}
 

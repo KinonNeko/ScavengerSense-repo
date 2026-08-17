@@ -172,6 +172,10 @@ namespace SS
 		// a_lit says a sweep is running: trails brighten with everything else.
 		void SetTrails(std::vector<Trail> a_trails, bool a_lit);
 
+		// Winds the overlay down gracefully: every tag's deadline is pulled in
+		// to now + a_fade, the wash and the ring with them.
+		void Expire(float a_fade);
+
 		void SetRing(Ring a_ring);
 		void StopRing();
 

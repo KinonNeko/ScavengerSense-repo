@@ -670,6 +670,8 @@ namespace SS
 		Get(table, "tracks", "style", trailStyle);
 		Get(table, "tracks", "key", trailKey);
 		Get(table, "tracks", "gamepad", trailGamepad);
+		Get(table, "tracks", "range", trackRange);
+		Get(table, "tracks", "markNeedsSense", markNeedsSense);
 		Get(table, "player", "statsPlace", statsPlace);
 		Get(table, "self", "hudCorner", selfHudCorner);
 		Get(table, "self", "hudShow", selfHudShow);
@@ -785,6 +787,7 @@ namespace SS
 		combatLinger = std::clamp(combatLinger, 0.0f, 30.0f);
 		coldMax = std::clamp(coldMax, 1.0f, 100000.0f);
 		trailLifetime = std::clamp(trailLifetime, 10.0f, 300.0f);
+		trackRange = std::clamp(trackRange, 500.0f, 10000.0f);
 		labelMaxDistance = std::clamp(labelMaxDistance, 0.0f, 20000.0f);
 		washStrength = std::clamp(washStrength, 0.0f, 1.0f);
 		washFlat = std::clamp(washFlat, 0.0f, 1.0f);
@@ -1241,7 +1244,13 @@ namespace SS
 		file << "; A key of its own: press to hide or show every trail; press while\n";
 		file << "; aiming at somebody to start or stop tracking them.\n";
 		file << "key = " << trailKey << "\n";
-		file << "gamepad = " << trailGamepad << "\n\n\n";
+		file << "gamepad = " << trailGamepad << "\n";
+		file << "; How far the mark reaches, in units - hunting picks a deer across\n";
+		file << "; a valley, far beyond the crosshair's activate range.\n";
+		file << "range = " << trackRange << "\n";
+		file << "; Marking only works while a sweep is live - it is part of the\n";
+		file << "; sense, not a free power. The hide/show press always works.\n";
+		file << "markNeedsSense = " << boolean(markNeedsSense) << "\n\n\n";
 
 		file << "[Vitals]\n\n";
 		file << "; The same bars over other people, for the length of a sweep only.\n";
