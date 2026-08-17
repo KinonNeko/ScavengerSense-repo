@@ -125,6 +125,27 @@ namespace SS
 		kCount
 	};
 
+	// The marking sign: how the aim preview shows who - or whose trail - the
+	// trail key would take.
+	enum class AimStyle : std::uint8_t
+	{
+		kCorners = 0,  // frame corners around the body
+		kRing,         // a breathing ring at the feet
+		kChevron,      // a bobbing chevron overhead
+
+		kCount
+	};
+
+	// The gesture that wipes every mark and trail off the trail key.
+	enum class TrailWipe : std::uint8_t
+	{
+		kHold = 0,
+		kDoubleTap,
+		kOff,
+
+		kCount
+	};
+
 	// Which actors are worth sensing. Corpses are lootable, so they count by
 	// default; dead-only is the "where did that kill land" case.
 	enum class ActorFilter : std::uint32_t
@@ -520,6 +541,22 @@ namespace SS
 		// marks each take their own colour from a small palette, and the
 		// sweep glow over each marked person agrees with their trail.
 		bool         multiMark{ false };
+		// The marking sign: which shape the aim preview draws, and its colour
+		// when the target is not already marked (a marked one shows its own
+		// palette colour).
+		AimStyle      aimStyle{ AimStyle::kCorners };
+		std::uint32_t aimColour{ 0xFFA600 };
+		// Which gesture on the trail key wipes everything, and how long a
+		// hold has to last to count.
+		TrailWipe    trailWipe{ TrailWipe::kHold };
+		float        trailHoldTime{ 0.5f };
+		// Crouching reads the ground: while sneaking, every trail shows and
+		// the trail key works, sweep or no sweep - the tracker's stance is
+		// its own kind of sense.
+		bool         sneakReveals{ false };
+		// A dead quarry slips the mark after a while; 0 releases at once.
+		bool         markDeathRelease{ false };
+		float        markDeathDelay{ 10.0f };
 
 		// Their level in parentheses after the name - enemies very much
 		// included; knowing you are outmatched is the point.

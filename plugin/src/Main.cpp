@@ -61,14 +61,27 @@ namespace SS
 					code = static_cast<std::int32_t>(raw);
 				}
 
-				// The trail key: short press acts on release, holding it half a
-				// second wipes everything - so the two gestures never both fire.
+				// The trail key: a short press acts on release; the wipe rides
+				// whichever gesture the player chose - a hold, a double tap,
+				// or nothing at all - and swallows the press that made it, so
+				// the two never both fire.
 				const auto trailWanted = isGamepad ? settings->trailGamepad : settings->trailKey;
 				if (trailWanted >= 0 && code == trailWanted) {
 					if (button->IsDown()) {
 						_trailLongFired = false;
-					} else if (button->IsPressed() && !_trailLongFired &&
-							   button->HeldDuration() >= 0.5f) {
+						if (settings->trailWipe == TrailWipe::kDoubleTap) {
+							const auto now = RealNow();
+							if (now - _trailTapAt <= settings->doubleTapWindow) {
+								_trailTapAt = -1000.0f;
+								_trailLongFired = true;  // eat this press's release
+								Sense::GetSingleton()->OnTrailLongPress();
+							} else {
+								_trailTapAt = now;
+							}
+						}
+					} else if (button->IsPressed() && settings->trailWipe == TrailWipe::kHold &&
+							   !_trailLongFired &&
+							   button->HeldDuration() >= settings->trailHoldTime) {
 						_trailLongFired = true;
 						Sense::GetSingleton()->OnTrailLongPress();
 					} else if (button->IsUp() && !_trailLongFired) {
@@ -149,6 +162,7 @@ namespace SS
 		ButtonState _keyboard;
 		ButtonState _gamepad;
 		bool        _trailLongFired{ false };
+		float       _trailTapAt{ -1000.0f };
 	};
 
 	void OnMessage(SKSE::MessagingInterface::Message* a_message)

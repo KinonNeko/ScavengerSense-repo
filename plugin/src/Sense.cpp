@@ -1637,11 +1637,96 @@ namespace SS
 		           : kMarkPalette[it->second.slot % std::size(kMarkPalette)];
 	}
 
+	// The trail whose point sits nearest the screen centre within reach: the
+	// footprint half of the trail key's aim. Only points laid in this place
+	// count - the rest are not on screen to be aimed at.
+	RE::FormID Sense::PickTrailByView(float a_maxRange) const
+	{
+		auto* camera = RE::Main::WorldRootCamera();
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		if (!camera || !player || _trails.empty()) {
+			return 0;
+		}
+
+		const auto origin = player->GetPosition();
+		RE::FormID bestId = 0;
+		float      bestOff = 0.05f;  // same view window the actor pick uses
+		for (const auto& [id, trail] : _trails) {
+			for (const auto& point : trail.points) {
+				if (point.place != _placeId || origin.GetDistance(point.pos) > a_maxRange) {
+					continue;
+				}
+				float x{}, y{}, z{};
+				RE::NiCamera::WorldPtToScreenPt3(camera->GetRuntimeData().worldToCam,
+					camera->GetRuntimeData2().port, point.pos, x, y, z, 1e-5f);
+				if (z <= 0.0f) {
+					continue;
+				}
+				const float dx = x - 0.5f;
+				const float dy = y - 0.5f;
+				const float off = std::sqrt(dx * dx + dy * dy);
+				if (off < bestOff) {
+					bestOff = off;
+					bestId = id;
+				}
+			}
+		}
+		return bestId;
+	}
+
+	// Keeps the marking sign pointed at whatever the trail key would take:
+	// brackets (or ring, or chevron) on a person, running dots on a trail.
+	void Sense::UpdateAimPreview()
+	{
+		const auto* settings = Settings::GetSingleton();
+		auto*       labels = Labels::GetSingleton();
+
+		RE::Actor* aim = nullptr;
+		if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
+			if (auto ref = pick->target.get(); ref) {
+				aim = ref->As<RE::Actor>();
+			}
+		}
+		if (!aim) {
+			aim = PickByView(settings->trackRange);
+		}
+		if (aim && !aim->IsPlayerRef()) {
+			const auto tint = MarkColour(aim->GetFormID());
+			labels->SetAim(true, aim->GetPosition(), TagAnchor(aim, true),
+				tint ? tint : settings->aimColour);
+			labels->SetAimTrail(0, settings->aimColour);
+			_aimTrailId = 0;
+			return;
+		}
+
+		labels->SetAim(false, {}, {}, settings->aimColour);
+		const auto trailId = _trailsHidden.load() ? RE::FormID{ 0 }
+		                                          : PickTrailByView(settings->trackRange);
+		if (trailId != 0) {
+			const auto tint = MarkColour(trailId);
+			labels->SetAimTrail(trailId, tint ? tint : settings->aimColour);
+		} else {
+			labels->SetAimTrail(0, settings->aimColour);
+		}
+		_aimTrailId = trailId;
+	}
+
+	void Sense::ClearAimPreview()
+	{
+		auto* labels = Labels::GetSingleton();
+		labels->SetAim(false, {}, {}, Settings::GetSingleton()->aimColour);
+		labels->SetAimTrail(0, 0);
+		_aimTrailId = 0;
+	}
+
 	// Holding the key is the clean slate: every mark, trail and open
 	// recording window goes at once.
 	void Sense::OnTrailLongPress()
 	{
-		if (Settings::GetSingleton()->trailsOnlyWhileSensing && !_active) {
+		const auto* settings = Settings::GetSingleton();
+		auto*       player = RE::PlayerCharacter::GetSingleton();
+		const bool  sneakOpen = settings->sneakReveals && player && player->IsSneaking();
+		if (settings->trailsOnlyWhileSensing && !_active && !sneakOpen) {
 			RE::SendHUDMessage::ShowHUDMessage(Locale::T("The sense is closed - sweep first to mark"));
 			return;
 		}
@@ -1660,8 +1745,13 @@ namespace SS
 		const auto* hotkeySettings = Settings::GetSingleton();
 
 		// The whole apparatus lives inside the sense when the option says so:
-		// outside a sweep the key does nothing but explain itself.
-		if (hotkeySettings->trailsOnlyWhileSensing && !_active) {
+		// outside a sweep the key does nothing but explain itself. A crouch
+		// counts as its own kind of sense when the option is on - a tracker
+		// kneeling to read the ground.
+		auto*      hotkeyPlayer = RE::PlayerCharacter::GetSingleton();
+		const bool sneakOpen =
+			hotkeySettings->sneakReveals && hotkeyPlayer && hotkeyPlayer->IsSneaking();
+		if (hotkeySettings->trailsOnlyWhileSensing && !_active && !sneakOpen) {
 			RE::SendHUDMessage::ShowHUDMessage(Locale::T("The sense is closed - sweep first to mark"));
 			logger::info("trails: key refused, no sweep running");
 			return;
@@ -1729,32 +1819,8 @@ namespace SS
 		// Nobody under the aim - but maybe their footprints are. Seeing
 		// Hulda's trail on the ground and marking the trail itself is how a
 		// tracker hunts someone they have not caught up with yet.
-		if (auto* camera = RE::Main::WorldRootCamera(); camera && !_trails.empty()) {
-			auto*      player = RE::PlayerCharacter::GetSingleton();
-			const auto origin = player ? player->GetPosition() : RE::NiPoint3{};
-			RE::FormID bestId = 0;
-			float      bestOff = 0.05f;  // same view window the actor pick uses
-			for (const auto& [id, trail] : _trails) {
-				for (const auto& point : trail.points) {
-					if (point.place != _placeId ||
-						origin.GetDistance(point.pos) > hotkeySettings->trackRange) {
-						continue;
-					}
-					float x{}, y{}, z{};
-					RE::NiCamera::WorldPtToScreenPt3(camera->GetRuntimeData().worldToCam,
-						camera->GetRuntimeData2().port, point.pos, x, y, z, 1e-5f);
-					if (z <= 0.0f) {
-						continue;
-					}
-					const float dx = x - 0.5f;
-					const float dy = y - 0.5f;
-					const float off = std::sqrt(dx * dx + dy * dy);
-					if (off < bestOff) {
-						bestOff = off;
-						bestId = id;
-					}
-				}
-			}
+		{
+			const auto bestId = PickTrailByView(hotkeySettings->trackRange);
 			if (bestId != 0) {
 				// The owner might be a cell away; the quarry's handle still
 				// reaches them, and failing that the form itself does, so the
@@ -1860,6 +1926,35 @@ namespace SS
 		_wasInterior = interior;
 		_lastWorldspace = worldspace;
 
+		// The optional mercy of the death release: a quarry seen dead slips
+		// the mark after a while, and the trail is left to age out on its own.
+		if (settings->markDeathRelease) {
+			for (auto it = _marked.begin(); it != _marked.end();) {
+				auto& mark = it->second;
+				auto  ref = mark.handle.get();
+				auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
+				if (actor && actor->Is3DLoaded()) {
+					const auto life = actor->AsActorState()->GetLifeState();
+					const bool dead = life == RE::ACTOR_LIFE_STATE::kDying ||
+					                  life == RE::ACTOR_LIFE_STATE::kDead;
+					if (dead && mark.deadAt <= 0.0f) {
+						mark.deadAt = real;
+					} else if (!dead) {
+						mark.deadAt = 0.0f;  // resurrection happens, in Skyrim
+					}
+				}
+				if (mark.deadAt > 0.0f && real - mark.deadAt >= settings->markDeathDelay) {
+					if (const auto trail = _trails.find(it->first); trail != _trails.end()) {
+						trail->second.colour = settings->neutralColour;
+						logger::info("trails: {} is dead, mark released", trail->second.name);
+					}
+					it = _marked.erase(it);
+					continue;
+				}
+				++it;
+			}
+		}
+
 		// Fighting somebody keeps their recording window open; a mark holds
 		// it open for as long as they are anywhere near.
 		for (const auto& [id, track] : _combatHits) {
@@ -1918,11 +2013,18 @@ namespace SS
 		// showing them again brings the whole picture back.
 		if (_trailsHidden.load()) {
 			Labels::GetSingleton()->SetTrails({}, false);
+			if (_sneakPreviewWas && !_active) {
+				ClearAimPreview();
+				_sneakPreviewWas = false;
+			}
 			return;
 		}
 		// Inside-the-sense mode: between sweeps only marked quarry stay
-		// visible - hiding them too would make marking pointless.
-		const bool senseGate = settings->trailsOnlyWhileSensing && !_active;
+		// visible - hiding them too would make marking pointless. Crouching
+		// opens the gate too when the option is on: the tracker's stance is
+		// its own kind of sense.
+		const bool sneakOpen = settings->sneakReveals && player->IsSneaking();
+		const bool senseGate = settings->trailsOnlyWhileSensing && !_active && !sneakOpen;
 
 		// Age out, then hand Labels a drawable copy with the fades already
 		// worked out - the render thread never reconciles clocks.
@@ -1954,7 +2056,9 @@ namespace SS
 			Labels::Trail drawable;
 			drawable.colour = trail.colour;
 			drawable.bright = isMarked;
-			if ((settings->trailNames || _marked.contains(it->first)) && !trail.name.empty()) {
+			drawable.id = it->first;
+			if ((settings->trailNames || isMarked || _aimTrailId == it->first) &&
+				!trail.name.empty()) {
 				// The translation carries a {} for the name; filled by hand so
 				// a bad translation cannot throw.
 				std::string form{ Locale::T("{}'s footprints") };
@@ -1976,7 +2080,17 @@ namespace SS
 			++it;
 		}
 		// A running sweep lights the trails up along with everything else.
-		Labels::GetSingleton()->SetTrails(std::move(out), _active.load());
+		Labels::GetSingleton()->SetTrails(std::move(out), _active.load() || sneakOpen);
+
+		// Outside a sweep, the crouch drives the marking sign; Tick owns it
+		// while a wave is live, so only one of them ever does.
+		const bool sneakPreview = sneakOpen && !_active;
+		if (sneakPreview) {
+			UpdateAimPreview();
+		} else if (_sneakPreviewWas && !_active) {
+			ClearAimPreview();
+		}
+		_sneakPreviewWas = sneakPreview;
 	}
 
 	void Sense::Tick()
@@ -2082,27 +2196,12 @@ namespace SS
 			Labels::GetSingleton()->MoveTo(_anchorBuffer, _speakingBuffer, _vitalsBuffer);
 		}
 
-		// While the sense is open, brackets follow whoever the trail key
-		// would take - already-marked people show their own mark colour.
+		// While the sense is open, the marking sign follows whatever the
+		// trail key would take - a person, or a trail on the ground.
 		if (!suspended) {
-			RE::Actor* aim = nullptr;
-			if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
-				if (auto ref = pick->target.get(); ref) {
-					aim = ref->As<RE::Actor>();
-				}
-			}
-			if (!aim) {
-				aim = PickByView(Settings::GetSingleton()->trackRange);
-			}
-			if (aim && !aim->IsPlayerRef()) {
-				const auto tint = MarkColour(aim->GetFormID());
-				Labels::GetSingleton()->SetAim(true, aim->GetPosition(),
-					TagAnchor(aim, true), tint ? tint : 0xFFA600);
-			} else {
-				Labels::GetSingleton()->SetAim(false, {}, {}, 0xFFA600);
-			}
+			UpdateAimPreview();
 		} else {
-			Labels::GetSingleton()->SetAim(false, {}, {}, 0xFFA600);
+			ClearAimPreview();
 		}
 
 		// Stop the clock rather than shifting each deadline. Shifting only ever
@@ -2142,7 +2241,7 @@ namespace SS
 
 		if (_next >= _pending.size() && now >= _waveEnd) {
 			logger::info("wave finished, {} shaders were applied", _appliedThisWave);
-			Labels::GetSingleton()->SetAim(false, {}, {}, 0xFFA600);
+			ClearAimPreview();
 			Labels::GetSingleton()->Clear();
 			_active = false;
 			_pending.clear();
@@ -2585,7 +2684,7 @@ namespace SS
 			_next = 0;
 			_active = false;
 		}
-		Labels::GetSingleton()->SetAim(false, {}, {}, 0xFFA600);
+		ClearAimPreview();
 		Labels::GetSingleton()->Clear();
 		EndTint();
 	}

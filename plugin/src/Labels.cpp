@@ -761,6 +761,13 @@ namespace SS
 		_aimColour = a_colour;
 	}
 
+	void Labels::SetAimTrail(std::uint32_t a_id, std::uint32_t a_colour)
+	{
+		std::scoped_lock guard{ _lock };
+		_aimTrail = a_id;
+		_aimTrailColour = a_colour;
+	}
+
 	void Labels::Expire(float a_fade)
 	{
 		std::scoped_lock guard{ _lock };
@@ -1323,6 +1330,8 @@ namespace SS
 		RE::NiPoint3       aimFeet;
 		RE::NiPoint3       aimHead;
 		std::uint32_t      aimColour = 0xFFA600;
+		std::uint32_t      aimTrail = 0;
+		std::uint32_t      aimTrailColour = 0xFFA600;
 		{
 			// The HUD callback runs on the render thread, so take a copy and get
 			// off the lock rather than holding it across any drawing.
@@ -1336,6 +1345,8 @@ namespace SS
 			aimFeet = _aimFeet;
 			aimHead = _aimHead;
 			aimColour = _aimColour;
+			aimTrail = _aimTrail;
+			aimTrailColour = _aimTrailColour;
 		}
 
 		auto* io = igGetIO();
@@ -1434,6 +1445,14 @@ namespace SS
 				bool         hasFreshest = false;
 				int          stride = 0;  // left foot, right foot
 
+				// The trail the key would take: running dots march along it
+				// toward the fresh end, so "ready to mark" is unmistakable.
+				const bool  aimed = aimTrail != 0 && trail.id == aimTrail;
+				const float dotGap = 22.0f;
+				float       nextDot = aimed ? dotGap - std::fmod(now * 44.0f, dotGap) : 0.0f;
+				const auto  dotInk =
+					PackColour(aimTrailColour, 0.75f + 0.25f * std::sin(now * 6.0f));
+
 				for (const auto& mark : trail.marks) {
 					ImVec2 at;
 					if (!Project(mark.world, width, height, at)) {
@@ -1455,6 +1474,16 @@ namespace SS
 							const float uy = dy / len;
 							const float s = std::clamp(len * 0.30f, 2.5f, 13.0f);
 							const bool  lit = trailsLit || trail.bright;
+
+							if (aimed) {
+								while (nextDot < len) {
+									ImDrawList_AddCircleFilled(draw,
+										ImVec2{ prev.x + ux * nextDot, prev.y + uy * nextDot },
+										std::max(2.0f, s * 0.18f), dotInk, 6);
+									nextDot += dotGap;
+								}
+								nextDot -= len;
+							}
 							const float a =
 								std::clamp(mark.fade, 0.0f, 1.0f) * (lit ? 1.0f : 0.8f);
 
@@ -1530,8 +1559,8 @@ namespace SS
 			}
 		}
 
-		// The aim highlight: brackets around whoever the trail key would mark,
-		// in the colour it would mark them, breathing so it reads as live.
+		// The aim highlight: the marking sign over whoever the trail key would
+		// mark, in the colour it would mark them, breathing so it reads live.
 		if (aimValid) {
 			ImVec2 feet;
 			ImVec2 head;
@@ -1539,23 +1568,68 @@ namespace SS
 				const float boxH = std::max(20.0f, feet.y - head.y);
 				const float boxW = boxH * 0.45f;
 				const float cx = (feet.x + head.x) * 0.5f;
-				const float top = head.y - boxH * 0.08f;
-				const float bottom = feet.y + boxH * 0.04f;
-				const float left = cx - boxW * 0.5f;
-				const float rightEdge = cx + boxW * 0.5f;
-				const float arm = std::clamp(boxW * 0.28f, 6.0f, 26.0f);
 				const float pulse = 0.65f + 0.25f * std::sin(now * 4.0f);
 				const auto  ink = PackColour(aimColour, pulse);
 				const float w = std::max(1.5f, boxH * 0.02f);
 
-				const auto corner = [&](float x, float y, float sx, float sy) {
-					ImDrawList_AddLine(draw, ImVec2{ x, y }, ImVec2{ x + arm * sx, y }, ink, w);
-					ImDrawList_AddLine(draw, ImVec2{ x, y }, ImVec2{ x, y + arm * sy }, ink, w);
-				};
-				corner(left, top, 1.0f, 1.0f);
-				corner(rightEdge, top, -1.0f, 1.0f);
-				corner(left, bottom, 1.0f, -1.0f);
-				corner(rightEdge, bottom, -1.0f, -1.0f);
+				switch (settings->aimStyle) {
+				case AimStyle::kRing:
+					{
+						// A breathing ellipse at the feet, with a second ring
+						// swelling out of it and thinning away.
+						const float rx = std::clamp(boxW * 0.9f, 12.0f, 90.0f);
+						const float ry = rx * 0.35f;
+						const auto  ring = [&](float a_scale, ImU32 a_ink, float a_w) {
+							for (int seg = 0; seg <= 20; ++seg) {
+								const float t = 6.2831853f * static_cast<float>(seg) / 20.0f;
+								ImDrawList_PathLineTo(draw,
+									ImVec2{ feet.x + std::cos(t) * rx * a_scale,
+										feet.y + std::sin(t) * ry * a_scale });
+							}
+							ImDrawList_PathStroke(draw, a_ink, 0, a_w);
+						};
+						ring(1.0f, ink, w * 1.4f);
+						const float swell = std::fmod(now, 1.2f) / 1.2f;
+						ring(1.0f + swell * 0.5f,
+							PackColour(aimColour, (1.0f - swell) * 0.6f), w);
+					}
+					break;
+
+				case AimStyle::kChevron:
+					{
+						// A chevron bobbing over the head, point down.
+						const float arm = std::clamp(boxW * 0.4f, 8.0f, 30.0f);
+						const float bob = std::sin(now * 3.0f) * boxH * 0.04f;
+						const ImVec2 tip{ cx, head.y - boxH * 0.10f + bob };
+						ImDrawList_AddLine(draw, ImVec2{ tip.x - arm, tip.y - arm * 1.1f },
+							tip, ink, w * 1.6f);
+						ImDrawList_AddLine(draw, ImVec2{ tip.x + arm, tip.y - arm * 1.1f },
+							tip, ink, w * 1.6f);
+					}
+					break;
+
+				case AimStyle::kCorners:
+				default:
+					{
+						const float top = head.y - boxH * 0.08f;
+						const float bottom = feet.y + boxH * 0.04f;
+						const float left = cx - boxW * 0.5f;
+						const float rightEdge = cx + boxW * 0.5f;
+						const float arm = std::clamp(boxW * 0.28f, 6.0f, 26.0f);
+
+						const auto corner = [&](float x, float y, float sx, float sy) {
+							ImDrawList_AddLine(draw, ImVec2{ x, y },
+								ImVec2{ x + arm * sx, y }, ink, w);
+							ImDrawList_AddLine(draw, ImVec2{ x, y },
+								ImVec2{ x, y + arm * sy }, ink, w);
+						};
+						corner(left, top, 1.0f, 1.0f);
+						corner(rightEdge, top, -1.0f, 1.0f);
+						corner(left, bottom, 1.0f, -1.0f);
+						corner(rightEdge, bottom, -1.0f, -1.0f);
+					}
+					break;
+				}
 			}
 		}
 

@@ -35,6 +35,10 @@ namespace SS
 
 		constexpr const char* kTrailStyleNames[] = { "chevrons", "footprints" };
 
+		constexpr const char* kAimStyleNames[] = { "corners", "ring", "chevron" };
+
+		constexpr const char* kTrailWipeNames[] = { "hold", "doubletap", "off" };
+
 		constexpr const char* kStatsPlaceNames[] = { "bars", "corner", "both" };
 
 		constexpr const char* kCountStyleNames[] = { "number", "fill", "hidden" };
@@ -271,6 +275,40 @@ namespace SS
 			}
 			logger::warn("unrecognised trail style \"{}\" - keeping {}", raw,
 				kTrailStyleNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, AimStyle& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kAimStyleNames); ++i) {
+				if (raw == kAimStyleNames[i]) {
+					a_value = static_cast<AimStyle>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised aim style \"{}\" - keeping {}", raw,
+				kAimStyleNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, TrailWipe& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kTrailWipeNames); ++i) {
+				if (raw == kTrailWipeNames[i]) {
+					a_value = static_cast<TrailWipe>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised trail wipe gesture \"{}\" - keeping {}", raw,
+				kTrailWipeNames[static_cast<std::size_t>(a_value)]);
 		}
 
 		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, StatsPlace& a_value)
@@ -680,6 +718,13 @@ namespace SS
 		Get(table, "tracks", "onlyWhileSensing", trailsOnlyWhileSensing);
 		Get(table, "tracks", "autoCapture", trailAutoCapture);
 		Get(table, "tracks", "multiMark", multiMark);
+		Get(table, "tracks", "aimStyle", aimStyle);
+		Get(table, "tracks", "aimColor", aimColour);
+		Get(table, "tracks", "wipe", trailWipe);
+		Get(table, "tracks", "holdTime", trailHoldTime);
+		Get(table, "tracks", "sneakReveals", sneakReveals);
+		Get(table, "tracks", "deathRelease", markDeathRelease);
+		Get(table, "tracks", "deathDelay", markDeathDelay);
 		Get(table, "player", "statsPlace", statsPlace);
 		Get(table, "self", "hudCorner", selfHudCorner);
 		Get(table, "self", "hudShow", selfHudShow);
@@ -797,6 +842,9 @@ namespace SS
 		coldMax = std::clamp(coldMax, 1.0f, 100000.0f);
 		trailLifetime = std::clamp(trailLifetime, 10.0f, 300.0f);
 		trackRange = std::clamp(trackRange, 500.0f, 10000.0f);
+		aimColour &= 0xFFFFFF;
+		trailHoldTime = std::clamp(trailHoldTime, 0.2f, 2.0f);
+		markDeathDelay = std::clamp(markDeathDelay, 0.0f, 300.0f);
 		labelMaxDistance = std::clamp(labelMaxDistance, 0.0f, 20000.0f);
 		washStrength = std::clamp(washStrength, 0.0f, 1.0f);
 		washFlat = std::clamp(washFlat, 0.0f, 1.0f);
@@ -1276,7 +1324,21 @@ namespace SS
 		file << "autoCapture = " << boolean(trailAutoCapture) << "\n";
 		file << "; One quarry at a time unless enabled; multiple marks each take\n";
 		file << "; their own colour, trail and sweep glow agreeing.\n";
-		file << "multiMark = " << boolean(multiMark) << "\n\n\n";
+		file << "multiMark = " << boolean(multiMark) << "\n";
+		file << "; The marking sign: corners, ring or chevron, and its colour when\n";
+		file << "; the target is not already marked.\n";
+		file << "aimStyle = " << kAimStyleNames[static_cast<std::size_t>(aimStyle)] << "\n";
+		file << std::format("aimColor = 0x{:06X}\n", aimColour & 0xFFFFFF);
+		file << "; Which gesture wipes everything: hold, doubletap or off - and how\n";
+		file << "; long a hold must last.\n";
+		file << "wipe = " << kTrailWipeNames[static_cast<std::size_t>(trailWipe)] << "\n";
+		file << "holdTime = " << trailHoldTime << "\n";
+		file << "; Crouching reads the ground: while sneaking, trails show and the\n";
+		file << "; key works, sweep or no sweep.\n";
+		file << "sneakReveals = " << boolean(sneakReveals) << "\n";
+		file << "; A dead quarry slips the mark after this many seconds.\n";
+		file << "deathRelease = " << boolean(markDeathRelease) << "\n";
+		file << "deathDelay = " << markDeathDelay << "\n\n\n";
 
 		file << "[Vitals]\n\n";
 		file << "; The same bars over other people, for the length of a sweep only.\n";

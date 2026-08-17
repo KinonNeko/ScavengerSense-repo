@@ -177,6 +177,8 @@ namespace SS
 			// Marked quarry draw at full strength with the scent line, sweep
 			// or no sweep - the mark is what lets the person be found.
 			bool                   bright{ false };
+			// The owner's form id, so the aim preview can point at this trail.
+			std::uint32_t          id{ 0 };
 		};
 		// a_lit says a sweep is running: trails brighten with everything else.
 		void SetTrails(std::vector<Trail> a_trails, bool a_lit);
@@ -185,10 +187,14 @@ namespace SS
 		// to now + a_fade, the wash and the ring with them.
 		void Expire(float a_fade);
 
-		// The aim highlight while a sweep runs: brackets around whoever the
-		// trail key would mark, in the colour it would mark them.
+		// The aim highlight while a sweep runs: the marking sign over whoever
+		// the trail key would mark, in the colour it would mark them.
 		void SetAim(bool a_valid, const RE::NiPoint3& a_feet, const RE::NiPoint3& a_head,
 			std::uint32_t a_colour);
+
+		// The footprint half of the same preview: running dots along the
+		// trail the key would take. 0 puts the sign away.
+		void SetAimTrail(std::uint32_t a_id, std::uint32_t a_colour);
 
 		void SetRing(Ring a_ring);
 		void StopRing();
@@ -220,6 +226,8 @@ namespace SS
 		RE::NiPoint3       _aimFeet;
 		RE::NiPoint3       _aimHead;
 		std::uint32_t      _aimColour{ 0xFFA600 };
+		std::uint32_t      _aimTrail{ 0 };
+		std::uint32_t      _aimTrailColour{ 0xFFA600 };
 		Ring               _ring;
 		float              _selfHud[3]{ -1.0f, -1.0f, -1.0f };
 		float              _selfHudCap[3]{ 1.0f, 1.0f, 1.0f };

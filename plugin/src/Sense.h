@@ -87,6 +87,13 @@ namespace SS
 		// Records breadcrumbs behind anyone the sense has touched, and hands
 		// the drawable trails to Labels.
 		void PollTrails();
+		// The trail whose point sits nearest the screen centre within reach,
+		// 0 for none - the footprint half of the trail key's aim.
+		[[nodiscard]] RE::FormID PickTrailByView(float a_maxRange) const;
+		// Keeps the marking sign - brackets on a person, running dots on a
+		// trail - pointed at whatever the trail key would take right now.
+		void UpdateAimPreview();
+		void ClearAimPreview();
 		void ApplyTo(RE::TESObjectREFR* a_ref, Category a_category);
 		void ClearOurEffects();
 		// Shortens our live shader effects so the engine plays their own
@@ -163,9 +170,18 @@ namespace SS
 		{
 			RE::ObjectRefHandle handle;
 			std::uint8_t        slot{ 0 };  // palette colour
+			// When they were first seen dead, real time; 0 while alive. The
+			// optional death release counts from here.
+			float               deadAt{ 0.0f };
 		};
 		std::unordered_map<RE::FormID, Marked> _marked;
 		std::atomic_bool                       _trailsHidden{ false };
+		// Whether the sneak-stance preview drove the marking sign last tick,
+		// so it can be put away exactly once when the stance ends.
+		bool                                   _sneakPreviewWas{ false };
+		// The trail the preview is pointing at, so its name shows while the
+		// key hovers over it even when trail names are off.
+		RE::FormID                             _aimTrailId{ 0 };
 		// Where the player was last tick, for the transition wipe; _placeId is
 		// the current place itself (interior cell or worldspace), stamped onto
 		// every trail point laid there.

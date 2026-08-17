@@ -1193,6 +1193,48 @@ namespace SS::Menu
 					"creature nearest your screen centre within reach - so a deer\n"
 					"across a valley is fair game.");
 
+				static const char* const kAimStyles[] = { "Frame corners", "Ring at the feet",
+					"Chevron overhead" };
+				int aimStyle = static_cast<int>(a_settings.aimStyle);
+				if (igCombo_Str_arr(T("Marking sign"), &aimStyle, Translated(kAimStyles, 3), 3, -1)) {
+					a_settings.aimStyle = static_cast<AimStyle>(std::clamp(aimStyle, 0, 2));
+				}
+				Help(
+					"The sign over whoever the key would take. On a trail it is\n"
+					"always running dots marching toward the fresh end, in the same\n"
+					"colour.");
+				ColourPicker(T("Sign colour"), a_settings.aimColour);
+				Help(
+					"For targets not yet marked. One already marked shows their own\n"
+					"mark colour instead, so you know a press would release them.");
+
+				static const char* const kWipeGestures[] = { "Hold the key", "Double-tap it",
+					"Never" };
+				int wipe = static_cast<int>(a_settings.trailWipe);
+				if (igCombo_Str_arr(T("Wipe everything by"), &wipe, Translated(kWipeGestures, 3), 3, -1)) {
+					a_settings.trailWipe = static_cast<TrailWipe>(std::clamp(wipe, 0, 2));
+				}
+				Help(
+					"The clean slate: every mark, trail and open recording goes at\n"
+					"once. Pick the gesture, or take it off the key entirely.");
+				if (a_settings.trailWipe == TrailWipe::kHold) {
+					igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
+				}
+
+				igCheckbox(T("Sneaking reads the ground"), &a_settings.sneakReveals);
+				Help(
+					"Crouch and every trail shows, the trail key working with them,\n"
+					"sweep or no sweep - the tracker's stance is its own kind of\n"
+					"sense. Stand and they fade back behind the gate.");
+
+				igCheckbox(T("Release a dead quarry"), &a_settings.markDeathRelease);
+				Help(
+					"A hunt ends at the kill: once the target has been dead this\n"
+					"long, the mark slips off and the trail ages away on its own.");
+				if (a_settings.markDeathRelease) {
+					igSliderFloat(T("Dead for"), &a_settings.markDeathDelay, 0.0f, 120.0f, "%.0f s", 0);
+				}
+
 				igCheckbox(T("Track several at once"), &a_settings.multiMark);
 				Help(
 					"Off, a new mark replaces the old - a hunt has one prey. On, each\n"
@@ -2129,6 +2171,11 @@ namespace SS::Menu
 				igSpacing();
 				DrawCategories(settings);
 				DrawSelf(settings);
+				igEndTabItem();
+			}
+
+			if (igBeginTabItem(T("Tracks"), nullptr, 0)) {
+				igSpacing();
 				DrawTracks(settings);
 				igEndTabItem();
 			}
