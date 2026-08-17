@@ -30,30 +30,6 @@ def fragment(title, body):
     return HEAD.format(title=title) + body.strip() + "\n"
 
 
-def oathvein_colours():
-    """Colour keys only, lifted from the preset so the two cannot drift."""
-    src, section, out = os.path.join(
-        MOD, "SKSE/Plugins/ScavengerSense/presets/Oathvein.ini"), None, {}
-    for line in open(src, encoding="utf-8"):
-        s = line.split(";")[0].strip()
-        if not s:
-            continue
-        if s.startswith("["):
-            section = s[1:s.find("]")]
-            continue
-        if "=" not in s:
-            continue
-        k, v = [x.strip() for x in s.split("=", 1)]
-        if k.lower().endswith(("color", "colour")):
-            out.setdefault(section, []).append((k, v))
-    assert out, "extracted no colours from the Oathvein preset"
-    body = ("; The Oathvein UI palette, applied directly. The full preset is\n"
-            "; installed too, so you can still load or unload it from the menu.\n\n")
-    for sec, kvs in out.items():
-        body += f"[{sec}]\n" + "".join(f"{k} = {v}\n" for k, v in kvs) + "\n"
-    return body
-
-
 # folder -> (fragment filename, title, body).  A folder of None means the answer
 # is the built-in default and installs nothing at all.
 FRAGMENTS = {
@@ -156,6 +132,34 @@ lostMax = false
 [Sound]
 enabled = false
 """),
+
+    # The quick-start presets are only bundles of the same answers the
+    # detailed pages give one at a time.
+    "05 Preset - sense": ("20-preset.ini", "preset: the sense", """
+[Categories]
+actor = true
+actorFilter = living
+"""),
+    "06 Preset - sense HUD": ("20-preset.ini", "preset: the sense, plus a sense-built HUD", """
+[Categories]
+actor = true
+actorFilter = living
+
+[Vitals]
+actors = true
+actorsAll = true
+hostileOnly = true
+actorsWhen = always
+combat = true
+combatAll = true
+
+[Self]
+overhead = true
+"""),
+    "07 Preset - hide HUD": ("21-hidehud.ini", "hide the game's own interface", """
+[General]
+hideGameHud = true
+"""),
 }
 
 
@@ -166,7 +170,7 @@ def sync_payload():
     plugins = os.path.join(MOD, "SKSE/Plugins")
 
     for d in ("00 Core", "01 Chinese menu", "02 CJK font", "03 OStim add-on",
-              "04 Oathvein preset", "fomod"):
+              "04 Oathvein preset", "fomod"):  # 04 lingers from older trees
         p = os.path.join(BUILD, d)
         if os.path.isdir(p):
             shutil.rmtree(p)
@@ -205,9 +209,13 @@ def sync_payload():
         put(os.path.join(plugins, "fonts", f), f"02 CJK font/SKSE/Plugins/fonts/{f}")
     put(os.path.join(plugins, "ScavengerSense_marks_ostim.ini"),
         "03 OStim add-on/SKSE/Plugins/ScavengerSense_marks_ostim.ini")
-    put(os.path.join(plugins, "ScavengerSense/presets/Oathvein.ini"),
-        "04 Oathvein preset/SKSE/Plugins/ScavengerSense/presets/Oathvein.ini")
+    # The Default preset ships with everybody: it is how the menu gets back
+    # to the shipped look after experiments.
+    put(os.path.join(plugins, "ScavengerSense/presets/Default.ini"),
+        "00 Core/SKSE/Plugins/ScavengerSense/presets/Default.ini")
     put(os.path.join(ROOT, "fomod/info.xml"), "fomod/info.xml")
+    for img in sorted(os.listdir(os.path.join(ROOT, "fomod/images"))):
+        put(os.path.join(ROOT, "fomod/images", img), f"fomod/images/{img}")
 
 
 def write_payload():
@@ -216,21 +224,17 @@ def write_payload():
         os.makedirs(path, exist_ok=True)
         open(os.path.join(path, name), "w", encoding="utf-8").write(fragment(title, body))
 
-    # the Oathvein option now installs its palette as well as the loadable preset
-    path = os.path.join(BUILD, "04 Oathvein preset", SETUP)
-    os.makedirs(path, exist_ok=True)
-    open(os.path.join(path, "10-oathvein.ini"), "w", encoding="utf-8").write(
-        fragment("Oathvein UI colours", oathvein_colours()))
-
 
 # ------------------------------------------------------------------ the XML
 def esc(t):
     return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def plugin(name, desc, folder=None, type_="Optional", flags=None, dep=None):
+def plugin(name, desc, folder=None, type_="Optional", flags=None, dep=None, image=None):
     x = f'            <plugin name="{esc(name)}">\n'
     x += f"              <description>{esc(desc.strip())}</description>\n"
+    if image:
+        x += f'              <image path="{esc(image)}" />\n'
     if folder:
         x += ("              <files>\n"
               f'                <folder source="{esc(folder)}" destination="" priority="0" />\n'
@@ -264,11 +268,16 @@ def group(name, kind, plugins):
             "\n          </plugins>\n        </group>\n")
 
 
-def step(name, groups):
-    return (f'    <installStep name="{esc(name)}">\n'
-            '      <optionalFileGroups order="Explicit">\n\n'
-            + "\n".join(groups) +
-            "\n      </optionalFileGroups>\n    </installStep>\n")
+def step(name, groups, when=None):
+    x = f'    <installStep name="{esc(name)}">\n'
+    if when:
+        x += ("      <visible>\n"
+              f'        <flagDependency flag="{when[0]}" value="{when[1]}" />\n'
+              "      </visible>\n")
+    x += ('      <optionalFileGroups order="Explicit">\n\n'
+          + "\n".join(groups) +
+          "\n      </optionalFileGroups>\n    </installStep>\n")
+    return x
 
 
 KEYS = """Nothing to tick - this is just so you know what to press.
@@ -436,15 +445,38 @@ def build_xml():
                type_="NotUsable"),
     ])
 
-    preset = group("Colour presets", "SelectAny", [
-        plugin("Oathvein UI palette",
-               "A colour scheme taken from the Oathvein UI mod's own configuration files: "
-               "bone white on charcoal, muted earth accents, one warm gold.\n\nPicking it "
-               "here applies the palette straight away - there is nothing to load in the "
-               "menu. The full preset file is installed as well, so you can still switch "
-               "back and forth from Setup, Presets whenever you like.\n\nHarmless if you "
-               "do not use Oathvein UI.",
-               "04 Oathvein preset"),
+    start = group("How would you like to begin", "SelectExactlyOne", [
+        plugin("Preset: the sense",
+               "Press a key and the world tells you what is worth taking: loot lights up "
+               "in an outward wave, names and titles float over things and people, the "
+               "colour drains while it runs.\n\nYour HUD and your combat mods stay "
+               "exactly as they are. Everything remains adjustable in the menu.",
+               "05 Preset - sense", type_="Recommended",
+               image="fomod/images/preset-sense.png"),
+        plugin("Preset: the sense, plus a sense-built combat HUD",
+               "As above, and the mod becomes your combat readout too: enemies you fight "
+               "carry health, magicka and stamina over their heads, your own bars follow "
+               "you in third person, and TrueHUD and the vanilla enemy bar step aside so "
+               "this is the only place that information appears.\n\nThe next page asks "
+               "what to do with the rest of the game's interface.",
+               "06 Preset - sense HUD", flags={"senseui": "on"},
+               image="fomod/images/preset-sense-hud.png"),
+        plugin("Set every option myself",
+               "The full installer, page by page. The presets above are only bundles of "
+               "the same answers - anything they choose, you can choose here.",
+               flags={"custom": "on"}),
+    ])
+
+    hidehud = group("The rest of the game's interface", "SelectExactlyOne", [
+        plugin("Keep it",
+               "The game's own HUD - compass, crosshair, your bars - stays as it is. "
+               "Only the enemy bars are taken over.",
+               type_="Recommended"),
+        plugin("Hide it - the sense is the interface",
+               "The vanilla HUD goes too. Sweeps, the corner readout and the over-head "
+               "bars become the only interface; the hidden menus come back the moment "
+               "you untick it on the Setup page.",
+               "07 Preset - hide HUD"),
     ])
 
     sweepbars = group("Vitals bars during a sweep", "SelectExactlyOne", [
@@ -527,20 +559,21 @@ def build_xml():
            '    <folder source="00 Core" destination="" priority="0" />\n'
            "  </requiredInstallFiles>\n\n"
            '  <installSteps order="Explicit">\n\n')
-    xml += step("How it should look", [tags, effect, lights, people, keys]) + "\n"
-    xml += step("Vitals bars and sound / 状态条与提示音", [sweepbars, combat, overhead, survival, chime]) + "\n"
+    xml += step("Scavenger Sense / 快速开始", [start, keys]) + "\n"
+    xml += step("Sense-built HUD / 界面接管", [hidehud], when=("senseui", "on")) + "\n"
+    xml += step("How it should look", [tags, effect, lights, people], when=("custom", "on")) + "\n"
+    xml += step("Vitals bars and sound / 状态条与提示音",
+        [sweepbars, combat, overhead, survival, chime], when=("custom", "on")) + "\n"
     xml += step("Menu language / 菜单语言", [language]) + "\n"
-    xml += step("Optional extras / 可选内容", [font, addons, builtin, preset])
+    xml += step("Optional extras / 可选内容", [font, addons, builtin])
     xml += "\n  </installSteps>\n\n</config>\n"
     return xml
 
 
 if __name__ == "__main__":
     # clear out any payload folder we own, so a removed answer cannot linger
-    for d in list(FRAGMENTS) + ["04 Oathvein preset/" + SETUP]:
-        p = os.path.join(BUILD, d.split("/")[0] if d.startswith("04") else d)
-        if d.startswith("04"):
-            p = os.path.join(BUILD, "04 Oathvein preset", SETUP)
+    for d in FRAGMENTS:
+        p = os.path.join(BUILD, d)
         if os.path.isdir(p):
             shutil.rmtree(p)
     sync_payload()
