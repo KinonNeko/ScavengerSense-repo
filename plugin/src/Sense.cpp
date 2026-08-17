@@ -790,19 +790,30 @@ namespace SS
 		}
 
 		// The engine's placeholder names - "This should not be visible." on
-		// ore veins and the like. The game says so itself; believe it.
+		// ore veins and the like. The game says so itself; believe it. Both
+		// the reference's display name and the base record's own name are
+		// checked - some references dress the one up and not the other.
 		if (settings->ignorePlaceholders && !_placeholderPieces.empty()) {
-			if (const auto* name = a_ref->GetDisplayFullName(); name && name[0]) {
-				std::string low{ name };
+			const auto matchesPlaceholder = [&](const char* a_name) {
+				if (!a_name || !a_name[0]) {
+					return false;
+				}
+				std::string low{ a_name };
 				for (auto& c : low) {
 					c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 				}
 				for (const auto& piece : _placeholderPieces) {
 					if (low.find(piece) != std::string::npos) {
-						++a_stats.placeholder;
-						return false;
+						return true;
 					}
 				}
+				return false;
+			};
+			const auto* base = a_ref->GetBaseObject();
+			if (matchesPlaceholder(a_ref->GetDisplayFullName()) ||
+				(base && matchesPlaceholder(base->GetName()))) {
+				++a_stats.placeholder;
+				return false;
 			}
 		}
 

@@ -491,20 +491,64 @@ namespace SS::Menu
 			igCheckbox(T("Ignore placeholder names"), &a_settings.ignorePlaceholders);
 			Help(
 				"Some objects wear the engine's placeholder name - \"This should\n"
-				"not be visible.\" on ore veins and the like - and the sense would\n"
-				"otherwise take the game at its word and show it. The match list\n"
-				"is editable in the INI for localised or modded placeholders.");
+				"not be visible.\" on ore veins and the like. A localised game\n"
+				"translates that string, so if they still show, add what yours\n"
+				"actually says below - or aim at one and press the button.");
+			if (a_settings.ignorePlaceholders) {
+				static char placeholderBuf[256]{};
+				static bool placeholderSynced = false;
+				if (!placeholderSynced) {
+					std::snprintf(placeholderBuf, sizeof(placeholderBuf), "%s",
+						a_settings.placeholderNames.c_str());
+					placeholderSynced = true;
+				}
+				if (igInputText(T("Names to skip"), placeholderBuf, sizeof(placeholderBuf), 0,
+						nullptr, nullptr)) {
+					a_settings.placeholderNames = placeholderBuf;
+				}
+
+				// The language-proof way in: whatever the crosshair rested on
+				// before the menu opened donates its name to the list.
+				if (igButton(T("Add what the crosshair sees"), ImVec2{ 0.0f, 0.0f })) {
+					if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
+						if (auto ref = pick->target.get(); ref) {
+							if (const auto* name = ref->GetDisplayFullName(); name && name[0]) {
+								std::string lowAll = a_settings.placeholderNames;
+								std::string lowNew{ name };
+								for (auto& c : lowAll) {
+									c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+								}
+								for (auto& c : lowNew) {
+									c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+								}
+								if (lowAll.find(lowNew) == std::string::npos) {
+									if (!a_settings.placeholderNames.empty()) {
+										a_settings.placeholderNames += ", ";
+									}
+									a_settings.placeholderNames += name;
+									std::snprintf(placeholderBuf, sizeof(placeholderBuf), "%s",
+										a_settings.placeholderNames.c_str());
+								}
+							}
+						}
+					}
+				}
+				Help(
+					"Aim the crosshair at the offending object, open this menu and\n"
+					"press. Its exact name - in your game's language - joins the\n"
+					"list.");
+			}
 
 			igCheckbox(T("Spread picks across the radius"), &a_settings.spreadAcrossRadius);
+			Help(
+				"When there is more to light than there is room for, spread it over the\n"
+				"whole radius. Off, the wave never gets past the first few metres.");
 			if (a_settings.spreadAcrossRadius) {
 				igSliderFloat(T("Favour nearby"), &a_settings.nearBias, 1.0f, 6.0f, "%.2f", 0);
 				Help(
 					"Higher keeps more of what is close to you and less of what is far away.\n"
 					"1.0 treats near and far the same. 2.2 is a good middle.");
 			}
-			Help(
-				"When there is more to light than there is room for, spread it over the\n"
-				"whole radius. Off, the wave never gets past the first few metres.");
 
 			igSpacing();
 		}
@@ -723,6 +767,8 @@ namespace SS::Menu
 
 			igTextDisabled("%s", T("what lights up, in what colour, and how it is drawn"));
 
+			igSpacing();
+			igSeparatorText(T("People"));
 			static const char* kActorFilters[] = { "all", "living only", "dead only" };
 			int                filter = static_cast<int>(a_settings.actorFilter);
 			if (igCombo_Str_arr(T("Actors to sense"), &filter, Translated(kActorFilters, static_cast<int>(std::size(kActorFilters))),
@@ -741,6 +787,8 @@ namespace SS::Menu
 				"session. Monsters too, and corpses as well - a dead bandit shows,\n"
 				"a dead shopkeeper does not.");
 
+			igSpacing();
+			igSeparatorText(T("Things"));
 			igCheckbox(T("Skip empty containers"), &a_settings.hideEmptyContainers);
 			Help(
 				"A chest with nothing in it neither lights nor gets a tag. Saves\n"
@@ -748,6 +796,7 @@ namespace SS::Menu
 				"you have cleared stay dark until they refill.");
 
 			igSpacing();
+			igSeparatorText(T("Colours"));
 			ClipboardBar();
 			Help(
 				"One colour per row, used for both the glow and the name tag.\n"
@@ -1098,12 +1147,17 @@ namespace SS::Menu
 				"left the loaded world.");
 
 			if (a_settings.trailsEnabled) {
+				igSpacing();
+				igSeparatorText(T("Recording"));
 				igSliderFloat(T("Trail lifetime"), &a_settings.trailLifetime, 10.0f, 300.0f, "%.0f s", 0);
-				igCheckbox(T("Name the trails"), &a_settings.trailNames);
+				igCheckbox(T("Capture everyone on arrival"), &a_settings.trailAutoCapture);
 				Help(
-					"A small label at the fresh end of the trail - whose footprints\n"
-					"these are.");
+					"Entering a new place starts a trail behind every loaded person\n"
+					"and creature at once, no sweep needed. The picture is complete\n"
+					"but busier, and costs a little more memory.");
 
+				igSpacing();
+				igSeparatorText(T("Drawing"));
 				static const char* const kTrailStyles[] = { "Chevrons", "Footprints" };
 				int style = static_cast<int>(a_settings.trailStyle);
 				if (igCombo_Str_arr(T("Drawn as"), &style, Translated(kTrailStyles, 2), 2, -1)) {
@@ -1112,6 +1166,24 @@ namespace SS::Menu
 				Help(
 					"Chevrons point the way they went. Footprints alternate left and\n"
 					"right like real tracks, with the toes ahead.");
+
+				igCheckbox(T("Name the trails"), &a_settings.trailNames);
+				Help(
+					"A small label at the fresh end of the trail - whose footprints\n"
+					"these are.");
+
+				igCheckbox(T("Trails only while sensing"), &a_settings.trailsOnlyWhileSensing);
+				Help(
+					"The whole apparatus lives inside the sense: trails draw, and the\n"
+					"trail key works, only while a sweep is live. Recording continues\n"
+					"either way, and a marked quarry's trail stays lit regardless -\n"
+					"the mark is the point.");
+
+				igCheckbox(T("Sneaking reads the ground"), &a_settings.sneakReveals);
+				Help(
+					"Crouch and every trail shows, the trail key working with them,\n"
+					"sweep or no sweep - the tracker's stance is its own kind of\n"
+					"sense. Stand and they fade back behind the gate.");
 
 				igCheckbox(T("Forget trails when I change place"), &a_settings.trailsClearOnTransition);
 				Help(
@@ -1126,18 +1198,45 @@ namespace SS::Menu
 					"and wipes their trails with the rest. Leave off to track someone\n"
 					"across cells.");
 
-				igCheckbox(T("Trails only while sensing"), &a_settings.trailsOnlyWhileSensing);
+				igSpacing();
+				igSeparatorText(T("Marking"));
+				igSliderFloat(T("Marking reach"), &a_settings.trackRange, 500.0f, 10000.0f, "%.0f units", 0);
 				Help(
-					"The whole apparatus lives inside the sense: trails draw, and the\n"
-					"trail key works, only while a sweep is live. Recording continues\n"
-					"either way, and a marked quarry's trail stays lit regardless -\n"
-					"the mark is the point.");
+					"How far the mark can pick somebody out. It aims by view - the\n"
+					"creature nearest your screen centre within reach - so a deer\n"
+					"across a valley is fair game.");
 
-				igCheckbox(T("Capture everyone on arrival"), &a_settings.trailAutoCapture);
+				static const char* const kAimStyles[] = { "Frame corners", "Ring at the feet",
+					"Chevron overhead" };
+				int aimStyle = static_cast<int>(a_settings.aimStyle);
+				if (igCombo_Str_arr(T("Marking sign"), &aimStyle, Translated(kAimStyles, 3), 3, -1)) {
+					a_settings.aimStyle = static_cast<AimStyle>(std::clamp(aimStyle, 0, 2));
+				}
 				Help(
-					"Entering a new place starts a trail behind every loaded person\n"
-					"and creature at once, no sweep needed. The picture is complete\n"
-					"but busier, and costs a little more memory.");
+					"The sign over whoever the key would take. On a trail it is\n"
+					"always running dots marching toward the fresh end, in the same\n"
+					"colour.");
+				ColourPicker(T("Sign colour"), a_settings.aimColour);
+				Help(
+					"For targets not yet marked. One already marked shows their own\n"
+					"mark colour instead, so you know a press would release them.");
+
+				igCheckbox(T("Track several at once"), &a_settings.multiMark);
+				Help(
+					"Off, a new mark replaces the old - a hunt has one prey. On, each\n"
+					"mark takes its own colour, and the sweep glow over a marked\n"
+					"person agrees with their trail. Hold the key half a second to\n"
+					"release everything at once.");
+
+				igCheckbox(T("Release a dead quarry"), &a_settings.markDeathRelease);
+				Help(
+					"A hunt ends at the kill: once the target has been dead this\n"
+					"long, the mark slips off and the trail ages away on its own.");
+				if (a_settings.markDeathRelease) {
+					igSliderFloat(T("Dead for"), &a_settings.markDeathDelay, 0.0f, 120.0f, "%.0f s", 0);
+				}
+
+				igTextDisabled("%s", T("A marked quarry glows in their mark colour on every sweep."));
 
 				igSpacing();
 				igSeparatorText(T("Trail key"));
@@ -1242,27 +1341,6 @@ namespace SS::Menu
 					igSpacing();
 				}
 
-				igSliderFloat(T("Marking reach"), &a_settings.trackRange, 500.0f, 10000.0f, "%.0f units", 0);
-				Help(
-					"How far the mark can pick somebody out. It aims by view - the\n"
-					"creature nearest your screen centre within reach - so a deer\n"
-					"across a valley is fair game.");
-
-				static const char* const kAimStyles[] = { "Frame corners", "Ring at the feet",
-					"Chevron overhead" };
-				int aimStyle = static_cast<int>(a_settings.aimStyle);
-				if (igCombo_Str_arr(T("Marking sign"), &aimStyle, Translated(kAimStyles, 3), 3, -1)) {
-					a_settings.aimStyle = static_cast<AimStyle>(std::clamp(aimStyle, 0, 2));
-				}
-				Help(
-					"The sign over whoever the key would take. On a trail it is\n"
-					"always running dots marching toward the fresh end, in the same\n"
-					"colour.");
-				ColourPicker(T("Sign colour"), a_settings.aimColour);
-				Help(
-					"For targets not yet marked. One already marked shows their own\n"
-					"mark colour instead, so you know a press would release them.");
-
 				if (a_settings.trailMode == TrailKeyMode::kSingle) {
 					static const char* const kWipeGestures[] = { "Hold the key", "Double-tap it",
 						"Never" };
@@ -1277,29 +1355,6 @@ namespace SS::Menu
 						igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
 					}
 				}
-
-				igCheckbox(T("Sneaking reads the ground"), &a_settings.sneakReveals);
-				Help(
-					"Crouch and every trail shows, the trail key working with them,\n"
-					"sweep or no sweep - the tracker's stance is its own kind of\n"
-					"sense. Stand and they fade back behind the gate.");
-
-				igCheckbox(T("Release a dead quarry"), &a_settings.markDeathRelease);
-				Help(
-					"A hunt ends at the kill: once the target has been dead this\n"
-					"long, the mark slips off and the trail ages away on its own.");
-				if (a_settings.markDeathRelease) {
-					igSliderFloat(T("Dead for"), &a_settings.markDeathDelay, 0.0f, 120.0f, "%.0f s", 0);
-				}
-
-				igCheckbox(T("Track several at once"), &a_settings.multiMark);
-				Help(
-					"Off, a new mark replaces the old - a hunt has one prey. On, each\n"
-					"mark takes its own colour, and the sweep glow over a marked\n"
-					"person agrees with their trail. Hold the key half a second to\n"
-					"release everything at once.");
-
-				igTextDisabled("%s", T("A marked quarry glows in their mark colour on every sweep."));
 			}
 
 			igSpacing();
@@ -1450,9 +1505,8 @@ namespace SS::Menu
 			igSeparatorText(T("On my name tag"));
 			igCheckbox(T("Show them during a sweep"), &a_settings.selfBars);
 			Help(
-				"Three bars under your name for as long as a sweep lasts.\n"
-				"\n"
-				"Needs \"Tag me too\" on the People page, since they hang off the tag.");
+				"Three bars under your name for as long as a sweep lasts. Needs\n"
+				"\"Tag me too\" on the What shows page, since they hang off the tag.");
 
 			if (a_settings.selfBars) {
 				int when = static_cast<int>(a_settings.selfBarsWhen);
@@ -1475,10 +1529,9 @@ namespace SS::Menu
 			igSeparatorText(T("Over my head"));
 			igCheckbox(T("Bars over my head without a sweep"), &a_settings.selfBarsOverhead);
 			Help(
-				"The same stack the combat bars use, following you in third person\n"
-				"whether or not anything else is happening. In first person there is\n"
-				"no head to hang them over - that is what the corner readout below\n"
-				"is for.");
+				"The same stack the combat bars use, following you in third\n"
+				"person. In first person there is no head to hang them over -\n"
+				"that is what the corner readout below is for.");
 			if (a_settings.selfBarsOverhead) {
 				int overheadWhen = static_cast<int>(a_settings.selfBarsOverheadWhen);
 				if (igCombo_Str_arr(T("Show these"), &overheadWhen, Translated(kWhen, 3), 3, -1)) {
@@ -1499,12 +1552,9 @@ namespace SS::Menu
 				a_settings.selfHudCorner = static_cast<Corner>(std::clamp(corner, 0, 4));
 			}
 			Help(
-				"The same bars pinned to a corner, drawn whether or not a sweep is\n"
-				"running and whether or not you are tagged.\n"
-				"\n"
-				"This is the one that works in first person, where there is no\n"
-				"character to hang a tag on. Pair it with hiding the game's own HUD\n"
-				"on the Setup page.");
+				"The same bars pinned to a corner, sweep or no sweep - the one\n"
+				"that works in first person. Pair it with hiding the game's own\n"
+				"HUD on the Setup page.");
 
 			if (a_settings.selfHudCorner != Corner::kOff) {
 				int when = static_cast<int>(a_settings.selfHudShow);
@@ -1533,22 +1583,16 @@ namespace SS::Menu
 
 			igCheckbox(T("Bars over other people"), &a_settings.vitalsActors);
 			Help(
-				"For the length of a sweep only, everyone the wave reached gets the\n"
-				"same bars - through walls, across the whole radius, all at once.\n"
-				"\n"
-				"Deliberately not persistent. A bar over everybody all the time is\n"
-				"what a combat HUD mod is for, and it will do it better than this.");
+				"For the length of a sweep only, everyone the wave reached gets\n"
+				"bars - through walls, all at once. Deliberately not persistent:\n"
+				"a bar over everybody all the time is what a combat HUD is for.");
 
 			if (a_settings.vitalsActors) {
 				igCheckbox(T("Only people hostile to me"), &a_settings.vitalsActorsHostileOnly);
 				Help(
-					"Bars only over people who actually want you dead, so a sweep\n"
-					"through a town stays quiet and a sweep through a bandit camp\n"
-					"tells you what you are walking into.\n"
-					"\n"
-					"Read from the game's own hostility check rather than a faction\n"
-					"list, so a modded enemy counts too. Rivals - people who dislike\n"
-					"you but have not drawn a weapon - do not.");
+					"Bars only over people who actually want you dead - judged by\n"
+					"the engine's own hostility check, so modded enemies count.\n"
+					"Rivals who have not drawn a weapon do not.");
 
 				igCheckbox(T("Their magicka and stamina too"), &a_settings.vitalsActorsAll);
 				Help("Off draws health only, which is usually all you wanted to know.");
@@ -1563,8 +1607,8 @@ namespace SS::Menu
 				igSpacing();
 				igTextDisabled("%s", T("People still have to be lit for this to show."));
 				Help(
-					"Turn on the People category on the People page, or a sweep never\n"
-					"reaches anybody and there is nothing to put a bar over.");
+					"Turn on the people category on the What shows page, or a sweep\n"
+					"never reaches anybody and there is nothing to put a bar over.");
 			}
 
 			igSpacing();
@@ -1592,12 +1636,9 @@ namespace SS::Menu
 			igSpacing();
 			igCheckbox(T("Own the enemy bars"), &a_settings.pushTrueHUDAside);
 			Help(
-				"While the combat bars are on, this mod becomes the only place\n"
-				"enemy health is shown: TrueHUD's whole overlay is hidden - the\n"
-				"sure way to silence its target widget even when another mod's\n"
-				"target lock is feeding it - and the game's own enemy health bar\n"
-				"is parked off screen. Everything is handed back the moment\n"
-				"either box is unticked.");
+				"While the combat bars are on, this mod is the only enemy health\n"
+				"on screen: TrueHUD's overlay is hidden and the vanilla bar is\n"
+				"parked off screen. Both come back when either box is unticked.");
 
 			igSpacing();
 		}
@@ -2224,7 +2265,7 @@ namespace SS::Menu
 				igEndTabItem();
 			}
 
-			if (igBeginTabItem(T("People"), nullptr, 0)) {
+			if (igBeginTabItem(T("What shows"), nullptr, 0)) {
 				igSpacing();
 				DrawCategories(settings);
 				DrawSelf(settings);
