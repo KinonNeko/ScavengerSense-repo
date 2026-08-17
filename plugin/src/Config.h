@@ -462,6 +462,13 @@ namespace SS
 		float        trackRange{ 4096.0f };
 		// Marking is part of the sense: it only works while a sweep is live.
 		bool         markNeedsSense{ true };
+		// Trails as part of the sense too: drawn only while a sweep is live,
+		// for people who want the world clean between senses.
+		bool         trailsOnlyWhileSensing{ false };
+		// One quarry at a time by default - a hunt has one prey. Multiple
+		// marks each take their own colour from a small palette, and the
+		// sweep glow over each marked person agrees with their trail.
+		bool         multiMark{ false };
 
 		// Their level in parentheses after the name - enemies very much
 		// included; knowing you are outmatched is the point.

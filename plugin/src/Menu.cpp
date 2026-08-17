@@ -1106,6 +1106,12 @@ namespace SS::Menu
 					"when you pass a load door or change worldspace. Untick to keep\n"
 					"them anyway.");
 
+				igCheckbox(T("Trails only while sensing"), &a_settings.trailsOnlyWhileSensing);
+				Help(
+					"Draw trails only while a sweep is live, keeping the world clean\n"
+					"between senses. Recording continues either way, so opening the\n"
+					"sense brings the whole picture back.");
+
 				igSpacing();
 				igSeparatorText(T("Trail key"));
 				igTextDisabled("%s", T("Press it to hide or show every trail. Aim at someone and press it to track them."));
@@ -1165,7 +1171,14 @@ namespace SS::Menu
 					"Marking only works while a sweep is live, as if the sense itself\n"
 					"is what latches on. Hiding and showing trails always works.");
 
-				igTextDisabled("%s", T("Tracked people leave a gold trail that never fades while they are near."));
+				igCheckbox(T("Track several at once"), &a_settings.multiMark);
+				Help(
+					"Off, a new mark replaces the old - a hunt has one prey. On, each\n"
+					"mark takes its own colour, and the sweep glow over a marked\n"
+					"person agrees with their trail. Double-press the key to release\n"
+					"every mark.");
+
+				igTextDisabled("%s", T("A marked quarry glows in their mark colour on every sweep."));
 			}
 
 			igSpacing();

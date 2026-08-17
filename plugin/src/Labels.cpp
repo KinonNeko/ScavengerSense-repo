@@ -1788,6 +1788,8 @@ namespace SS
 					rows[shown++] = i;
 				}
 
+				float barsBottom = topLeft.y + size.y;
+
 				for (int r = 0; r < shown; ++r) {
 					const int   i = rows[r];
 					const float away = static_cast<float>(r) * settings->selfBarPerspective;
@@ -1828,6 +1830,17 @@ namespace SS
 						settings->barsLostFx ? i : -1, now,
 						colours[i], settings->selfBarFrameColour, alpha,
 						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
+
+					barsBottom = std::max(barsBottom, origin.y + thick);
+				}
+
+				// The stats row follows your bars wherever they show - the
+				// sweep tag takes over from the overhead stack during a sense,
+				// and the stats must not vanish exactly when you are looking.
+				if (entry.vitalsSelf && settings->statsPlace != StatsPlace::kCorner) {
+					DrawStatsRow(draw, statsSnapshot, settings,
+						topLeft.x + totalWidth * 0.5f, barsBottom + thick * 0.8f,
+						0, std::max(10.0f, thick * 1.9f), alpha);
 				}
 			}
 

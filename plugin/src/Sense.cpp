@@ -1495,11 +1495,47 @@ namespace SS
 		}
 	}
 
-	// A small toast so the key never feels dead; the message names the person
-	// when there is one.
+	// The mark palette: gold first - the classic quarry - then colours far
+	// enough apart to tell at a glance. Trail, label and sweep glow all agree.
+	static constexpr std::uint32_t kMarkPalette[]{
+		0xFFA600,  // gold
+		0xFF7A30,  // ember
+		0x53C9C4,  // teal
+		0xB07AFF,  // violet
+		0x7ED957,  // spring
+		0xFF6F91,  // rose
+	};
+
+	std::uint32_t Sense::MarkColour(RE::FormID a_id) const
+	{
+		const auto it = _marked.find(a_id);
+		return it == _marked.end()
+		           ? 0
+		           : kMarkPalette[it->second.slot % std::size(kMarkPalette)];
+	}
+
+	// One key, three gestures: press over nothing toggles the trails, press
+	// over somebody marks or releases them, a quick double press releases
+	// every mark at once (undoing whatever the first press just did).
 	void Sense::OnTrailHotkey()
 	{
 		const auto* hotkeySettings = Settings::GetSingleton();
+		const float real = SS::RealNow();
+
+		if (real - _trailPressAt <= 0.35f) {
+			_trailPressAt = -1000.0f;
+			if (_trailPressWasHide) {
+				_trailsHidden.store(!_trailsHidden.load());
+			}
+			if (!_marked.empty()) {
+				_marked.clear();
+				RE::SendHUDMessage::ShowHUDMessage(Locale::T("All marks released"));
+				logger::info("trails: all marks released");
+			}
+			return;
+		}
+		_trailPressAt = real;
+		_trailPressWasHide = false;
 
 		auto* target = [&]() -> RE::Actor* {
 			if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
@@ -1529,11 +1565,26 @@ namespace SS
 			if (_marked.erase(id) > 0) {
 				note = Locale::T("No longer tracking {}");
 			} else {
-				_marked[id] = target->CreateRefHandle();
+				if (!hotkeySettings->multiMark) {
+					// One quarry at a time: the new mark replaces the old.
+					_marked.clear();
+				}
+				// The lowest palette slot not in use, so colours stay stable
+				// as marks come and go.
+				std::uint8_t slot = 0;
+				for (; slot < std::size(kMarkPalette); ++slot) {
+					const bool taken = std::ranges::any_of(_marked,
+						[&](const auto& a_pair) { return a_pair.second.slot == slot; });
+					if (!taken) {
+						break;
+					}
+				}
+				_marked[id] = { target->CreateRefHandle(),
+					static_cast<std::uint8_t>(slot % std::size(kMarkPalette)) };
 				note = Locale::T("Tracking {}");
 			}
-			if (const auto slot = note.find("{}"); slot != std::string::npos) {
-				note.replace(slot, 2, who);
+			if (const auto at = note.find("{}"); at != std::string::npos) {
+				note.replace(at, 2, who);
 			}
 			RE::SendHUDMessage::ShowHUDMessage(note.c_str());
 			logger::info("trails: {} ({} marked)", note, _marked.size());
@@ -1542,6 +1593,7 @@ namespace SS
 
 		const bool hidden = !_trailsHidden.load();
 		_trailsHidden.store(hidden);
+		_trailPressWasHide = true;
 		RE::SendHUDMessage::ShowHUDMessage(Locale::T(hidden ? "Trails hidden" : "Trails shown"));
 		logger::info("trails: {}", hidden ? "hidden" : "shown");
 	}
@@ -1598,9 +1650,9 @@ namespace SS
 			quarry.handle = track.handle;
 			quarry.untilAt = real + lifetime;
 		}
-		for (const auto& [id, handle] : _marked) {
+		for (const auto& [id, mark] : _marked) {
 			auto& quarry = _quarry[id];
-			quarry.handle = handle;
+			quarry.handle = mark.handle;
 			quarry.untilAt = real + lifetime;
 		}
 
@@ -1625,10 +1677,10 @@ namespace SS
 						const auto* name = actor->GetDisplayFullName();
 						trail.name = name && name[0] ? ToUtf8(name) : std::string{ "?" };
 					}
-					trail.colour = _marked.contains(it->first)
-					                   ? settings->favouriteColour
-					                   : actor->IsHostileToActor(player) ? settings->hostileColour
-					                                                     : settings->neutralColour;
+					const auto markTint = MarkColour(it->first);
+					trail.colour = markTint            ? markTint
+					               : actor->IsHostileToActor(player) ? settings->hostileColour
+					                                                 : settings->neutralColour;
 					if (real - trail.lastSampleAt > 0.4f) {
 						const auto at = actor->GetPosition();
 						if (trail.points.empty() ||
@@ -1643,8 +1695,9 @@ namespace SS
 		}
 
 		// Hidden hides, it does not forget: recording carried on above, so
-		// showing them again brings the whole picture back.
-		if (_trailsHidden.load()) {
+		// showing them again brings the whole picture back. The same for
+		// trails that live only inside the sense.
+		if (_trailsHidden.load() || (settings->trailsOnlyWhileSensing && !_active)) {
 			Labels::GetSingleton()->SetTrails({}, false);
 			return;
 		}
@@ -1931,6 +1984,14 @@ namespace SS
 		auto colour = (isActor && settings->actorByDisposition && disposition != Disposition::kNone)
 						  ? reading.colour
 						  : category.colour;
+
+		// A marked quarry outshines every other rule: the sweep lights them in
+		// their own mark colour, the same one their trail wears, so a glance
+		// says who is being tracked.
+		const auto markGlow = isActor ? MarkColour(a_ref->GetFormID()) : 0;
+		if (markGlow) {
+			colour = markGlow;
+		}
 
 		// The membrane redraws the target mesh. With kEqual it only survives where
 		// the mesh is the frontmost surface, i.e. walls hide it. kAlways draws it

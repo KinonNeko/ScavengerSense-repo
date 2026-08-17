@@ -24,8 +24,12 @@ namespace SS
 		void OnHotkey();
 
 		// The trail key: aimed at somebody it toggles tracking them, aimed at
-		// nothing it hides or shows every trail.
+		// nothing it hides or shows every trail; a quick double press
+		// releases every mark.
 		void OnTrailHotkey();
+
+		// The palette colour of a marked person, 0 when they are not marked.
+		[[nodiscard]] std::uint32_t MarkColour(RE::FormID a_id) const;
 
 		// Cancel everything immediately (used on load/exit and the menu button).
 		void Cancel();
@@ -139,10 +143,19 @@ namespace SS
 		std::unordered_map<RE::FormID, Quarry> _quarry;
 		std::unordered_map<RE::FormID, Trail>  _trails;
 		// Explicitly tracked people: their window never closes while they are
-		// loaded, their trail draws in the favourite gold, and their label
-		// stays on. Session-only, deliberately - marks are a hunt, not a save.
-		std::unordered_map<RE::FormID, RE::ObjectRefHandle> _marked;
-		std::atomic_bool                                    _trailsHidden{ false };
+		// loaded, their trail and sweep glow share a palette colour, and their
+		// label stays on. Session-only, deliberately - a hunt, not a save.
+		struct Marked
+		{
+			RE::ObjectRefHandle handle;
+			std::uint8_t        slot{ 0 };  // palette colour
+		};
+		std::unordered_map<RE::FormID, Marked> _marked;
+		std::atomic_bool                       _trailsHidden{ false };
+		// The trail key's last press, for the double-press that releases all
+		// marks - and what that first press did, so the double can undo it.
+		float                                  _trailPressAt{ -1000.0f };
+		bool                                   _trailPressWasHide{ false };
 		// Where the player was last tick, for the transition wipe.
 		bool        _placeKnown{ false };
 		bool        _wasInterior{ false };

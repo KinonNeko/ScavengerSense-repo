@@ -672,6 +672,8 @@ namespace SS
 		Get(table, "tracks", "gamepad", trailGamepad);
 		Get(table, "tracks", "range", trackRange);
 		Get(table, "tracks", "markNeedsSense", markNeedsSense);
+		Get(table, "tracks", "onlyWhileSensing", trailsOnlyWhileSensing);
+		Get(table, "tracks", "multiMark", multiMark);
 		Get(table, "player", "statsPlace", statsPlace);
 		Get(table, "self", "hudCorner", selfHudCorner);
 		Get(table, "self", "hudShow", selfHudShow);
@@ -1250,7 +1252,13 @@ namespace SS
 		file << "range = " << trackRange << "\n";
 		file << "; Marking only works while a sweep is live - it is part of the\n";
 		file << "; sense, not a free power. The hide/show press always works.\n";
-		file << "markNeedsSense = " << boolean(markNeedsSense) << "\n\n\n";
+		file << "markNeedsSense = " << boolean(markNeedsSense) << "\n";
+		file << "; Trails drawn only while a sweep is live. Recording continues\n";
+		file << "; regardless, so opening the sense brings the whole picture back.\n";
+		file << "onlyWhileSensing = " << boolean(trailsOnlyWhileSensing) << "\n";
+		file << "; One quarry at a time unless enabled; multiple marks each take\n";
+		file << "; their own colour, trail and sweep glow agreeing.\n";
+		file << "multiMark = " << boolean(multiMark) << "\n\n\n";
 
 		file << "[Vitals]\n\n";
 		file << "; The same bars over other people, for the length of a sweep only.\n";
