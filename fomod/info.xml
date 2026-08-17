@@ -2,13 +2,15 @@
 <fomod>
   <Name>Scavenger Sense</Name>
   <Author>KShakes</Author>
-  <Version MachineVersion="0.7.1.0">0.7.1 beta</Version>
+  <Version MachineVersion="0.7.2.0">0.7.2 beta</Version>
   <Website>https://www.nexusmods.com/profile/KShakes</Website>
   <Description>
 Press a key and everything worth looting lights up in an outward wave, with a
 ring travelling across the ground from your feet, names floating over the
-objects, and the colour draining out of the world while it runs. A survivor
-sense for Skyrim.
+objects, and the colour draining out of the world while it runs. Crouch first
+and the same sweep reads the ground: everyone the sense has touched leaves
+footprints, and marking a person - or their trail - keeps them trackable
+across cells. A scavenger's sense for Skyrim.
 
 BETA. Everything here works and has been played with, but it has only been
 tested on one load order. Keep a save from

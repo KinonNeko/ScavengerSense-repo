@@ -547,9 +547,9 @@ namespace SS
 		// door.
 		bool         trailsForgetMarked{ false };
 		TrailStyle   trailStyle{ TrailStyle::kChevrons };
-		// A key of its own: press it to hide or show every trail; press it
-		// while aiming at somebody to start or stop tracking them.
-		std::int32_t trailKey{ -1 };
+		// The trail key. 258 is the middle mouse button in SKSE's macro
+		// space - bound out of the box so tracking works on first launch.
+		std::int32_t trailKey{ 258 };
 		std::int32_t trailGamepad{ -1 };
 		// How far the mark reaches: real hunting picks a deer across a valley,
 		// far beyond the crosshair's activate range.

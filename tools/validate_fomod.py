@@ -115,7 +115,7 @@ if os.path.isfile(CONFIG):
     for cat in re.findall(r'^\s*"(\w+)",?\s*$', src, re.M):
         pass
     for cat in ["container", "door", "flora", "gear", "alchemy",
-                "book", "valuable", "activator", "actor"]:
+                "book", "valuable", "activator", "furniture", "actor"]:
         for suffix in ("", "color", "outlineonly"):
             known.add(("categories", cat + suffix))
     frag_files = [os.path.join(r, f)
