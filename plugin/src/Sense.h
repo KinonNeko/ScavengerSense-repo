@@ -195,6 +195,8 @@ namespace SS
 		// Was the player crouched when the running sweep opened? The default
 		// reveal rule reads the ground for that whole sweep, standing or not.
 		bool                                   _sweepCrouched{ false };
+		// When auto-capture last swept the high-actor list, real time.
+		float                                  _lastCaptureAt{ -1000.0f };
 		// The trail the preview is pointing at, so its name shows while the
 		// key hovers over it even when trail names are off.
 		RE::FormID                             _aimTrailId{ 0 };

@@ -1994,10 +1994,13 @@ namespace SS
 			}
 		}
 
-		// On arriving anywhere, the sense can remember the room from the
-		// moment you entered it: everyone already here gets a recording
-		// window, no sweep needed.
-		if (settings->trailAutoCapture && (placeChanged || !_placeKnown)) {
+		// Auto-capture watches the world, not the door: everyone loaded gets
+		// a recording window - those already here when you arrived, and those
+		// the world streams in as you travel. Once a second is plenty; the
+		// windows refresh while their owners stay loaded.
+		if (settings->trailAutoCapture &&
+			(placeChanged || !_placeKnown || real - _lastCaptureAt > 1.0f)) {
+			_lastCaptureAt = real;
 			if (auto* lists = RE::ProcessLists::GetSingleton()) {
 				lists->ForEachHighActor([&](RE::Actor* a_actor) {
 					if (a_actor && !a_actor->IsPlayerRef() && a_actor->Is3DLoaded()) {

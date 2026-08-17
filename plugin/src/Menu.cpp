@@ -1150,11 +1150,12 @@ namespace SS::Menu
 				igSpacing();
 				igSeparatorText(T("Recording"));
 				igSliderFloat(T("Trail lifetime"), &a_settings.trailLifetime, 10.0f, 300.0f, "%.0f s", 0);
-				igCheckbox(T("Capture everyone on arrival"), &a_settings.trailAutoCapture);
+				igCheckbox(T("Capture everyone around"), &a_settings.trailAutoCapture);
 				Help(
-					"Entering a new place starts a trail behind every loaded person\n"
-					"and creature at once, no sweep needed. The picture is complete\n"
-					"but busier, and costs a little more memory.");
+					"Everyone loaded leaves a trail, no sweep needed - those already\n"
+					"there when you arrive, and those the world streams in as you\n"
+					"travel. The picture is complete but busier, and costs a little\n"
+					"more memory.");
 
 				igSpacing();
 				igSeparatorText(T("Drawing"));

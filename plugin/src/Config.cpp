@@ -763,7 +763,9 @@ namespace SS
 			if (!legacyOnly) {
 				trailReveal = TrailReveal::kAlways;
 			} else if (legacySneak) {
-				trailReveal = TrailReveal::kCrouch;
+				// The old crouch toggle asked for the crouch to matter; the
+				// crouch-and-sense default is that idea grown up.
+				trailReveal = TrailReveal::kCrouchSense;
 			}
 		}
 		Get(table, "tracks", "reveal", trailReveal);
