@@ -95,6 +95,9 @@ namespace SS
 		// The trail whose point sits nearest the screen centre within reach,
 		// 0 for none - the footprint half of the trail key's aim.
 		[[nodiscard]] RE::FormID PickTrailByView(float a_maxRange) const;
+		// Whether trails are readable right now under the reveal rule - which
+		// is also when the trail key is willing to work.
+		[[nodiscard]] bool TrailsRevealed() const;
 		// The gate every tracking action passes; toasts when it refuses.
 		[[nodiscard]] bool TrailGateOpen();
 		// Marks or releases whatever the aim finds; false if nothing there.
@@ -189,6 +192,9 @@ namespace SS
 		// Whether the sneak-stance preview drove the marking sign last tick,
 		// so it can be put away exactly once when the stance ends.
 		bool                                   _sneakPreviewWas{ false };
+		// Was the player crouched when the running sweep opened? The default
+		// reveal rule reads the ground for that whole sweep, standing or not.
+		bool                                   _sweepCrouched{ false };
 		// The trail the preview is pointing at, so its name shows while the
 		// key hovers over it even when trail names are off.
 		RE::FormID                             _aimTrailId{ 0 };

@@ -1443,7 +1443,8 @@ namespace SS
 				ImVec2       freshest{};
 				float        freshestFade = 0.0f;
 				bool         hasFreshest = false;
-				int          stride = 0;  // left foot, right foot
+				int          stride = 0;  // marks walked, for the print interval
+				int          prints = 0;  // prints drawn, for left foot, right foot
 
 				// The trail the key would take: running dots march along it
 				// toward the fresh end, so "ready to mark" is unmistakable.
@@ -1495,29 +1496,44 @@ namespace SS
 							}
 
 							if (settings->trailStyle == TrailStyle::kFootprints) {
-								// Alternating pads beside the line of travel,
-								// each a small oval with a toe dot ahead of it.
+								// Alternating pads beside the line of travel. The
+								// print is directional on its own terms: a sole
+								// that narrows at the heel and three toes ahead,
+								// so which way they walked cannot be misread.
 								++stride;
-								const float side = (stride & 1) ? 1.0f : -1.0f;
-								const float nx = -uy * side;
-								const float ny = ux * side;
-								const ImVec2 pad{ at.x + nx * s * 0.45f, at.y + ny * s * 0.45f };
-								const float  la = s * 0.42f;  // half length, along travel
-								const float  wa = s * 0.24f;  // half width, across
+								const int every = std::max(1, settings->trailPrintEvery);
+								if (stride % every == 0) {
+									++prints;
+									const float side = (prints & 1) ? 1.0f : -1.0f;
+									const float ps = s * settings->trailPrintScale;
+									const float nx = -uy * side;
+									const float ny = ux * side;
+									const ImVec2 pad{ at.x + nx * ps * 0.45f,
+										at.y + ny * ps * 0.45f };
+									const float la = ps * 0.42f;  // half length, along travel
+									const float wa = ps * 0.26f;  // half width, across
 
-								ImVec2 oval[6];
-								for (int k = 0; k < 6; ++k) {
-									const float t = 6.2831853f * static_cast<float>(k) / 6.0f;
-									const float along = std::cos(t) * la;
-									const float across = std::sin(t) * wa;
-									oval[k] = ImVec2{ pad.x + ux * along + nx * across,
-										pad.y + uy * along + ny * across };
+									ImVec2 sole[6];
+									for (int k = 0; k < 6; ++k) {
+										const float t = 6.2831853f * static_cast<float>(k) / 6.0f;
+										const float along = std::cos(t) * la;
+										// Wider toward the toes, pinched at the heel.
+										const float w = wa * (0.75f + 0.25f * (along / la));
+										const float across = std::sin(t) * w;
+										sole[k] = ImVec2{ pad.x + ux * along + nx * across,
+											pad.y + uy * along + ny * across };
+									}
+									ImDrawList_AddConvexPolyFilled(draw, sole, 6,
+										PackColour(trail.colour, a));
+									for (int toe = -1; toe <= 1; ++toe) {
+										const float across = static_cast<float>(toe) * wa * 0.6f;
+										ImDrawList_AddCircleFilled(draw,
+											ImVec2{ pad.x + ux * la * 1.4f + nx * across,
+												pad.y + uy * la * 1.4f + ny * across },
+											std::max(1.0f, ps * 0.09f),
+											PackColour(trail.colour, a * 0.9f), 6);
+									}
 								}
-								ImDrawList_AddConvexPolyFilled(draw, oval, 6,
-									PackColour(trail.colour, a));
-								ImDrawList_AddCircleFilled(draw,
-									ImVec2{ pad.x + ux * la * 1.45f, pad.y + uy * la * 1.45f },
-									s * 0.13f, PackColour(trail.colour, a * 0.9f), 6);
 							} else {
 								const float w = std::max(1.2f, s * 0.22f);
 								const ImVec2 tip{ at.x + ux * s * 0.5f, at.y + uy * s * 0.5f };

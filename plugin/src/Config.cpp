@@ -41,6 +41,8 @@ namespace SS
 
 		constexpr const char* kTrailKeyModeNames[] = { "single", "multi" };
 
+		constexpr const char* kTrailRevealNames[] = { "crouchsense", "sense", "crouch", "always" };
+
 		constexpr const char* kStatsPlaceNames[] = { "bars", "corner", "both" };
 
 		constexpr const char* kCountStyleNames[] = { "number", "fill", "hidden" };
@@ -328,6 +330,23 @@ namespace SS
 			}
 			logger::warn("unrecognised trail key mode \"{}\" - keeping {}", raw,
 				kTrailKeyModeNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, TrailReveal& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kTrailRevealNames); ++i) {
+				if (raw == kTrailRevealNames[i]) {
+					a_value = static_cast<TrailReveal>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised trail reveal \"{}\" - keeping {}", raw,
+				kTrailRevealNames[static_cast<std::size_t>(a_value)]);
 		}
 
 		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, StatsPlace& a_value)
@@ -734,7 +753,23 @@ namespace SS
 		Get(table, "tracks", "key", trailKey);
 		Get(table, "tracks", "gamepad", trailGamepad);
 		Get(table, "tracks", "range", trackRange);
-		Get(table, "tracks", "onlyWhileSensing", trailsOnlyWhileSensing);
+		// Legacy first: the two old toggles map onto the reveal rule, and an
+		// explicit reveal key written by a newer save wins over both.
+		{
+			bool legacyOnly = true;
+			bool legacySneak = false;
+			Get(table, "tracks", "onlyWhileSensing", legacyOnly);
+			Get(table, "tracks", "sneakReveals", legacySneak);
+			if (!legacyOnly) {
+				trailReveal = TrailReveal::kAlways;
+			} else if (legacySneak) {
+				trailReveal = TrailReveal::kCrouch;
+			}
+		}
+		Get(table, "tracks", "reveal", trailReveal);
+		Get(table, "tracks", "toasts", trailToasts);
+		Get(table, "tracks", "printScale", trailPrintScale);
+		Get(table, "tracks", "printEvery", trailPrintEvery);
 		Get(table, "tracks", "autoCapture", trailAutoCapture);
 		Get(table, "tracks", "multiMark", multiMark);
 		Get(table, "tracks", "aimStyle", aimStyle);
@@ -751,7 +786,6 @@ namespace SS
 		Get(table, "tracks", "wipeKey", trailWipeKey);
 		Get(table, "tracks", "wipeGamepad", trailWipeGamepad);
 		Get(table, "tracks", "wipeGesture", trailWipeGesture);
-		Get(table, "tracks", "sneakReveals", sneakReveals);
 		Get(table, "tracks", "deathRelease", markDeathRelease);
 		Get(table, "tracks", "deathDelay", markDeathDelay);
 		Get(table, "player", "statsPlace", statsPlace);
@@ -874,6 +908,8 @@ namespace SS
 		aimColour &= 0xFFFFFF;
 		trailHoldTime = std::clamp(trailHoldTime, 0.2f, 2.0f);
 		markDeathDelay = std::clamp(markDeathDelay, 0.0f, 300.0f);
+		trailPrintScale = std::clamp(trailPrintScale, 0.5f, 2.5f);
+		trailPrintEvery = std::clamp(trailPrintEvery, 1, 4);
 		labelMaxDistance = std::clamp(labelMaxDistance, 0.0f, 20000.0f);
 		washStrength = std::clamp(washStrength, 0.0f, 1.0f);
 		washFlat = std::clamp(washFlat, 0.0f, 1.0f);
@@ -1344,10 +1380,17 @@ namespace SS
 		file << "; How far the mark reaches, in units - hunting picks a deer across\n";
 		file << "; a valley, far beyond the crosshair's activate range.\n";
 		file << "range = " << trackRange << "\n";
-		file << "; The whole trail apparatus lives inside the sense: trails drawn,\n";
-		file << "; the key listened to, marks made - only while a sweep is live.\n";
-		file << "; Marked quarry stay visible regardless; recording never stops.\n";
-		file << "onlyWhileSensing = " << boolean(trailsOnlyWhileSensing) << "\n";
+		file << "; When trails show, which is also when the key works: crouchsense\n";
+		file << "; (a sweep opened while crouched reads the ground until it ends),\n";
+		file << "; sense (any sweep), crouch (crouching alone), or always. Marked\n";
+		file << "; quarry stay visible regardless; recording never stops.\n";
+		file << "reveal = " << kTrailRevealNames[static_cast<std::size_t>(trailReveal)] << "\n";
+		file << "; The corner notes - Tracking so-and-so, All trails wiped.\n";
+		file << "toasts = " << boolean(trailToasts) << "\n";
+		file << "; Footprint style only: pad size scale, and how many recorded\n";
+		file << "; marks lie between drawn prints.\n";
+		file << "printScale = " << trailPrintScale << "\n";
+		file << "printEvery = " << trailPrintEvery << "\n";
 		file << "; On arriving anywhere, open a recording window for everyone there\n";
 		file << "; - the sense remembers the room from the moment you entered.\n";
 		file << "autoCapture = " << boolean(trailAutoCapture) << "\n";
@@ -1374,9 +1417,6 @@ namespace SS
 		file << "wipeKey = " << trailWipeKey << "\n";
 		file << "wipeGamepad = " << trailWipeGamepad << "\n";
 		file << "wipeGesture = " << kTriggerNames[static_cast<std::size_t>(trailWipeGesture)] << "\n";
-		file << "; Crouching reads the ground: while sneaking, trails show and the\n";
-		file << "; key works, sweep or no sweep.\n";
-		file << "sneakReveals = " << boolean(sneakReveals) << "\n";
 		file << "; A dead quarry slips the mark after this many seconds.\n";
 		file << "deathRelease = " << boolean(markDeathRelease) << "\n";
 		file << "deathDelay = " << markDeathDelay << "\n\n\n";

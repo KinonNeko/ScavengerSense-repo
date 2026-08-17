@@ -156,6 +156,22 @@ namespace SS
 		kCount
 	};
 
+	// When trails show - which is also when the trail key works. One rule
+	// instead of two overlapping toggles; a marked quarry's trail shows
+	// regardless, because the mark is the point.
+	enum class TrailReveal : std::uint8_t
+	{
+		// The default hunt: a sweep opened while crouched reads the ground,
+		// and keeps it readable - and markable - until that sweep ends, even
+		// if you stand. A sweep opened standing stays clean.
+		kCrouchSense = 0,
+		kSense,   // any live sweep shows them
+		kCrouch,  // crouching alone shows them, no sweep needed
+		kAlways,
+
+		kCount
+	};
+
 	// Which actors are worth sensing. Corpses are lootable, so they count by
 	// default; dead-only is the "where did that kill land" case.
 	enum class ActorFilter : std::uint32_t
@@ -538,11 +554,6 @@ namespace SS
 		// How far the mark reaches: real hunting picks a deer across a valley,
 		// far beyond the crosshair's activate range.
 		float        trackRange{ 4096.0f };
-		// The whole trail apparatus as part of the sense: trails drawn, the
-		// key listened to, marks made - only while a sweep is live. Marked
-		// quarry are the exception: their trails stay visible and bright, or
-		// marking would be pointless.
-		bool         trailsOnlyWhileSensing{ true };
 		// On arriving anywhere, quietly open a recording window for everyone
 		// already there - the sense remembers the room from the moment you
 		// entered it, no sweep needed.
@@ -573,10 +584,15 @@ namespace SS
 		std::int32_t trailWipeKey{ -1 };
 		std::int32_t trailWipeGamepad{ -1 };
 		Trigger      trailWipeGesture{ Trigger::kHold };
-		// Crouching reads the ground: while sneaking, every trail shows and
-		// the trail key works, sweep or no sweep - the tracker's stance is
-		// its own kind of sense.
-		bool         sneakReveals{ false };
+		// When trails show and the key works; see TrailReveal.
+		TrailReveal  trailReveal{ TrailReveal::kCrouchSense };
+		// The corner notes - "Tracking Hulda", "All trails wiped" - for
+		// players who want a silent hunt.
+		bool         trailToasts{ true };
+		// The footprint style's print, separately sized and spaced: a scale
+		// on the pad, and how many recorded marks lie between drawn prints.
+		float        trailPrintScale{ 1.0f };
+		std::int32_t trailPrintEvery{ 1 };
 		// A dead quarry slips the mark after a while; 0 releases at once.
 		bool         markDeathRelease{ false };
 		float        markDeathDelay{ 10.0f };

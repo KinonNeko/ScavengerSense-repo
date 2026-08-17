@@ -1067,6 +1067,9 @@ namespace SS
 			_waveStart = SS::Now();
 			_waveEnd = _waveStart + last + settings->duration;
 			_startedRealAt = SS::RealNow();
+			// The stance the sweep opened in decides whether it reads the
+			// ground, and holds for the whole wave - kneel, sweep, stand.
+			_sweepCrouched = player->IsSneaking();
 			_active = true;
 
 			// You, tagged like anybody else. Pushed straight into the buffer
@@ -1692,6 +1695,13 @@ namespace SS
 		const auto* settings = Settings::GetSingleton();
 		auto*       labels = Labels::GetSingleton();
 
+		// The sign only shows when a press would actually take: same rule as
+		// the key itself, so a standing-opened sweep offers nothing.
+		if (!TrailsRevealed()) {
+			ClearAimPreview();
+			return;
+		}
+
 		RE::Actor* aim = nullptr;
 		if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
 			if (auto ref = pick->target.get(); ref) {
@@ -1711,8 +1721,10 @@ namespace SS
 		}
 
 		labels->SetAim(false, {}, {}, settings->aimColour);
-		const auto trailId = _trailsHidden.load() ? RE::FormID{ 0 }
-		                                          : PickTrailByView(settings->trackRange);
+		const bool trailsHidden =
+			_trailsHidden.load() && settings->trailMode == TrailKeyMode::kMulti;
+		const auto trailId = trailsHidden ? RE::FormID{ 0 }
+		                                  : PickTrailByView(settings->trackRange);
 		if (trailId != 0) {
 			const auto tint = MarkColour(trailId);
 			labels->SetAimTrail(trailId, tint ? tint : settings->aimColour);
@@ -1730,20 +1742,44 @@ namespace SS
 		_aimTrailId = 0;
 	}
 
-	// The gate every tracking action passes: the apparatus lives inside the
-	// sense when the option says so, and a crouch counts as its own kind of
-	// sense when that option is on - a tracker kneeling to read the ground.
-	bool Sense::TrailGateOpen()
+	// One rule for when the ground is readable - which is also when the
+	// trail key is willing to work.
+	bool Sense::TrailsRevealed() const
 	{
 		const auto* settings = Settings::GetSingleton();
 		auto*       player = RE::PlayerCharacter::GetSingleton();
-		const bool  sneakOpen = settings->sneakReveals && player && player->IsSneaking();
-		if (settings->trailsOnlyWhileSensing && !_active && !sneakOpen) {
-			RE::SendHUDMessage::ShowHUDMessage(Locale::T("The sense is closed - sweep first to mark"));
-			logger::info("trails: key refused, no sweep running");
-			return false;
+		switch (settings->trailReveal) {
+		case TrailReveal::kAlways:
+			return true;
+		case TrailReveal::kSense:
+			return _active.load();
+		case TrailReveal::kCrouch:
+			return player && player->IsSneaking();
+		case TrailReveal::kCrouchSense:
+		default:
+			// The stance at the sweep's opening holds for its whole life:
+			// kneel to read the ground, then stand and mark freely until
+			// the wave ends.
+			return _active.load() && _sweepCrouched;
 		}
-		return true;
+	}
+
+	// The gate every tracking action passes; explains itself when it says no.
+	bool Sense::TrailGateOpen()
+	{
+		if (TrailsRevealed()) {
+			return true;
+		}
+		const auto* settings = Settings::GetSingleton();
+		if (settings->trailToasts) {
+			const bool wantsCrouch = settings->trailReveal == TrailReveal::kCrouch ||
+			                         (settings->trailReveal == TrailReveal::kCrouchSense && _active);
+			RE::SendHUDMessage::ShowHUDMessage(Locale::T(
+				wantsCrouch ? "Crouch to read the ground"
+							: "The sense is closed - sweep first to mark"));
+		}
+		logger::info("trails: key refused, ground not readable");
+		return false;
 	}
 
 	// The clean slate: every mark, trail and open recording window at once.
@@ -1756,7 +1792,9 @@ namespace SS
 		_trails.clear();
 		_quarry.clear();
 		Labels::GetSingleton()->SetTrails({}, false);
-		RE::SendHUDMessage::ShowHUDMessage(Locale::T("All trails wiped"));
+		if (Settings::GetSingleton()->trailToasts) {
+			RE::SendHUDMessage::ShowHUDMessage(Locale::T("All trails wiped"));
+		}
 		logger::info("trails: wipe, everything gone");
 	}
 
@@ -1764,7 +1802,9 @@ namespace SS
 	{
 		const bool hidden = !_trailsHidden.load();
 		_trailsHidden.store(hidden);
-		RE::SendHUDMessage::ShowHUDMessage(Locale::T(hidden ? "Trails hidden" : "Trails shown"));
+		if (Settings::GetSingleton()->trailToasts) {
+			RE::SendHUDMessage::ShowHUDMessage(Locale::T(hidden ? "Trails hidden" : "Trails shown"));
+		}
 		logger::info("trails: {}", hidden ? "hidden" : "shown");
 	}
 
@@ -1811,7 +1851,9 @@ namespace SS
 			if (const auto at = note.find("{}"); at != std::string::npos) {
 				note.replace(at, 2, a_who);
 			}
-			RE::SendHUDMessage::ShowHUDMessage(note.c_str());
+			if (hotkeySettings->trailToasts) {
+				RE::SendHUDMessage::ShowHUDMessage(note.c_str());
+			}
 			logger::info("trails: {} ({} marked)", note, _marked.size());
 		};
 
@@ -1857,16 +1899,20 @@ namespace SS
 		return false;
 	}
 
-	// The single-key mode: a press over somebody - or their footprints -
-	// marks or releases them; a press over nothing hides or shows every
-	// trail. The wipe rides its own gesture on the same key.
+	// The single-key mode: a press marks or releases whatever the aim finds
+	// - a person, or their footprints. Showing and hiding is the reveal
+	// rule's job now, so an empty press just says so; the wipe rides its
+	// own gesture on the same key.
 	void Sense::OnTrailHotkey()
 	{
 		if (!TrailGateOpen()) {
 			return;
 		}
 		if (!MarkUnderAim()) {
-			ToggleTrailsShown();
+			if (Settings::GetSingleton()->trailToasts) {
+				RE::SendHUDMessage::ShowHUDMessage(Locale::T("Nothing under the aim to mark"));
+			}
+			logger::info("trails: press, nothing under the aim");
 		}
 	}
 
@@ -2056,7 +2102,10 @@ namespace SS
 
 		// Hidden hides, it does not forget: recording carried on above, so
 		// showing them again brings the whole picture back.
-		if (_trailsHidden.load()) {
+		// The hide/show toggle is a multi-key affordance; in single-key mode
+		// the reveal rule alone decides, so a stale hidden flag cannot trap
+		// the trails out of sight.
+		if (_trailsHidden.load() && settings->trailMode == TrailKeyMode::kMulti) {
 			Labels::GetSingleton()->SetTrails({}, false);
 			if (_sneakPreviewWas && !_active) {
 				ClearAimPreview();
@@ -2064,12 +2113,10 @@ namespace SS
 			}
 			return;
 		}
-		// Inside-the-sense mode: between sweeps only marked quarry stay
-		// visible - hiding them too would make marking pointless. Crouching
-		// opens the gate too when the option is on: the tracker's stance is
-		// its own kind of sense.
-		const bool sneakOpen = settings->sneakReveals && player->IsSneaking();
-		const bool senseGate = settings->trailsOnlyWhileSensing && !_active && !sneakOpen;
+		// The reveal rule: outside it only marked quarry stay visible -
+		// hiding them too would make marking pointless.
+		const bool revealed = TrailsRevealed();
+		const bool senseGate = !revealed;
 
 		// Age out, then hand Labels a drawable copy with the fades already
 		// worked out - the render thread never reconciles clocks.
@@ -2124,18 +2171,22 @@ namespace SS
 			out.push_back(std::move(drawable));
 			++it;
 		}
-		// A running sweep lights the trails up along with everything else.
-		Labels::GetSingleton()->SetTrails(std::move(out), _active.load() || sneakOpen);
+		// A running sweep lights the trails up along with everything else,
+		// and a crouch-reveal carries its own light too. "Always" stays dim
+		// between sweeps - permanent scent-lines would own the screen.
+		Labels::GetSingleton()->SetTrails(std::move(out),
+			_active.load() || (revealed && settings->trailReveal != TrailReveal::kAlways));
 
-		// Outside a sweep, the crouch drives the marking sign; Tick owns it
-		// while a wave is live, so only one of them ever does.
-		const bool sneakPreview = sneakOpen && !_active;
-		if (sneakPreview) {
+		// Outside a sweep, a crouch-reveal drives the marking sign; Tick
+		// owns it while a wave is live, so only one of them ever does.
+		const bool crouchPreview =
+			!_active && revealed && settings->trailReveal == TrailReveal::kCrouch;
+		if (crouchPreview) {
 			UpdateAimPreview();
 		} else if (_sneakPreviewWas && !_active) {
 			ClearAimPreview();
 		}
-		_sneakPreviewWas = sneakPreview;
+		_sneakPreviewWas = crouchPreview;
 	}
 
 	void Sense::Tick()

@@ -1166,24 +1166,39 @@ namespace SS::Menu
 				Help(
 					"Chevrons point the way they went. Footprints alternate left and\n"
 					"right like real tracks, with the toes ahead.");
+				if (a_settings.trailStyle == TrailStyle::kFootprints) {
+					igSliderFloat(T("Print size"), &a_settings.trailPrintScale, 0.5f, 2.5f, "%.2fx", 0);
+					int printEvery = a_settings.trailPrintEvery;
+					if (igSliderInt(T("Print spacing"), &printEvery, 1, 4, "%d", 0)) {
+						a_settings.trailPrintEvery = std::clamp(printEvery, 1, 4);
+					}
+					Help(
+						"How many recorded marks lie between drawn prints. 1 prints at\n"
+						"every mark; higher spreads the prints out.");
+				}
 
 				igCheckbox(T("Name the trails"), &a_settings.trailNames);
 				Help(
 					"A small label at the fresh end of the trail - whose footprints\n"
 					"these are.");
 
-				igCheckbox(T("Trails only while sensing"), &a_settings.trailsOnlyWhileSensing);
+				static const char* const kReveals[] = { "Crouch and sense", "Any sweep",
+					"While crouching", "Always" };
+				int reveal = static_cast<int>(a_settings.trailReveal);
+				if (igCombo_Str_arr(T("Trails show"), &reveal, Translated(kReveals, 4), 4, -1)) {
+					a_settings.trailReveal = static_cast<TrailReveal>(std::clamp(reveal, 0, 3));
+				}
 				Help(
-					"The whole apparatus lives inside the sense: trails draw, and the\n"
-					"trail key works, only while a sweep is live. Recording continues\n"
-					"either way, and a marked quarry's trail stays lit regardless -\n"
-					"the mark is the point.");
+					"When trails show is also when the trail key works. Crouch and\n"
+					"sense is the hunt: kneel, open the sense, and the ground stays\n"
+					"readable - and markable - until that sweep ends, even if you\n"
+					"stand; a sweep opened standing shows no footprints. While\n"
+					"crouching needs no sweep at all. A marked quarry shows always.");
 
-				igCheckbox(T("Sneaking reads the ground"), &a_settings.sneakReveals);
+				igCheckbox(T("Tracking messages"), &a_settings.trailToasts);
 				Help(
-					"Crouch and every trail shows, the trail key working with them,\n"
-					"sweep or no sweep - the tracker's stance is its own kind of\n"
-					"sense. Stand and they fade back behind the gate.");
+					"The corner notes - Tracking Hulda, All trails wiped. Untick for\n"
+					"a silent hunt.");
 
 				igCheckbox(T("Forget trails when I change place"), &a_settings.trailsClearOnTransition);
 				Help(
@@ -1248,10 +1263,10 @@ namespace SS::Menu
 					a_settings.trailMode = static_cast<TrailKeyMode>(std::clamp(keyMode, 0, 1));
 				}
 				Help(
-					"One key reads the aim: a target marks, empty ground hides or\n"
-					"shows, and the wipe rides its own gesture. Or split the three\n"
-					"actions across keys of your choosing, each with its own\n"
-					"gesture - the same key twice with different gestures works.");
+					"One key: a press marks or releases what the aim finds, and the\n"
+					"wipe rides its own gesture - showing is the reveal rule's job.\n"
+					"Or split the actions across keys of your choosing, hide and\n"
+					"show included, each with its own gesture.");
 
 				// Shared by both modes: how a key's name is shown.
 				const auto keyLabel = [&](std::int32_t a_key) -> std::string {
@@ -1303,7 +1318,7 @@ namespace SS::Menu
 				};
 
 				if (a_settings.trailMode == TrailKeyMode::kSingle) {
-					igTextDisabled("%s", T("Aim at someone - or their footprints - and press it to track them; press at nothing to hide or show trails. Hold it to wipe everything."));
+					igTextDisabled("%s", T("Aim at someone - or their footprints - and press to track them. Hold to wipe everything."));
 					bindControls(0, a_settings.trailKey, a_settings.trailGamepad);
 				} else {
 					const auto gestureCombo = [&](Trigger& a_gesture) {
