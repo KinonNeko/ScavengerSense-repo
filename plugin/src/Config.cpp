@@ -589,6 +589,8 @@ namespace SS
 		Get(table, "scan", "maxObjects", maxObjects);
 		Get(table, "scan", "ignoreUnnamed", ignoreUnnamed);
 		Get(table, "scan", "ignoreHarvested", ignoreHarvested);
+		Get(table, "scan", "ignorePlaceholders", ignorePlaceholders);
+		Get(table, "scan", "placeholderNames", placeholderNames);
 		Get(table, "scan", "spreadAcrossRadius", spreadAcrossRadius);
 		Get(table, "scan", "nearBias", nearBias);
 
@@ -985,6 +987,11 @@ namespace SS
 		file << "ignoreUnnamed = " << boolean(ignoreUnnamed) << "\n\n";
 		file << "; Skip plants and ore veins you have already harvested.\n";
 		file << "ignoreHarvested = " << boolean(ignoreHarvested) << "\n\n";
+		file << "; Skip objects wearing the engine's placeholder name - \"This should\n";
+		file << "; not be visible.\" and friends. Comma-separated substrings, matched\n";
+		file << "; case-insensitively; add localised or modded placeholders here.\n";
+		file << "ignorePlaceholders = " << boolean(ignorePlaceholders) << "\n";
+		file << "placeholderNames = " << placeholderNames << "\n\n";
 		file << "; When more objects qualify than there are slots, spread the picks\n";
 		file << "; evenly across the whole radius instead of taking the nearest ones.\n";
 		file << "; Without this the wave only covers the few metres around you.\n";

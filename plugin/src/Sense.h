@@ -57,6 +57,7 @@ namespace SS
 			std::uint32_t noThreeD{};
 			std::uint32_t harvested{};
 			std::uint32_t unnamed{};
+			std::uint32_t placeholder{};
 			std::uint32_t deadActor{};
 			std::uint32_t notEnemy{};
 			std::uint32_t actorsSeen{};
@@ -177,6 +178,8 @@ namespace SS
 		float                          _selfLast[3]{ -1.0f, -1.0f, -1.0f };
 		float                          _selfChangedAt{ -1000.0f };
 		std::unordered_set<RE::FormID> _favourites;  // rebuilt at the start of each sweep
+		// Lowercased placeholder substrings, split once per sweep.
+		std::vector<std::string>       _placeholderPieces;
 		float                _waveStart{ 0.0f };
 		float                _waveEnd{ 0.0f };  // absolute time at which everything is done
 		float                _startedRealAt{ 0.0f };  // real time, for the watchdog

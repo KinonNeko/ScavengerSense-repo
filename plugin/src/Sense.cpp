@@ -726,6 +726,23 @@ namespace SS
 			}
 		}
 
+		// The engine's placeholder names - "This should not be visible." on
+		// ore veins and the like. The game says so itself; believe it.
+		if (settings->ignorePlaceholders && !_placeholderPieces.empty()) {
+			if (const auto* name = a_ref->GetDisplayFullName(); name && name[0]) {
+				std::string low{ name };
+				for (auto& c : low) {
+					c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+				}
+				for (const auto& piece : _placeholderPieces) {
+					if (low.find(piece) != std::string::npos) {
+						++a_stats.placeholder;
+						return false;
+					}
+				}
+			}
+		}
+
 		++a_stats.accepted;
 		return true;
 	}
@@ -793,6 +810,29 @@ namespace SS
 		std::vector<Hit> hits;
 		hits.reserve(256);
 
+		// The placeholder list, split and lowercased once per sweep so Accept
+		// only ever does substring finds.
+		_placeholderPieces.clear();
+		if (settings->ignorePlaceholders) {
+			std::string piece;
+			for (const char c : settings->placeholderNames + ",") {
+				if (c == ',') {
+					while (!piece.empty() && piece.front() == ' ') {
+						piece.erase(piece.begin());
+					}
+					while (!piece.empty() && piece.back() == ' ') {
+						piece.pop_back();
+					}
+					if (!piece.empty()) {
+						_placeholderPieces.push_back(piece);
+					}
+					piece.clear();
+				} else {
+					piece.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+				}
+			}
+		}
+
 		ScanStats stats{};
 		tes->ForEachReferenceInRange(player, settings->radius, [&](RE::TESObjectREFR* a_ref) {
 			++stats.visited;
@@ -845,9 +885,9 @@ namespace SS
 
 		logger::info(
 			"scan @ radius {}: visited={} accepted={} highActors={} | rejected: wrongType={} categoryOff={} "
-			"disabled={} no3D={} harvested={} unnamed={} | actors seen={} castFailed={} dead={} notEnemy={}",
+			"disabled={} no3D={} harvested={} unnamed={} placeholder={} | actors seen={} castFailed={} dead={} notEnemy={}",
 			settings->radius, stats.visited, stats.accepted, stats.highActors, stats.wrongType, stats.categoryOff,
-			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed,
+			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed, stats.placeholder,
 			stats.actorsSeen, stats.actorCastFailed, stats.deadActor, stats.notEnemy);
 
 		if (hits.empty()) {

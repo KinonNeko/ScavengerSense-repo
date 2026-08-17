@@ -488,6 +488,13 @@ namespace SS::Menu
 
 			igCheckbox(T("Ignore harvested plants"), &a_settings.ignoreHarvested);
 
+			igCheckbox(T("Ignore placeholder names"), &a_settings.ignorePlaceholders);
+			Help(
+				"Some objects wear the engine's placeholder name - \"This should\n"
+				"not be visible.\" on ore veins and the like - and the sense would\n"
+				"otherwise take the game at its word and show it. The match list\n"
+				"is editable in the INI for localised or modded placeholders.");
+
 			igCheckbox(T("Spread picks across the radius"), &a_settings.spreadAcrossRadius);
 			if (a_settings.spreadAcrossRadius) {
 				igSliderFloat(T("Favour nearby"), &a_settings.nearBias, 1.0f, 6.0f, "%.2f", 0);

@@ -221,6 +221,12 @@ namespace SS
 		std::uint32_t maxObjects{ 128 };
 		bool          ignoreUnnamed{ true };
 		bool          ignoreHarvested{ true };
+		// Some objects carry the engine's placeholder name - "This should not
+		// be visible." on ore veins and the like - and the sense would happily
+		// take the game at its word and show it. Filtered by substring, and
+		// the list is editable for localised or modded placeholders.
+		bool          ignorePlaceholders{ true };
+		std::string   placeholderNames{ "should not be visible" };
 		// When there are more candidates than slots, sample evenly across the
 		// whole distance range instead of taking the nearest N. Without this the
 		// wave only ever covers the few metres nearest you.
