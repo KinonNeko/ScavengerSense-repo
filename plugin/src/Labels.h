@@ -150,6 +150,11 @@ namespace SS
 
 		void SetSelfStats(const SelfStats& a_stats);
 
+		// Draws the stats row at a point: -1 grows right from it, +1 grows
+		// left, 0 centres. Render thread; takes a snapshot, not the member.
+		void DrawStatsRow(void* a_drawList, const SelfStats& stats, const Settings* settings,
+			float a_x, float a_y, int a_align, float fontSize, float alpha);
+
 		// Breadcrumb trails, pushed whole from the main thread whenever the
 		// recorder runs. Fade is precomputed there, so the render side never
 		// needs to reconcile clocks.
@@ -164,7 +169,8 @@ namespace SS
 			std::string            label;
 			std::uint32_t          colour{ 0xCBCBCB };
 		};
-		void SetTrails(std::vector<Trail> a_trails);
+		// a_lit says a sweep is running: trails brighten with everything else.
+		void SetTrails(std::vector<Trail> a_trails, bool a_lit);
 
 		void SetRing(Ring a_ring);
 		void StopRing();
@@ -191,6 +197,7 @@ namespace SS
 		std::vector<Entry> _entries;
 		std::vector<Entry> _combat;
 		std::vector<Trail> _trails;
+		bool               _trailsLit{ false };
 		Ring               _ring;
 		float              _selfHud[3]{ -1.0f, -1.0f, -1.0f };
 		float              _selfHudCap[3]{ 1.0f, 1.0f, 1.0f };

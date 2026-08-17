@@ -32,6 +32,10 @@ namespace SS
 
 		constexpr const char* kActorFilterNames[] = { "all", "living", "dead" };
 
+		constexpr const char* kTrailStyleNames[] = { "chevrons", "footprints" };
+
+		constexpr const char* kStatsPlaceNames[] = { "bars", "corner", "both" };
+
 		constexpr const char* kCountStyleNames[] = { "number", "fill", "hidden" };
 
 		constexpr const char* kBarPlaceNames[] = { "below", "above", "left", "right" };
@@ -248,6 +252,40 @@ namespace SS
 
 			logger::warn("unrecognised actor filter \"{}\" - keeping {}", raw,
 				kActorFilterNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, TrailStyle& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kTrailStyleNames); ++i) {
+				if (raw == kTrailStyleNames[i]) {
+					a_value = static_cast<TrailStyle>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised trail style \"{}\" - keeping {}", raw,
+				kTrailStyleNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, StatsPlace& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kStatsPlaceNames); ++i) {
+				if (raw == kStatsPlaceNames[i]) {
+					a_value = static_cast<StatsPlace>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised stats place \"{}\" - keeping {}", raw,
+				kStatsPlaceNames[static_cast<std::size_t>(a_value)]);
 		}
 
 		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, CountStyle& a_value)
@@ -628,6 +666,11 @@ namespace SS
 		Get(table, "tracks", "enabled", trailsEnabled);
 		Get(table, "tracks", "lifetime", trailLifetime);
 		Get(table, "tracks", "names", trailNames);
+		Get(table, "tracks", "clearOnTransition", trailsClearOnTransition);
+		Get(table, "tracks", "style", trailStyle);
+		Get(table, "tracks", "key", trailKey);
+		Get(table, "tracks", "gamepad", trailGamepad);
+		Get(table, "player", "statsPlace", statsPlace);
 		Get(table, "self", "hudCorner", selfHudCorner);
 		Get(table, "self", "hudShow", selfHudShow);
 		Get(table, "self", "hudLinger", selfHudLinger);
@@ -1175,7 +1218,10 @@ namespace SS
 		file << "levelOthers = " << boolean(levelOthers) << "\n";
 		file << "; Tag icons follow the drawn weapon - yours and theirs - instead of\n";
 		file << "; the relationship shape. The colour still says friend or foe.\n";
-		file << "weaponIcons = " << boolean(weaponIcons) << "\n\n\n";
+		file << "weaponIcons = " << boolean(weaponIcons) << "\n";
+		file << "; Where the stats row lives: bars (riding the over-head stack),\n";
+		file << "; corner (under the corner readout), or both.\n";
+		file << "statsPlace = " << kStatsPlaceNames[static_cast<std::size_t>(statsPlace)] << "\n\n\n";
 
 		file << "[Tracks]\n\n";
 		file << "; Breadcrumb trails behind anyone the sense has touched - sweep-lit\n";
@@ -1186,7 +1232,16 @@ namespace SS
 		file << "; Seconds a mark survives.\n";
 		file << "lifetime = " << trailLifetime << "\n";
 		file << "; A small label at the fresh end - whose footprints these are.\n";
-		file << "names = " << boolean(trailNames) << "\n\n\n";
+		file << "names = " << boolean(trailNames) << "\n";
+		file << "; Marks from another place are nonsense in this one; cleared on\n";
+		file << "; interior/worldspace transitions unless told otherwise.\n";
+		file << "clearOnTransition = " << boolean(trailsClearOnTransition) << "\n";
+		file << "; chevrons or footprints.\n";
+		file << "style = " << kTrailStyleNames[static_cast<std::size_t>(trailStyle)] << "\n";
+		file << "; A key of its own: press to hide or show every trail; press while\n";
+		file << "; aiming at somebody to start or stop tracking them.\n";
+		file << "key = " << trailKey << "\n";
+		file << "gamepad = " << trailGamepad << "\n\n\n";
 
 		file << "[Vitals]\n\n";
 		file << "; The same bars over other people, for the length of a sweep only.\n";

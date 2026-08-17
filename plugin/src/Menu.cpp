@@ -1090,6 +1090,71 @@ namespace SS::Menu
 				Help(
 					"A small label at the fresh end of the trail - whose footprints\n"
 					"these are.");
+
+				static const char* const kTrailStyles[] = { "Chevrons", "Footprints" };
+				int style = static_cast<int>(a_settings.trailStyle);
+				if (igCombo_Str_arr(T("Drawn as"), &style, Translated(kTrailStyles, 2), 2, -1)) {
+					a_settings.trailStyle = static_cast<TrailStyle>(std::clamp(style, 0, 1));
+				}
+				Help(
+					"Chevrons point the way they went. Footprints alternate left and\n"
+					"right like real tracks, with the toes ahead.");
+
+				igCheckbox(T("Forget trails when I change place"), &a_settings.trailsClearOnTransition);
+				Help(
+					"An interior's marks are nonsense outside it, so trails are wiped\n"
+					"when you pass a load door or change worldspace. Untick to keep\n"
+					"them anyway.");
+
+				igSpacing();
+				igSeparatorText(T("Trail key"));
+				igTextDisabled("%s", T("Press it to hide or show every trail. Aim at someone and press it to track them."));
+
+				const auto trailKeyName = [&]() -> std::string {
+					if (a_settings.trailKey < 0) {
+						return T("unbound");
+					}
+					auto name = SKSE::InputMap::GetKeyName(static_cast<std::uint32_t>(a_settings.trailKey));
+					return name.empty() ? std::format("code {}", a_settings.trailKey)
+										: std::format("{} ({})", name, a_settings.trailKey);
+				}();
+				igText("%s: %s", T("Key"), trailKeyName.c_str());
+
+				static bool trailCapture = false;
+				if (trailCapture) {
+					igTextColored(ImVec4{ 1.0f, 0.85f, 0.4f, 1.0f }, "%s",
+						T("press any key or mouse button - Esc cancels"));
+					const auto captured = PollCapture();
+					if (captured == -2) {
+						trailCapture = false;
+					} else if (captured > 0) {
+						a_settings.trailKey = captured;
+						trailCapture = false;
+					}
+				} else if (igButton(T("Press a key to bind##trail"), ImVec2{ 190.0f, 0.0f })) {
+					trailCapture = true;
+					g_capture.active = true;
+					g_capture.startedAt = RealNow();
+				}
+				igSameLine(0.0f, -1.0f);
+				if (igButton(T("Clear##trail"), ImVec2{ 80.0f, 0.0f })) {
+					a_settings.trailKey = -1;
+					trailCapture = false;
+				}
+
+				int trailPad = 0;
+				if (a_settings.trailGamepad >= SKSE::InputMap::kMacro_GamepadOffset &&
+					a_settings.trailGamepad < SKSE::InputMap::kMaxMacros) {
+					trailPad = a_settings.trailGamepad - SKSE::InputMap::kMacro_GamepadOffset + 1;
+				}
+				if (igCombo_Str_arr(T("Gamepad button##trail"), &trailPad,
+						Translated(kGamepadNames, static_cast<int>(std::size(kGamepadNames))),
+						static_cast<int>(std::size(kGamepadNames)), -1)) {
+					a_settings.trailGamepad =
+						trailPad == 0 ? -1 : SKSE::InputMap::kMacro_GamepadOffset + trailPad - 1;
+				}
+
+				igTextDisabled("%s", T("Tracked people leave a gold trail that never fades while they are near."));
 			}
 
 			igSpacing();
@@ -1099,7 +1164,16 @@ namespace SS::Menu
 		void DrawPlayer(Settings& a_settings)
 		{
 			if (Header(T("About me"))) {
-				igTextDisabled("%s", T("Drawn as a stats row under the corner readout."));
+				static const char* const kStatsPlaces[] = { "Riding my overhead bars",
+					"Under the corner readout", "Both" };
+				int place = static_cast<int>(a_settings.statsPlace);
+				if (igCombo_Str_arr(T("Where the stats live"), &place, Translated(kStatsPlaces, 3), 3, -1)) {
+					a_settings.statsPlace = static_cast<StatsPlace>(std::clamp(place, 0, 2));
+				}
+				Help(
+					"Riding the overhead bars keeps everything about you in a single\n"
+					"glance - the full-HUD way to play. The row follows whichever\n"
+					"stack it is attached to.");
 				igCheckbox(T("My level"), &a_settings.senseLevel);
 				igCheckbox(T("My septims"), &a_settings.senseGold);
 				igCheckbox(T("My carry weight"), &a_settings.senseWeight);

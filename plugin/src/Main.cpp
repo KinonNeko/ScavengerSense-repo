@@ -61,6 +61,14 @@ namespace SS
 					code = static_cast<std::int32_t>(raw);
 				}
 
+				// The trail key is a plain press - hiding trails or marking a
+				// quarry wants no double-tap ceremony.
+				const auto trailWanted = isGamepad ? settings->trailGamepad : settings->trailKey;
+				if (trailWanted >= 0 && code == trailWanted && button->IsDown()) {
+					Sense::GetSingleton()->OnTrailHotkey();
+					continue;
+				}
+
 				const auto wanted = isGamepad ? settings->gamepad : settings->keyboard;
 				if (wanted < 0 || code != wanted) {
 					continue;

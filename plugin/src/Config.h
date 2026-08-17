@@ -54,6 +54,25 @@ namespace SS
 		kCount
 	};
 
+	// How a trail is drawn on the ground.
+	enum class TrailStyle : std::uint8_t
+	{
+		kChevrons = 0,
+		kFootprints,
+
+		kCount
+	};
+
+	// Where the player's stats row lives.
+	enum class StatsPlace : std::uint8_t
+	{
+		kBars = 0,  // under the over-head bar stack - the glance-free HUD
+		kCorner,    // under the corner readout
+		kBoth,
+
+		kCount
+	};
+
 	// What is in someone's hands, reduced to a drawable shape.
 	enum class WeaponKind : std::uint8_t
 	{
@@ -429,6 +448,15 @@ namespace SS
 		bool  trailsEnabled{ true };
 		float trailLifetime{ 90.0f };  // seconds a mark survives
 		bool  trailNames{ true };      // whose footprints these are
+		// Marks from another place are nonsense in this one: an interior's
+		// coordinates mean nothing outside. Cleared on interior/worldspace
+		// transitions unless the player says otherwise.
+		bool         trailsClearOnTransition{ true };
+		TrailStyle   trailStyle{ TrailStyle::kChevrons };
+		// A key of its own: press it to hide or show every trail; press it
+		// while aiming at somebody to start or stop tracking them.
+		std::int32_t trailKey{ -1 };
+		std::int32_t trailGamepad{ -1 };
 
 		// Their level in parentheses after the name - enemies very much
 		// included; knowing you are outmatched is the point.
@@ -436,6 +464,9 @@ namespace SS
 		// The tag icon follows the drawn weapon - yours and theirs - instead
 		// of the relationship shape. The colour still says friend or foe.
 		bool        weaponIcons{ false };
+		// Where the stats row lives: riding the over-head bars by default, so
+		// everything about you sits in one glance.
+		StatsPlace  statsPlace{ StatsPlace::kBars };
 
 		// A persistent readout pinned to a corner of the screen, drawn whether
 		// or not a sweep is running. Off by default: this mod is a sweep, and

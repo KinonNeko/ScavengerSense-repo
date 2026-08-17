@@ -572,10 +572,11 @@ namespace SS
 		_selfStats = a_stats;
 	}
 
-	void Labels::SetTrails(std::vector<Trail> a_trails)
+	void Labels::SetTrails(std::vector<Trail> a_trails, bool a_lit)
 	{
 		std::scoped_lock guard{ _lock };
 		_trails = std::move(a_trails);
+		_trailsLit = a_lit;
 	}
 
 	// The corner readout: the same bars as the tag, pinned to the screen.
@@ -663,12 +664,32 @@ namespace SS
 		// The stats row: what is in hand, the level, the purse, the pack and
 		// the cold, under the bars for a top corner and above them for a
 		// bottom one - always growing into the screen.
-		const auto& stats = _selfStats;
-		const bool  anyStat = stats.level >= 0 || stats.gold >= 0 || stats.weight >= 0.0f ||
-		                     stats.cold >= 0.0f || stats.weapon != 0;
-		auto* font = igGetFont();
-		if (anyStat && font) {
+		if (settings->statsPlace != StatsPlace::kBars) {
 			const float fontSize = std::max(10.0f, thick * 1.9f);
+			const float statsY = bottom
+			                        ? a_height - settings->selfHudY - step * static_cast<float>(shown) -
+			                              thick - fontSize * 1.5f
+			                        : settings->selfHudY + step * static_cast<float>(shown) +
+			                              thick * 0.8f;
+			const float statsX = right ? a_width - settings->selfHudX : settings->selfHudX;
+			DrawStatsRow(draw, _selfStats, settings, statsX, statsY, right ? 1 : -1, fontSize, alpha);
+		}
+	}
+
+	// The stats row itself, drawable wherever a stack of bars wants it.
+	// a_align: -1 grows right from a_x, +1 grows left from a_x, 0 centres on it.
+	void Labels::DrawStatsRow(void* a_drawList, const SelfStats& stats, const Settings* settings,
+		float a_x, float a_y, int a_align, float fontSize, float alpha)
+	{
+		const bool anyStat = stats.level >= 0 || stats.gold >= 0 || stats.weight >= 0.0f ||
+		                     stats.cold >= 0.0f || stats.weapon != 0;
+		auto* draw = static_cast<ImDrawList*>(a_drawList);
+		auto* font = igGetFont();
+		if (!anyStat || !font || !draw) {
+			return;
+		}
+
+		{
 			const float pad = fontSize * 0.55f;
 
 			struct Piece
@@ -724,12 +745,8 @@ namespace SS
 			}
 			total -= pad;
 
-			float statsX = right ? a_width - settings->selfHudX - total : settings->selfHudX;
-			const float statsY = bottom
-			                        ? a_height - settings->selfHudY - step * static_cast<float>(shown) -
-			                              thick - fontSize * 1.5f
-			                        : settings->selfHudY + step * static_cast<float>(shown) +
-			                              thick * 0.8f;
+			float       statsX = a_align > 0 ? a_x - total : a_align == 0 ? a_x - total * 0.5f : a_x;
+			const float statsY = a_y;
 
 			const auto ink = PackColour(settings->selfColour, alpha * 0.92f);
 			const auto shadow = PackColour(0x000000, alpha * 0.8f);
@@ -1071,6 +1088,8 @@ namespace SS
 		std::vector<Entry> snapshot;
 		std::vector<Entry> combatSnapshot;
 		std::vector<Trail> trailSnapshot;
+		bool               trailsLit = false;
+		SelfStats          statsSnapshot;
 		{
 			// The HUD callback runs on the render thread, so take a copy and get
 			// off the lock rather than holding it across any drawing.
@@ -1078,6 +1097,8 @@ namespace SS
 			snapshot = _entries;
 			combatSnapshot = _combat;
 			trailSnapshot = _trails;
+			trailsLit = _trailsLit;
+			statsSnapshot = _selfStats;
 		}
 
 		auto* io = igGetIO();
@@ -1173,6 +1194,7 @@ namespace SS
 				ImVec2 freshest{};
 				float  freshestFade = 0.0f;
 				bool   hasFreshest = false;
+				int    stride = 0;  // left foot, right foot
 
 				for (const auto& mark : trail.marks) {
 					ImVec2 at;
@@ -1188,21 +1210,57 @@ namespace SS
 							const float ux = dx / len;
 							const float uy = dy / len;
 							const float s = std::clamp(len * 0.30f, 2.5f, 13.0f);
-							const float a = std::clamp(mark.fade, 0.0f, 1.0f) * 0.85f;
-							const float w = std::max(1.2f, s * 0.22f);
+							const float a =
+								std::clamp(mark.fade, 0.0f, 1.0f) * (trailsLit ? 1.0f : 0.8f);
 
-							const ImVec2 tip{ at.x + ux * s * 0.5f, at.y + uy * s * 0.5f };
-							const ImVec2 left{ at.x - ux * s * 0.5f - uy * s * 0.55f,
-								at.y - uy * s * 0.5f + ux * s * 0.55f };
-							const ImVec2 right{ at.x - ux * s * 0.5f + uy * s * 0.55f,
-								at.y - uy * s * 0.5f - ux * s * 0.55f };
+							// A sweep lights the scent itself: a soft line
+							// joining the marks, on top of brighter marks.
+							if (trailsLit) {
+								ImDrawList_AddLine(draw, prev, at,
+									PackColour(trail.colour, a * 0.20f), s * 0.6f);
+							}
 
-							ImDrawList_AddLine(draw, ImVec2{ left.x + 1.0f, left.y + 1.0f },
-								ImVec2{ tip.x + 1.0f, tip.y + 1.0f }, PackColour(0x000000, a * 0.6f), w);
-							ImDrawList_AddLine(draw, ImVec2{ right.x + 1.0f, right.y + 1.0f },
-								ImVec2{ tip.x + 1.0f, tip.y + 1.0f }, PackColour(0x000000, a * 0.6f), w);
-							ImDrawList_AddLine(draw, left, tip, PackColour(trail.colour, a), w);
-							ImDrawList_AddLine(draw, right, tip, PackColour(trail.colour, a), w);
+							if (settings->trailStyle == TrailStyle::kFootprints) {
+								// Alternating pads beside the line of travel,
+								// each a small oval with a toe dot ahead of it.
+								++stride;
+								const float side = (stride & 1) ? 1.0f : -1.0f;
+								const float nx = -uy * side;
+								const float ny = ux * side;
+								const ImVec2 pad{ at.x + nx * s * 0.45f, at.y + ny * s * 0.45f };
+								const float  la = s * 0.42f;  // half length, along travel
+								const float  wa = s * 0.24f;  // half width, across
+
+								ImVec2 oval[6];
+								for (int k = 0; k < 6; ++k) {
+									const float t = 6.2831853f * static_cast<float>(k) / 6.0f;
+									const float along = std::cos(t) * la;
+									const float across = std::sin(t) * wa;
+									oval[k] = ImVec2{ pad.x + ux * along + nx * across,
+										pad.y + uy * along + ny * across };
+								}
+								ImDrawList_AddConvexPolyFilled(draw, oval, 6,
+									PackColour(trail.colour, a));
+								ImDrawList_AddCircleFilled(draw,
+									ImVec2{ pad.x + ux * la * 1.45f, pad.y + uy * la * 1.45f },
+									s * 0.13f, PackColour(trail.colour, a * 0.9f), 6);
+							} else {
+								const float w = std::max(1.2f, s * 0.22f);
+								const ImVec2 tip{ at.x + ux * s * 0.5f, at.y + uy * s * 0.5f };
+								const ImVec2 left{ at.x - ux * s * 0.5f - uy * s * 0.55f,
+									at.y - uy * s * 0.5f + ux * s * 0.55f };
+								const ImVec2 right{ at.x - ux * s * 0.5f + uy * s * 0.55f,
+									at.y - uy * s * 0.5f - ux * s * 0.55f };
+
+								ImDrawList_AddLine(draw, ImVec2{ left.x + 1.0f, left.y + 1.0f },
+									ImVec2{ tip.x + 1.0f, tip.y + 1.0f },
+									PackColour(0x000000, a * 0.6f), w);
+								ImDrawList_AddLine(draw, ImVec2{ right.x + 1.0f, right.y + 1.0f },
+									ImVec2{ tip.x + 1.0f, tip.y + 1.0f },
+									PackColour(0x000000, a * 0.6f), w);
+								ImDrawList_AddLine(draw, left, tip, PackColour(trail.colour, a), w);
+								ImDrawList_AddLine(draw, right, tip, PackColour(trail.colour, a), w);
+							}
 						}
 					}
 					prev = at;
@@ -1327,6 +1385,16 @@ namespace SS
 						settings->barsLostFx ? i : -1, now,
 						colours[i], settings->selfBarFrameColour, alpha,
 						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
+				}
+
+				// The full-glance HUD: your stats ride directly under your own
+				// stack, so nothing asks the eye to travel.
+				if (c.vitalsSelf && settings->statsPlace != StatsPlace::kCorner) {
+					DrawStatsRow(draw, statsSnapshot, settings,
+						at.x + settings->overheadOffsetX * c.scale,
+						at.y + step * static_cast<float>(shown) + thick * 0.9f +
+							settings->overheadOffsetY * c.scale,
+						0, std::max(10.0f, thick * 1.9f), alpha);
 				}
 			}
 		}

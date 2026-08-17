@@ -1441,6 +1441,45 @@ namespace SS
 		_combatShown = !_combatBuffer.empty();
 	}
 
+	// A small toast so the key never feels dead; the message names the person
+	// when there is one.
+	void Sense::OnTrailHotkey()
+	{
+		auto* target = [&]() -> RE::Actor* {
+			if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
+				if (auto ref = pick->target.get(); ref) {
+					return ref->As<RE::Actor>();
+				}
+			}
+			return nullptr;
+		}();
+
+		if (target && !target->IsPlayerRef()) {
+			const auto  id = target->GetFormID();
+			const auto* name = target->GetDisplayFullName();
+			const auto  who = name && name[0] ? ToUtf8(name) : std::string{ "?" };
+
+			std::string note;
+			if (_marked.erase(id) > 0) {
+				note = Locale::T("No longer tracking {}");
+			} else {
+				_marked[id] = target->CreateRefHandle();
+				note = Locale::T("Tracking {}");
+			}
+			if (const auto slot = note.find("{}"); slot != std::string::npos) {
+				note.replace(slot, 2, who);
+			}
+			RE::SendHUDMessage::ShowHUDMessage(note.c_str());
+			logger::info("trails: {} ({} marked)", note, _marked.size());
+			return;
+		}
+
+		const bool hidden = !_trailsHidden.load();
+		_trailsHidden.store(hidden);
+		RE::SendHUDMessage::ShowHUDMessage(Locale::T(hidden ? "Trails hidden" : "Trails shown"));
+		logger::info("trails: {}", hidden ? "hidden" : "shown");
+	}
+
 	void Sense::PollTrails()
 	{
 		const auto* settings = Settings::GetSingleton();
@@ -1448,7 +1487,7 @@ namespace SS
 			if (!_trails.empty() || !_quarry.empty()) {
 				_trails.clear();
 				_quarry.clear();
-				Labels::GetSingleton()->SetTrails({});
+				Labels::GetSingleton()->SetTrails({}, false);
 			}
 			return;
 		}
@@ -1461,10 +1500,33 @@ namespace SS
 		const float real = SS::RealNow();
 		const float lifetime = settings->trailLifetime;
 
-		// Fighting somebody keeps their recording window open.
+		// Marks from another place are nonsense in this one: an interior's
+		// coordinates mean nothing outside it. Wipe on transitions between
+		// interior and worldspace, or between worldspaces.
+		const auto* cell = player->GetParentCell();
+		const bool  interior = cell && cell->IsInteriorCell();
+		const auto  worldspace = player->GetWorldspace() ? player->GetWorldspace()->GetFormID()
+														 : RE::FormID{ 0 };
+		if (_placeKnown && settings->trailsClearOnTransition &&
+			(interior != _wasInterior || (!interior && worldspace != _lastWorldspace))) {
+			_trails.clear();
+			_quarry.clear();
+			logger::info("trails: place changed, wiped");
+		}
+		_placeKnown = true;
+		_wasInterior = interior;
+		_lastWorldspace = worldspace;
+
+		// Fighting somebody keeps their recording window open; a mark holds
+		// it open for as long as they are anywhere near.
 		for (const auto& [id, track] : _combatHits) {
 			auto& quarry = _quarry[id];
 			quarry.handle = track.handle;
+			quarry.untilAt = real + lifetime;
+		}
+		for (const auto& [id, handle] : _marked) {
+			auto& quarry = _quarry[id];
+			quarry.handle = handle;
 			quarry.untilAt = real + lifetime;
 		}
 
@@ -1481,14 +1543,18 @@ namespace SS
 				const auto life = actor->AsActorState()->GetLifeState();
 				const bool dead =
 					life == RE::ACTOR_LIFE_STATE::kDying || life == RE::ACTOR_LIFE_STATE::kDead;
-				if (!dead) {
+				// A hard cap on how many trails exist at once; a sweep through
+				// a city could otherwise open sixty of them.
+				if (!dead && (_trails.size() < 64 || _trails.contains(it->first))) {
 					auto& trail = _trails[it->first];
 					if (trail.name.empty()) {
 						const auto* name = actor->GetDisplayFullName();
 						trail.name = name && name[0] ? ToUtf8(name) : std::string{ "?" };
 					}
-					trail.colour = actor->IsHostileToActor(player) ? settings->hostileColour
-																   : settings->neutralColour;
+					trail.colour = _marked.contains(it->first)
+					                   ? settings->favouriteColour
+					                   : actor->IsHostileToActor(player) ? settings->hostileColour
+					                                                     : settings->neutralColour;
 					if (real - trail.lastSampleAt > 0.4f) {
 						const auto at = actor->GetPosition();
 						if (trail.points.empty() ||
@@ -1500,6 +1566,13 @@ namespace SS
 				}
 			}
 			++it;
+		}
+
+		// Hidden hides, it does not forget: recording carried on above, so
+		// showing them again brings the whole picture back.
+		if (_trailsHidden.load()) {
+			Labels::GetSingleton()->SetTrails({}, false);
+			return;
 		}
 
 		// Age out, then hand Labels a drawable copy with the fades already
@@ -1516,7 +1589,7 @@ namespace SS
 
 			Labels::Trail drawable;
 			drawable.colour = trail.colour;
-			if (settings->trailNames && !trail.name.empty()) {
+			if ((settings->trailNames || _marked.contains(it->first)) && !trail.name.empty()) {
 				// The translation carries a {} for the name; filled by hand so
 				// a bad translation cannot throw.
 				std::string form{ Locale::T("{}'s footprints") };
@@ -1534,7 +1607,8 @@ namespace SS
 			out.push_back(std::move(drawable));
 			++it;
 		}
-		Labels::GetSingleton()->SetTrails(std::move(out));
+		// A running sweep lights the trails up along with everything else.
+		Labels::GetSingleton()->SetTrails(std::move(out), _active.load());
 	}
 
 	void Sense::Tick()

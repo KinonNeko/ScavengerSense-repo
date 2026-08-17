@@ -23,6 +23,10 @@ namespace SS
 		// Hotkey entry point. Honours Settings::toggle and Settings::cooldown.
 		void OnHotkey();
 
+		// The trail key: aimed at somebody it toggles tracking them, aimed at
+		// nothing it hides or shows every trail.
+		void OnTrailHotkey();
+
 		// Cancel everything immediately (used on load/exit as well as by the toggle).
 		void Cancel();
 
@@ -127,6 +131,15 @@ namespace SS
 		};
 		std::unordered_map<RE::FormID, Quarry> _quarry;
 		std::unordered_map<RE::FormID, Trail>  _trails;
+		// Explicitly tracked people: their window never closes while they are
+		// loaded, their trail draws in the favourite gold, and their label
+		// stays on. Session-only, deliberately - marks are a hunt, not a save.
+		std::unordered_map<RE::FormID, RE::ObjectRefHandle> _marked;
+		std::atomic_bool                                    _trailsHidden{ false };
+		// Where the player was last tick, for the transition wipe.
+		bool        _placeKnown{ false };
+		bool        _wasInterior{ false };
+		RE::FormID  _lastWorldspace{ 0 };
 		float                                    _lastHudPush{ 0.0f };  // real time
 		// True while we are actively keeping other HUDs' enemy bars down.
 		// Atomic because the worker thread reads it to keep the tick alive
