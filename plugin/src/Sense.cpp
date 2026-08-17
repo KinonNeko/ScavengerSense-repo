@@ -1719,15 +1719,26 @@ namespace SS
 		_aimTrailId = 0;
 	}
 
-	// Holding the key is the clean slate: every mark, trail and open
-	// recording window goes at once.
-	void Sense::OnTrailLongPress()
+	// The gate every tracking action passes: the apparatus lives inside the
+	// sense when the option says so, and a crouch counts as its own kind of
+	// sense when that option is on - a tracker kneeling to read the ground.
+	bool Sense::TrailGateOpen()
 	{
 		const auto* settings = Settings::GetSingleton();
 		auto*       player = RE::PlayerCharacter::GetSingleton();
 		const bool  sneakOpen = settings->sneakReveals && player && player->IsSneaking();
 		if (settings->trailsOnlyWhileSensing && !_active && !sneakOpen) {
 			RE::SendHUDMessage::ShowHUDMessage(Locale::T("The sense is closed - sweep first to mark"));
+			logger::info("trails: key refused, no sweep running");
+			return false;
+		}
+		return true;
+	}
+
+	// The clean slate: every mark, trail and open recording window at once.
+	void Sense::OnTrailLongPress()
+	{
+		if (!TrailGateOpen()) {
 			return;
 		}
 		_marked.clear();
@@ -1735,27 +1746,22 @@ namespace SS
 		_quarry.clear();
 		Labels::GetSingleton()->SetTrails({}, false);
 		RE::SendHUDMessage::ShowHUDMessage(Locale::T("All trails wiped"));
-		logger::info("trails: long press, everything wiped");
+		logger::info("trails: wipe, everything gone");
 	}
 
-	// One key: a press over somebody marks or releases them, a press over
-	// nothing hides or shows every trail, a long press wipes the lot.
-	void Sense::OnTrailHotkey()
+	void Sense::ToggleTrailsShown()
+	{
+		const bool hidden = !_trailsHidden.load();
+		_trailsHidden.store(hidden);
+		RE::SendHUDMessage::ShowHUDMessage(Locale::T(hidden ? "Trails hidden" : "Trails shown"));
+		logger::info("trails: {}", hidden ? "hidden" : "shown");
+	}
+
+	// Marks or releases whatever is under the aim - a person first, then
+	// their footprints. True if it acted, false if nothing was there.
+	bool Sense::MarkUnderAim()
 	{
 		const auto* hotkeySettings = Settings::GetSingleton();
-
-		// The whole apparatus lives inside the sense when the option says so:
-		// outside a sweep the key does nothing but explain itself. A crouch
-		// counts as its own kind of sense when the option is on - a tracker
-		// kneeling to read the ground.
-		auto*      hotkeyPlayer = RE::PlayerCharacter::GetSingleton();
-		const bool sneakOpen =
-			hotkeySettings->sneakReveals && hotkeyPlayer && hotkeyPlayer->IsSneaking();
-		if (hotkeySettings->trailsOnlyWhileSensing && !_active && !sneakOpen) {
-			RE::SendHUDMessage::ShowHUDMessage(Locale::T("The sense is closed - sweep first to mark"));
-			logger::info("trails: key refused, no sweep running");
-			return;
-		}
 
 		// Marking and releasing share one shape whether the press landed on a
 		// person or on their footprints.
@@ -1813,36 +1819,64 @@ namespace SS
 			const auto* name = target->GetDisplayFullName();
 			toggleMark(target->GetFormID(), target->CreateRefHandle(),
 				name && name[0] ? ToUtf8(name) : std::string{ "?" });
-			return;
+			return true;
 		}
 
 		// Nobody under the aim - but maybe their footprints are. Seeing
 		// Hulda's trail on the ground and marking the trail itself is how a
 		// tracker hunts someone they have not caught up with yet.
-		{
-			const auto bestId = PickTrailByView(hotkeySettings->trackRange);
-			if (bestId != 0) {
-				// The owner might be a cell away; the quarry's handle still
-				// reaches them, and failing that the form itself does, so the
-				// recording resumes the moment they are loaded again.
-				RE::ObjectRefHandle handle;
-				if (const auto quarry = _quarry.find(bestId); quarry != _quarry.end()) {
-					handle = quarry->second.handle;
-				}
-				if (!handle.get()) {
-					if (auto* actor = RE::TESForm::LookupByID<RE::Actor>(bestId)) {
-						handle = actor->CreateRefHandle();
-					}
-				}
-				toggleMark(bestId, handle, _trails[bestId].name);
-				return;
+		const auto bestId = PickTrailByView(hotkeySettings->trackRange);
+		if (bestId != 0) {
+			// The owner might be a cell away; the quarry's handle still
+			// reaches them, and failing that the form itself does, so the
+			// recording resumes the moment they are loaded again.
+			RE::ObjectRefHandle handle;
+			if (const auto quarry = _quarry.find(bestId); quarry != _quarry.end()) {
+				handle = quarry->second.handle;
 			}
+			if (!handle.get()) {
+				if (auto* actor = RE::TESForm::LookupByID<RE::Actor>(bestId)) {
+					handle = actor->CreateRefHandle();
+				}
+			}
+			toggleMark(bestId, handle, _trails[bestId].name);
+			return true;
 		}
 
-		const bool hidden = !_trailsHidden.load();
-		_trailsHidden.store(hidden);
-		RE::SendHUDMessage::ShowHUDMessage(Locale::T(hidden ? "Trails hidden" : "Trails shown"));
-		logger::info("trails: {}", hidden ? "hidden" : "shown");
+		return false;
+	}
+
+	// The single-key mode: a press over somebody - or their footprints -
+	// marks or releases them; a press over nothing hides or shows every
+	// trail. The wipe rides its own gesture on the same key.
+	void Sense::OnTrailHotkey()
+	{
+		if (!TrailGateOpen()) {
+			return;
+		}
+		if (!MarkUnderAim()) {
+			ToggleTrailsShown();
+		}
+	}
+
+	// The multi-key mode's separated halves: marking alone, and the
+	// hide/show toggle alone.
+	void Sense::OnTrailMark()
+	{
+		if (!TrailGateOpen()) {
+			return;
+		}
+		if (!MarkUnderAim()) {
+			logger::info("trails: mark key, nothing under the aim");
+		}
+	}
+
+	void Sense::OnTrailToggle()
+	{
+		if (!TrailGateOpen()) {
+			return;
+		}
+		ToggleTrailsShown();
 	}
 
 	void Sense::PollTrails()

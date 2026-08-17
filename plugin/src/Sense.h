@@ -31,6 +31,11 @@ namespace SS
 		// Holding the trail key wipes everything: marks, trails, quarry.
 		void OnTrailLongPress();
 
+		// The multi-key mode's separated actions: mark or release what is
+		// under the aim, and hide or show every trail.
+		void OnTrailMark();
+		void OnTrailToggle();
+
 		// The palette colour of a marked person, 0 when they are not marked.
 		[[nodiscard]] std::uint32_t MarkColour(RE::FormID a_id) const;
 
@@ -90,6 +95,11 @@ namespace SS
 		// The trail whose point sits nearest the screen centre within reach,
 		// 0 for none - the footprint half of the trail key's aim.
 		[[nodiscard]] RE::FormID PickTrailByView(float a_maxRange) const;
+		// The gate every tracking action passes; toasts when it refuses.
+		[[nodiscard]] bool TrailGateOpen();
+		// Marks or releases whatever the aim finds; false if nothing there.
+		bool MarkUnderAim();
+		void ToggleTrailsShown();
 		// Keeps the marking sign - brackets on a person, running dots on a
 		// trail - pointed at whatever the trail key would take right now.
 		void UpdateAimPreview();

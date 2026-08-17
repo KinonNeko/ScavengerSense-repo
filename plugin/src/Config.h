@@ -146,6 +146,16 @@ namespace SS
 		kCount
 	};
 
+	// How the tracking controls are laid on the keyboard: one key doing
+	// everything by context, or a key per action, each with its own gesture.
+	enum class TrailKeyMode : std::uint8_t
+	{
+		kSingle = 0,
+		kMulti,
+
+		kCount
+	};
+
 	// Which actors are worth sensing. Corpses are lootable, so they count by
 	// default; dead-only is the "where did that kill land" case.
 	enum class ActorFilter : std::uint32_t
@@ -550,6 +560,19 @@ namespace SS
 		// hold has to last to count.
 		TrailWipe    trailWipe{ TrailWipe::kHold };
 		float        trailHoldTime{ 0.5f };
+		// One key for everything (the default), or a key per action. In
+		// multi mode each action carries its own binding and gesture; the
+		// hold time and double-tap window are shared.
+		TrailKeyMode trailMode{ TrailKeyMode::kSingle };
+		std::int32_t trailMarkKey{ -1 };
+		std::int32_t trailMarkGamepad{ -1 };
+		Trigger      trailMarkGesture{ Trigger::kPress };
+		std::int32_t trailShowKey{ -1 };
+		std::int32_t trailShowGamepad{ -1 };
+		Trigger      trailShowGesture{ Trigger::kPress };
+		std::int32_t trailWipeKey{ -1 };
+		std::int32_t trailWipeGamepad{ -1 };
+		Trigger      trailWipeGesture{ Trigger::kHold };
 		// Crouching reads the ground: while sneaking, every trail shows and
 		// the trail key works, sweep or no sweep - the tracker's stance is
 		// its own kind of sense.

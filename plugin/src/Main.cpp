@@ -61,33 +61,63 @@ namespace SS
 					code = static_cast<std::int32_t>(raw);
 				}
 
-				// The trail key: a short press acts on release; the wipe rides
-				// whichever gesture the player chose - a hold, a double tap,
-				// or nothing at all - and swallows the press that made it, so
-				// the two never both fire.
-				const auto trailWanted = isGamepad ? settings->trailGamepad : settings->trailKey;
-				if (trailWanted >= 0 && code == trailWanted) {
-					if (button->IsDown()) {
-						_trailLongFired = false;
-						if (settings->trailWipe == TrailWipe::kDoubleTap) {
-							const auto now = RealNow();
-							if (now - _trailTapAt <= settings->doubleTapWindow) {
-								_trailTapAt = -1000.0f;
-								_trailLongFired = true;  // eat this press's release
-								Sense::GetSingleton()->OnTrailLongPress();
-							} else {
-								_trailTapAt = now;
-							}
+				if (settings->trailMode == TrailKeyMode::kMulti) {
+					// A key per tracking action, each with its own gesture. The
+					// same physical key may back more than one action, so every
+					// matching binding gets to see the event.
+					bool consumed = false;
+					const auto tryTrailAction = [&](std::int32_t a_key, std::int32_t a_pad,
+						Trigger a_gesture, ButtonState& a_state, void (Sense::*a_action)()) {
+						const auto want = isGamepad ? a_pad : a_key;
+						if (want < 0 || code != want) {
+							return;
 						}
-					} else if (button->IsPressed() && settings->trailWipe == TrailWipe::kHold &&
-							   !_trailLongFired &&
-							   button->HeldDuration() >= settings->trailHoldTime) {
-						_trailLongFired = true;
-						Sense::GetSingleton()->OnTrailLongPress();
-					} else if (button->IsUp() && !_trailLongFired) {
-						Sense::GetSingleton()->OnTrailHotkey();
+						consumed = true;
+						if (Qualifies(*button, a_state, a_gesture, settings->doubleTapWindow,
+								settings->trailHoldTime)) {
+							(Sense::GetSingleton()->*a_action)();
+						}
+					};
+					tryTrailAction(settings->trailMarkKey, settings->trailMarkGamepad,
+						settings->trailMarkGesture, _trailMark, &Sense::OnTrailMark);
+					tryTrailAction(settings->trailShowKey, settings->trailShowGamepad,
+						settings->trailShowGesture, _trailShow, &Sense::OnTrailToggle);
+					tryTrailAction(settings->trailWipeKey, settings->trailWipeGamepad,
+						settings->trailWipeGesture, _trailWipe, &Sense::OnTrailLongPress);
+					if (consumed) {
+						continue;
 					}
-					continue;
+				} else {
+					// The single trail key: a short press acts on release; the
+					// wipe rides whichever gesture the player chose - a hold, a
+					// double tap, or nothing - and swallows the press that made
+					// it, so the two never both fire.
+					const auto trailWanted =
+						isGamepad ? settings->trailGamepad : settings->trailKey;
+					if (trailWanted >= 0 && code == trailWanted) {
+						if (button->IsDown()) {
+							_trailLongFired = false;
+							if (settings->trailWipe == TrailWipe::kDoubleTap) {
+								const auto now = RealNow();
+								if (now - _trailTapAt <= settings->doubleTapWindow) {
+									_trailTapAt = -1000.0f;
+									_trailLongFired = true;  // eat this press's release
+									Sense::GetSingleton()->OnTrailLongPress();
+								} else {
+									_trailTapAt = now;
+								}
+							}
+						} else if (button->IsPressed() &&
+								   settings->trailWipe == TrailWipe::kHold &&
+								   !_trailLongFired &&
+								   button->HeldDuration() >= settings->trailHoldTime) {
+							_trailLongFired = true;
+							Sense::GetSingleton()->OnTrailLongPress();
+						} else if (button->IsUp() && !_trailLongFired) {
+							Sense::GetSingleton()->OnTrailHotkey();
+						}
+						continue;
+					}
 				}
 
 				const auto wanted = isGamepad ? settings->gamepad : settings->keyboard;
@@ -95,7 +125,8 @@ namespace SS
 					continue;
 				}
 
-				if (Qualifies(*button, isGamepad ? _gamepad : _keyboard, *settings)) {
+				if (Qualifies(*button, isGamepad ? _gamepad : _keyboard, settings->trigger,
+						settings->doubleTapWindow, settings->holdTime)) {
 					Sense::GetSingleton()->OnHotkey();
 				}
 			}
@@ -110,11 +141,12 @@ namespace SS
 			bool  firedThisHold{ false };  // hold mode already fired for this press
 		};
 
-		// Decides whether this particular button event completes the configured
-		// gesture. Called once per event for the bound button only.
-		static bool Qualifies(const RE::ButtonEvent& a_button, ButtonState& a_state, const Settings& a_settings)
+		// Decides whether this particular button event completes a gesture.
+		// Called once per event for the bound button only.
+		static bool Qualifies(const RE::ButtonEvent& a_button, ButtonState& a_state,
+			Trigger a_trigger, float a_doubleTapWindow, float a_holdTime)
 		{
-			switch (a_settings.trigger) {
+			switch (a_trigger) {
 			case Trigger::kDoubleTap:
 				{
 					if (!a_button.IsDown()) {
@@ -125,7 +157,7 @@ namespace SS
 					// which would read both taps at the same instant and make
 					// every single press look like a double tap.
 					const auto now = RealNow();
-					if (now - a_state.lastTapAt <= a_settings.doubleTapWindow) {
+					if (now - a_state.lastTapAt <= a_doubleTapWindow) {
 						// consume both taps so a third press starts a fresh pair
 						a_state.lastTapAt = -1000.0f;
 						return true;
@@ -145,7 +177,7 @@ namespace SS
 						return false;
 					}
 
-					if (!a_state.firedThisHold && a_button.HeldDuration() >= a_settings.holdTime) {
+					if (!a_state.firedThisHold && a_button.HeldDuration() >= a_holdTime) {
 						a_state.firedThisHold = true;
 						return true;
 					}
@@ -163,6 +195,10 @@ namespace SS
 		ButtonState _gamepad;
 		bool        _trailLongFired{ false };
 		float       _trailTapAt{ -1000.0f };
+		// Multi-key mode: gesture state per tracking action.
+		ButtonState _trailMark;
+		ButtonState _trailShow;
+		ButtonState _trailWipe;
 	};
 
 	void OnMessage(SKSE::MessagingInterface::Message* a_message)

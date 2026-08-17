@@ -39,6 +39,8 @@ namespace SS
 
 		constexpr const char* kTrailWipeNames[] = { "hold", "doubletap", "off" };
 
+		constexpr const char* kTrailKeyModeNames[] = { "single", "multi" };
+
 		constexpr const char* kStatsPlaceNames[] = { "bars", "corner", "both" };
 
 		constexpr const char* kCountStyleNames[] = { "number", "fill", "hidden" };
@@ -309,6 +311,23 @@ namespace SS
 			}
 			logger::warn("unrecognised trail wipe gesture \"{}\" - keeping {}", raw,
 				kTrailWipeNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, TrailKeyMode& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kTrailKeyModeNames); ++i) {
+				if (raw == kTrailKeyModeNames[i]) {
+					a_value = static_cast<TrailKeyMode>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised trail key mode \"{}\" - keeping {}", raw,
+				kTrailKeyModeNames[static_cast<std::size_t>(a_value)]);
 		}
 
 		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, StatsPlace& a_value)
@@ -722,6 +741,16 @@ namespace SS
 		Get(table, "tracks", "aimColor", aimColour);
 		Get(table, "tracks", "wipe", trailWipe);
 		Get(table, "tracks", "holdTime", trailHoldTime);
+		Get(table, "tracks", "keyMode", trailMode);
+		Get(table, "tracks", "markKey", trailMarkKey);
+		Get(table, "tracks", "markGamepad", trailMarkGamepad);
+		Get(table, "tracks", "markGesture", trailMarkGesture);
+		Get(table, "tracks", "showKey", trailShowKey);
+		Get(table, "tracks", "showGamepad", trailShowGamepad);
+		Get(table, "tracks", "showGesture", trailShowGesture);
+		Get(table, "tracks", "wipeKey", trailWipeKey);
+		Get(table, "tracks", "wipeGamepad", trailWipeGamepad);
+		Get(table, "tracks", "wipeGesture", trailWipeGesture);
 		Get(table, "tracks", "sneakReveals", sneakReveals);
 		Get(table, "tracks", "deathRelease", markDeathRelease);
 		Get(table, "tracks", "deathDelay", markDeathDelay);
@@ -1333,6 +1362,18 @@ namespace SS
 		file << "; long a hold must last.\n";
 		file << "wipe = " << kTrailWipeNames[static_cast<std::size_t>(trailWipe)] << "\n";
 		file << "holdTime = " << trailHoldTime << "\n";
+		file << "; single = one key does it all by context; multi = a key per\n";
+		file << "; action, each with its own gesture (press, double or hold).\n";
+		file << "keyMode = " << kTrailKeyModeNames[static_cast<std::size_t>(trailMode)] << "\n";
+		file << "markKey = " << trailMarkKey << "\n";
+		file << "markGamepad = " << trailMarkGamepad << "\n";
+		file << "markGesture = " << kTriggerNames[static_cast<std::size_t>(trailMarkGesture)] << "\n";
+		file << "showKey = " << trailShowKey << "\n";
+		file << "showGamepad = " << trailShowGamepad << "\n";
+		file << "showGesture = " << kTriggerNames[static_cast<std::size_t>(trailShowGesture)] << "\n";
+		file << "wipeKey = " << trailWipeKey << "\n";
+		file << "wipeGamepad = " << trailWipeGamepad << "\n";
+		file << "wipeGesture = " << kTriggerNames[static_cast<std::size_t>(trailWipeGesture)] << "\n";
 		file << "; Crouching reads the ground: while sneaking, trails show and the\n";
 		file << "; key works, sweep or no sweep.\n";
 		file << "sneakReveals = " << boolean(sneakReveals) << "\n";
