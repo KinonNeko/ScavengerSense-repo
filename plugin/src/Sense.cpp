@@ -1569,10 +1569,18 @@ namespace SS
 		// Marks from another place are nonsense in this one: an interior's
 		// coordinates mean nothing outside it. Wipe on transitions between
 		// interior and worldspace, or between worldspaces.
+		//
+		// The worldspace comes from the TES singleton's plain field, NEVER
+		// TESObjectREFR::GetWorldspace(): that call routes through an engine
+		// function LumaUtil hooks as its cell-change thunk, which reads our
+		// garbage second-argument register as a cell pointer and crashes the
+		// game on the very first poll. Found the hard way, resolved by
+		// symbolising the crash stack against the linker map.
 		const auto* cell = player->GetParentCell();
 		const bool  interior = cell && cell->IsInteriorCell();
-		const auto  worldspace = player->GetWorldspace() ? player->GetWorldspace()->GetFormID()
-														 : RE::FormID{ 0 };
+		const auto* tes = RE::TES::GetSingleton();
+		const auto* currentWs = tes ? tes->GetRuntimeData2().worldSpace : nullptr;
+		const auto  worldspace = currentWs ? currentWs->GetFormID() : RE::FormID{ 0 };
 		if (_placeKnown && settings->trailsClearOnTransition &&
 			(interior != _wasInterior || (!interior && worldspace != _lastWorldspace))) {
 			_trails.clear();
