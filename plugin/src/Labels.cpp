@@ -572,6 +572,12 @@ namespace SS
 		_selfStats = a_stats;
 	}
 
+	void Labels::SetTrails(std::vector<Trail> a_trails)
+	{
+		std::scoped_lock guard{ _lock };
+		_trails = std::move(a_trails);
+	}
+
 	// The corner readout: the same bars as the tag, pinned to the screen.
 	//
 	// Its own draw rather than a fake tag, because a tag needs somewhere in the
@@ -1064,12 +1070,14 @@ namespace SS
 
 		std::vector<Entry> snapshot;
 		std::vector<Entry> combatSnapshot;
+		std::vector<Trail> trailSnapshot;
 		{
 			// The HUD callback runs on the render thread, so take a copy and get
 			// off the lock rather than holding it across any drawing.
 			std::scoped_lock guard{ _lock };
 			snapshot = _entries;
 			combatSnapshot = _combat;
+			trailSnapshot = _trails;
 		}
 
 		auto* io = igGetIO();
@@ -1149,6 +1157,73 @@ namespace SS
 			// here that is not tied to a sweep, so it has to survive an empty
 			// tag list.
 			DrawSelfHud(draw, width, height, now);
+		}
+
+		// Breadcrumb trails go under everything else: they lie on the ground.
+		// Chevron size comes from the screen-space gap between samples, which
+		// is perspective for free - far marks sit close together on screen.
+		if (!trailSnapshot.empty()) {
+			auto* trailFont = igGetFont();
+			const auto trailFontSize = std::max(10.0f,
+				(settings->labelFontSize > 0.0f ? settings->labelFontSize : igGetFontSize() * 0.5f) * 0.8f);
+
+			for (const auto& trail : trailSnapshot) {
+				ImVec2 prev{};
+				bool   hasPrev = false;
+				ImVec2 freshest{};
+				float  freshestFade = 0.0f;
+				bool   hasFreshest = false;
+
+				for (const auto& mark : trail.marks) {
+					ImVec2 at;
+					if (!Project(mark.world, width, height, at)) {
+						hasPrev = false;
+						continue;
+					}
+					if (hasPrev) {
+						const float dx = at.x - prev.x;
+						const float dy = at.y - prev.y;
+						const float len = std::sqrt(dx * dx + dy * dy);
+						if (len > 0.5f) {
+							const float ux = dx / len;
+							const float uy = dy / len;
+							const float s = std::clamp(len * 0.30f, 2.5f, 13.0f);
+							const float a = std::clamp(mark.fade, 0.0f, 1.0f) * 0.85f;
+							const float w = std::max(1.2f, s * 0.22f);
+
+							const ImVec2 tip{ at.x + ux * s * 0.5f, at.y + uy * s * 0.5f };
+							const ImVec2 left{ at.x - ux * s * 0.5f - uy * s * 0.55f,
+								at.y - uy * s * 0.5f + ux * s * 0.55f };
+							const ImVec2 right{ at.x - ux * s * 0.5f + uy * s * 0.55f,
+								at.y - uy * s * 0.5f - ux * s * 0.55f };
+
+							ImDrawList_AddLine(draw, ImVec2{ left.x + 1.0f, left.y + 1.0f },
+								ImVec2{ tip.x + 1.0f, tip.y + 1.0f }, PackColour(0x000000, a * 0.6f), w);
+							ImDrawList_AddLine(draw, ImVec2{ right.x + 1.0f, right.y + 1.0f },
+								ImVec2{ tip.x + 1.0f, tip.y + 1.0f }, PackColour(0x000000, a * 0.6f), w);
+							ImDrawList_AddLine(draw, left, tip, PackColour(trail.colour, a), w);
+							ImDrawList_AddLine(draw, right, tip, PackColour(trail.colour, a), w);
+						}
+					}
+					prev = at;
+					hasPrev = true;
+					freshest = at;
+					freshestFade = mark.fade;
+					hasFreshest = true;
+				}
+
+				// Whose footprints these are, at the fresh end where a tracker
+				// would be looking.
+				if (hasFreshest && trailFont && !trail.label.empty()) {
+					const auto   a = std::clamp(freshestFade, 0.0f, 1.0f) * 0.9f;
+					const ImVec2 textAt{ freshest.x + 9.0f, freshest.y - trailFontSize * 1.35f };
+					ImDrawList_AddText_FontPtr(draw, trailFont, trailFontSize,
+						ImVec2{ textAt.x + 1.0f, textAt.y + 1.0f }, PackColour(0x000000, a * 0.8f),
+						trail.label.c_str(), nullptr, 0.0f, nullptr);
+					ImDrawList_AddText_FontPtr(draw, trailFont, trailFontSize, textAt,
+						PackColour(trail.colour, a), trail.label.c_str(), nullptr, 0.0f, nullptr);
+				}
+			}
 		}
 
 		// In-combat bars: people the player has hit, bars only, no tag. Also

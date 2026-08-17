@@ -150,6 +150,22 @@ namespace SS
 
 		void SetSelfStats(const SelfStats& a_stats);
 
+		// Breadcrumb trails, pushed whole from the main thread whenever the
+		// recorder runs. Fade is precomputed there, so the render side never
+		// needs to reconcile clocks.
+		struct TrailMark
+		{
+			RE::NiPoint3 world;
+			float        fade{ 1.0f };
+		};
+		struct Trail
+		{
+			std::vector<TrailMark> marks;  // oldest first
+			std::string            label;
+			std::uint32_t          colour{ 0xCBCBCB };
+		};
+		void SetTrails(std::vector<Trail> a_trails);
+
 		void SetRing(Ring a_ring);
 		void StopRing();
 
@@ -174,6 +190,7 @@ namespace SS
 
 		std::vector<Entry> _entries;
 		std::vector<Entry> _combat;
+		std::vector<Trail> _trails;
 		Ring               _ring;
 		float              _selfHud[3]{ -1.0f, -1.0f, -1.0f };
 		float              _selfHudCap[3]{ 1.0f, 1.0f, 1.0f };

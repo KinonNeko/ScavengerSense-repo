@@ -625,6 +625,9 @@ namespace SS
 		Get(table, "player", "coldMax", coldMax);
 		Get(table, "player", "levelOthers", levelOthers);
 		Get(table, "player", "weaponIcons", weaponIcons);
+		Get(table, "tracks", "enabled", trailsEnabled);
+		Get(table, "tracks", "lifetime", trailLifetime);
+		Get(table, "tracks", "names", trailNames);
 		Get(table, "self", "hudCorner", selfHudCorner);
 		Get(table, "self", "hudShow", selfHudShow);
 		Get(table, "self", "hudLinger", selfHudLinger);
@@ -738,6 +741,7 @@ namespace SS
 		soundVolume = std::clamp(soundVolume, 0.0f, 1.0f);
 		combatLinger = std::clamp(combatLinger, 0.0f, 30.0f);
 		coldMax = std::clamp(coldMax, 1.0f, 100000.0f);
+		trailLifetime = std::clamp(trailLifetime, 10.0f, 300.0f);
 		labelMaxDistance = std::clamp(labelMaxDistance, 0.0f, 20000.0f);
 		washStrength = std::clamp(washStrength, 0.0f, 1.0f);
 		washFlat = std::clamp(washFlat, 0.0f, 1.0f);
@@ -1172,6 +1176,17 @@ namespace SS
 		file << "; Tag icons follow the drawn weapon - yours and theirs - instead of\n";
 		file << "; the relationship shape. The colour still says friend or foe.\n";
 		file << "weaponIcons = " << boolean(weaponIcons) << "\n\n\n";
+
+		file << "[Tracks]\n\n";
+		file << "; Breadcrumb trails behind anyone the sense has touched - sweep-lit\n";
+		file << "; or fought - as chevrons on the ground pointing the way they went,\n";
+		file << "; fading with age. Recording starts at first contact; nobody's past\n";
+		file << "; is known before the sense saw them.\n";
+		file << "enabled = " << boolean(trailsEnabled) << "\n";
+		file << "; Seconds a mark survives.\n";
+		file << "lifetime = " << trailLifetime << "\n";
+		file << "; A small label at the fresh end - whose footprints these are.\n";
+		file << "names = " << boolean(trailNames) << "\n\n\n";
 
 		file << "[Vitals]\n\n";
 		file << "; The same bars over other people, for the length of a sweep only.\n";

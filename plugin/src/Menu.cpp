@@ -1067,6 +1067,34 @@ namespace SS::Menu
 			igSpacing();
 		}
 
+		// Breadcrumbs behind anyone the sense has touched.
+		void DrawTracks(Settings& a_settings)
+		{
+			if (!Header(T("Tracks"))) {
+				return;
+			}
+
+			igCheckbox(T("People leave trails"), &a_settings.trailsEnabled);
+			Help(
+				"Anyone the sense has touched - sweep-lit or fought - leaves\n"
+				"chevrons on the ground pointing the way they went, fading as they\n"
+				"age. Hostile trails draw in the hostile colour.\n"
+				"\n"
+				"Recording starts when the sense first sees somebody: nobody's\n"
+				"past is known before that, and a trail ends where its owner\n"
+				"left the loaded world.");
+
+			if (a_settings.trailsEnabled) {
+				igSliderFloat(T("Trail lifetime"), &a_settings.trailLifetime, 10.0f, 300.0f, "%.0f s", 0);
+				igCheckbox(T("Name the trails"), &a_settings.trailNames);
+				Help(
+					"A small label at the fresh end of the trail - whose footprints\n"
+					"these are.");
+			}
+
+			igSpacing();
+		}
+
 		// What the sense reads off people beyond the bars: you first, then them.
 		void DrawPlayer(Settings& a_settings)
 		{
@@ -1974,6 +2002,7 @@ namespace SS::Menu
 				igSpacing();
 				DrawCategories(settings);
 				DrawSelf(settings);
+				DrawTracks(settings);
 				igEndTabItem();
 			}
 

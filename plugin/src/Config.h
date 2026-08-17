@@ -422,6 +422,14 @@ namespace SS
 		// the row hides itself when the global does not exist.
 		std::string coldGlobal{ "Survival_ColdLevel" };
 		float       coldMax{ 100.0f };
+		// [Tracks] - breadcrumbs behind anyone the sense has touched. Honest
+		// limits: recording starts when we first see somebody and stops when
+		// they unload, so it is a scent picked up at first contact, not
+		// forensics.
+		bool  trailsEnabled{ true };
+		float trailLifetime{ 90.0f };  // seconds a mark survives
+		bool  trailNames{ true };      // whose footprints these are
+
 		// Their level in parentheses after the name - enemies very much
 		// included; knowing you are outmatched is the point.
 		bool        levelOthers{ false };

@@ -67,6 +67,9 @@ namespace SS
 		void PollSelf();
 		// Keeps bars over people the player has hit while a fight is on.
 		void PollCombat();
+		// Records breadcrumbs behind anyone the sense has touched, and hands
+		// the drawable trails to Labels.
+		void PollTrails();
 		void ApplyTo(RE::TESObjectREFR* a_ref, Category a_category);
 		void ClearOurEffects();
 		void BeginTint(float a_duration);
@@ -107,6 +110,23 @@ namespace SS
 		// "hostile because of something you did" should not be forgotten the
 		// moment the fight ends, and Only enemies reads it for corpses too.
 		std::unordered_set<RE::FormID>           _struckEver;
+
+		// Who currently earns a trail (sweep-lit or fought), and the trails
+		// themselves. Main thread only, like everything around them.
+		struct Quarry
+		{
+			RE::ObjectRefHandle handle;
+			float               untilAt{ 0.0f };  // real time recording window
+		};
+		struct Trail
+		{
+			std::string   name;
+			std::uint32_t colour{ 0xCBCBCB };
+			float         lastSampleAt{ -1000.0f };
+			std::vector<std::pair<RE::NiPoint3, float>> points;  // pos, bornAt (real)
+		};
+		std::unordered_map<RE::FormID, Quarry> _quarry;
+		std::unordered_map<RE::FormID, Trail>  _trails;
 		float                                    _lastHudPush{ 0.0f };  // real time
 		// True while we are actively keeping other HUDs' enemy bars down.
 		// Atomic because the worker thread reads it to keep the tick alive

@@ -587,6 +587,7 @@ namespace SS
 					                      settings->hideGameHud ||
 					                      settings->combatBars ||
 					                      settings->selfBarsOverhead ||
+					                      settings->trailsEnabled ||
 					                      _enemyHudOwned.load() ||
 					                      GameMenus::GetSingleton()->HasHidden();
 					if (!_active && !idleWork) {
@@ -596,6 +597,7 @@ namespace SS
 						task->AddTask([this]() {
 							PollSelf();
 							PollCombat();
+							PollTrails();
 							GameMenus::GetSingleton()->ApplyHudVisibility();
 							Tick();
 						});
@@ -1439,6 +1441,102 @@ namespace SS
 		_combatShown = !_combatBuffer.empty();
 	}
 
+	void Sense::PollTrails()
+	{
+		const auto* settings = Settings::GetSingleton();
+		if (!settings->trailsEnabled) {
+			if (!_trails.empty() || !_quarry.empty()) {
+				_trails.clear();
+				_quarry.clear();
+				Labels::GetSingleton()->SetTrails({});
+			}
+			return;
+		}
+
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		if (!player) {
+			return;
+		}
+
+		const float real = SS::RealNow();
+		const float lifetime = settings->trailLifetime;
+
+		// Fighting somebody keeps their recording window open.
+		for (const auto& [id, track] : _combatHits) {
+			auto& quarry = _quarry[id];
+			quarry.handle = track.handle;
+			quarry.untilAt = real + lifetime;
+		}
+
+		// Sample everyone still in their window: a point roughly every stride,
+		// no closer than 24 units, no more often than 0.4s.
+		for (auto it = _quarry.begin(); it != _quarry.end();) {
+			if (real > it->second.untilAt) {
+				it = _quarry.erase(it);
+				continue;
+			}
+			auto  ref = it->second.handle.get();
+			auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
+			if (actor && actor->Is3DLoaded()) {
+				const auto life = actor->AsActorState()->GetLifeState();
+				const bool dead =
+					life == RE::ACTOR_LIFE_STATE::kDying || life == RE::ACTOR_LIFE_STATE::kDead;
+				if (!dead) {
+					auto& trail = _trails[it->first];
+					if (trail.name.empty()) {
+						const auto* name = actor->GetDisplayFullName();
+						trail.name = name && name[0] ? ToUtf8(name) : std::string{ "?" };
+					}
+					trail.colour = actor->IsHostileToActor(player) ? settings->hostileColour
+																   : settings->neutralColour;
+					if (real - trail.lastSampleAt > 0.4f) {
+						const auto at = actor->GetPosition();
+						if (trail.points.empty() ||
+							at.GetDistance(trail.points.back().first) > 24.0f) {
+							trail.lastSampleAt = real;
+							trail.points.emplace_back(at, real);
+						}
+					}
+				}
+			}
+			++it;
+		}
+
+		// Age out, then hand Labels a drawable copy with the fades already
+		// worked out - the render thread never reconciles clocks.
+		std::vector<Labels::Trail> out;
+		for (auto it = _trails.begin(); it != _trails.end();) {
+			auto& trail = it->second;
+			std::erase_if(trail.points,
+				[&](const auto& a_point) { return real - a_point.second > lifetime; });
+			if (trail.points.empty()) {
+				it = _trails.erase(it);
+				continue;
+			}
+
+			Labels::Trail drawable;
+			drawable.colour = trail.colour;
+			if (settings->trailNames && !trail.name.empty()) {
+				// The translation carries a {} for the name; filled by hand so
+				// a bad translation cannot throw.
+				std::string form{ Locale::T("{}'s footprints") };
+				if (const auto slot = form.find("{}"); slot != std::string::npos) {
+					form.replace(slot, 2, trail.name);
+				} else {
+					form = trail.name;
+				}
+				drawable.label = std::move(form);
+			}
+			drawable.marks.reserve(trail.points.size());
+			for (const auto& [pos, born] : trail.points) {
+				drawable.marks.push_back({ pos, 1.0f - (real - born) / lifetime });
+			}
+			out.push_back(std::move(drawable));
+			++it;
+		}
+		Labels::GetSingleton()->SetTrails(std::move(out));
+	}
+
 	void Sense::Tick()
 	{
 		if (!_active) {
@@ -1603,6 +1701,19 @@ namespace SS
 
 		const bool isActor = a_category == Category::kActor;
 		const auto reading = isActor ? Judge(a_ref, *settings) : Reading{};
+
+		// A sweep opens the recording window: everyone it lights leaves
+		// breadcrumbs for the trail lifetime, dead ones excepted - corpses
+		// do not walk.
+		if (isActor && settings->trailsEnabled) {
+			if (auto* quarry = a_ref->As<RE::Actor>(); quarry) {
+				const auto life = quarry->AsActorState()->GetLifeState();
+				if (life != RE::ACTOR_LIFE_STATE::kDying && life != RE::ACTOR_LIFE_STATE::kDead) {
+					_quarry[quarry->GetFormID()] = { quarry->CreateRefHandle(),
+						SS::RealNow() + settings->trailLifetime };
+				}
+			}
+		}
 		// User rules only apply to people. Everything they can match on -
 		// factions, relationship lists, names - is a property of a person.
 		const auto mark = isActor ? Marks::GetSingleton()->Match(a_ref->As<RE::Actor>()) : -1;
