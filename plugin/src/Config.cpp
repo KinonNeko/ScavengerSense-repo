@@ -617,6 +617,14 @@ namespace SS
 		Get(table, "self", "frameColor", selfBarFrameColour);
 		Get(table, "self", "overhead", selfBarsOverhead);
 		Get(table, "self", "overheadWhen", selfBarsOverheadWhen);
+		Get(table, "player", "level", senseLevel);
+		Get(table, "player", "gold", senseGold);
+		Get(table, "player", "weight", senseWeight);
+		Get(table, "player", "cold", senseCold);
+		Get(table, "player", "coldGlobal", coldGlobal);
+		Get(table, "player", "coldMax", coldMax);
+		Get(table, "player", "levelOthers", levelOthers);
+		Get(table, "player", "weaponIcons", weaponIcons);
 		Get(table, "self", "hudCorner", selfHudCorner);
 		Get(table, "self", "hudShow", selfHudShow);
 		Get(table, "self", "hudLinger", selfHudLinger);
@@ -729,6 +737,7 @@ namespace SS
 		cooldown = std::clamp(cooldown, 0.0f, 30.0f);
 		soundVolume = std::clamp(soundVolume, 0.0f, 1.0f);
 		combatLinger = std::clamp(combatLinger, 0.0f, 30.0f);
+		coldMax = std::clamp(coldMax, 1.0f, 100000.0f);
 		labelMaxDistance = std::clamp(labelMaxDistance, 0.0f, 20000.0f);
 		washStrength = std::clamp(washStrength, 0.0f, 1.0f);
 		washFlat = std::clamp(washFlat, 0.0f, 1.0f);
@@ -1145,6 +1154,24 @@ namespace SS
 		file << "hudX = " << selfHudX << "\n";
 		file << "hudY = " << selfHudY << "\n";
 		file << "hudScale = " << selfHudScale << "\n\n\n";
+
+		file << "[Player]\n\n";
+		file << "; What the sense reads off you beyond the three vitals, drawn as a\n";
+		file << "; stats row under the corner readout.\n";
+		file << "level = " << boolean(senseLevel) << "\n";
+		file << "gold = " << boolean(senseGold) << "\n";
+		file << "weight = " << boolean(senseWeight) << "\n";
+		file << "cold = " << boolean(senseCold) << "\n";
+		file << "; Editor ID of the global variable that says how cold you are, and\n";
+		file << "; the value that counts as fully frozen. Survival Mode's global is\n";
+		file << "; the default; the row hides itself when it does not exist.\n";
+		file << "coldGlobal = " << coldGlobal << "\n";
+		file << "coldMax = " << coldMax << "\n";
+		file << "; Their level in parentheses after the name, enemies included.\n";
+		file << "levelOthers = " << boolean(levelOthers) << "\n";
+		file << "; Tag icons follow the drawn weapon - yours and theirs - instead of\n";
+		file << "; the relationship shape. The colour still says friend or foe.\n";
+		file << "weaponIcons = " << boolean(weaponIcons) << "\n\n\n";
 
 		file << "[Vitals]\n\n";
 		file << "; The same bars over other people, for the length of a sweep only.\n";

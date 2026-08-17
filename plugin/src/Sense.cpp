@@ -208,6 +208,57 @@ namespace SS
 			}
 		}
 
+		// What is in someone's hands, as a drawable shape. Equipped, not
+		// necessarily drawn: the sense reads what they carry ready, the same
+		// way it reads everything else.
+		[[nodiscard]] WeaponKind ClassifyWeapon(RE::Actor* a_actor)
+		{
+			if (!a_actor) {
+				return WeaponKind::kNone;
+			}
+
+			const auto kindOf = [](RE::TESForm* a_form) -> WeaponKind {
+				if (!a_form) {
+					return WeaponKind::kNone;
+				}
+				if (const auto* weapon = a_form->As<RE::TESObjectWEAP>(); weapon) {
+					switch (weapon->GetWeaponType()) {
+					case RE::WEAPON_TYPE::kHandToHandMelee:
+						return WeaponKind::kFists;
+					case RE::WEAPON_TYPE::kOneHandSword:
+						return WeaponKind::kSword;
+					case RE::WEAPON_TYPE::kOneHandDagger:
+						return WeaponKind::kDagger;
+					case RE::WEAPON_TYPE::kOneHandAxe:
+						return WeaponKind::kAxe;
+					case RE::WEAPON_TYPE::kOneHandMace:
+						return WeaponKind::kMace;
+					case RE::WEAPON_TYPE::kTwoHandSword:
+						return WeaponKind::kGreatsword;
+					case RE::WEAPON_TYPE::kTwoHandAxe:
+						return WeaponKind::kBattleaxe;
+					case RE::WEAPON_TYPE::kBow:
+						return WeaponKind::kBow;
+					case RE::WEAPON_TYPE::kCrossbow:
+						return WeaponKind::kCrossbow;
+					case RE::WEAPON_TYPE::kStaff:
+						return WeaponKind::kStaff;
+					default:
+						return WeaponKind::kNone;
+					}
+				}
+				return a_form->Is(RE::FormType::Spell) ? WeaponKind::kSpell : WeaponKind::kNone;
+			};
+
+			if (const auto right = kindOf(a_actor->GetEquippedObject(false)); right != WeaponKind::kNone) {
+				return right;
+			}
+			if (const auto left = kindOf(a_actor->GetEquippedObject(true)); left != WeaponKind::kNone) {
+				return left;
+			}
+			return WeaponKind::kFists;
+		}
+
 		// What the player currently is. Three states, in the order that matters:
 		// a beast form overrides everything, then vampirism, then nothing has
 		// happened to you.
@@ -410,6 +461,18 @@ namespace SS
 		}
 
 		_imod = handler->LookupForm<RE::TESImageSpaceModifier>(kImodFormID, kPluginFile);
+
+		// The cold source, looked up once by editor ID so any survival mod can
+		// be pointed at through the INI. Globals keep their editor IDs at
+		// runtime, which is what makes this workable at all.
+		if (!_coldLooked) {
+			_coldLooked = true;
+			const auto& name = Settings::GetSingleton()->coldGlobal;
+			if (!name.empty()) {
+				_coldGlobal = RE::TESForm::LookupByEditorID<RE::TESGlobal>(name);
+				logger::info("cold source '{}' -> {}", name, _coldGlobal ? "found" : "not found");
+			}
+		}
 
 		// TrueHUD, if present. kDataLoaded is comfortably after kPostLoad, so
 		// the dll is loaded by now or not installed at all.
@@ -923,6 +986,9 @@ namespace SS
 					ReadVitals(player, _labelBuffer.back().vitals, _labelBuffer.back().vitalsCap);
 					_labelBuffer.back().vitalsSelf = true;
 				}
+				if (settings->weaponIcons) {
+					_labelBuffer.back().weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
+				}
 
 				Labels::GetSingleton()->Replace(_labelBuffer);
 			}
@@ -1032,6 +1098,36 @@ namespace SS
 		}
 
 		Labels::GetSingleton()->SetSelfHud(now, caps, _selfChangedAt);
+
+		// The stats row: level, septims, weight, cold, and what is in hand.
+		// All cheap main-thread reads except gold, which walks the inventory
+		// and is asked once a second.
+		Labels::SelfStats stats;
+		if (settings->senseLevel) {
+			stats.level = static_cast<std::int16_t>(player->GetLevel());
+		}
+		if (settings->weaponIcons) {
+			stats.weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
+		}
+		if (settings->senseWeight) {
+			if (auto* values = player->AsActorValueOwner()) {
+				stats.weight = values->GetActorValue(RE::ActorValue::kInventoryWeight);
+				stats.weightMax = values->GetActorValue(RE::ActorValue::kCarryWeight);
+			}
+		}
+		if (settings->senseGold) {
+			const auto real = SS::RealNow();
+			if (real - _goldAt > 1.0f) {
+				_goldAt = real;
+				_gold = player->GetGoldAmount();
+			}
+			stats.gold = _gold;
+		}
+		if (settings->senseCold && _coldGlobal) {
+			stats.cold = _coldGlobal->value;
+			stats.coldMax = settings->coldMax;
+		}
+		Labels::GetSingleton()->SetSelfStats(stats);
 	}
 
 	RE::BSEventNotifyControl Sense::ProcessEvent(
@@ -1237,6 +1333,12 @@ namespace SS
 				entry.owner = player->CreateRefHandle();
 				entry.vitalsSelf = true;
 				ReadVitals(player, entry.vitals, entry.vitalsCap);
+				if (settings->senseLevel) {
+					entry.level = static_cast<std::int16_t>(player->GetLevel());
+				}
+				if (settings->weaponIcons) {
+					entry.weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
+				}
 
 				// The rules are applied here, per bar, so the render side stays
 				// a dumb draw loop. Change tracking is PollSelf's, which runs
@@ -1314,6 +1416,12 @@ namespace SS
 			if (!settings->combatBarsAll) {
 				entry.vitals[1] = -1.0f;
 				entry.vitals[2] = -1.0f;
+			}
+			if (settings->levelOthers) {
+				entry.level = static_cast<std::int16_t>(actor->GetLevel());
+			}
+			if (settings->weaponIcons) {
+				entry.weapon = static_cast<std::uint8_t>(ClassifyWeapon(actor));
 			}
 			entry.vitalsAt = now;
 			_combatBuffer.push_back(std::move(entry));
@@ -1637,6 +1745,11 @@ namespace SS
 				if (inRange) {
 					const auto now = SS::Now();
 					auto       text = ToUtf8(name);
+					// Their level rides in the name itself - "(12)" is the same
+					// in every language - so the tag layout knows nothing new.
+					if (isActor && settings->levelOthers) {
+						text += std::format(" ({})", a_ref->As<RE::Actor>()->GetLevel());
+					}
 					const auto anchor = TagAnchor(a_ref, isActor);
 
 					// Fold this into a tag we already have if it is the same
@@ -1687,6 +1800,11 @@ namespace SS
 							title,
 							titleColour,
 							a_ref->CreateRefHandle() });
+
+						if (isActor && settings->weaponIcons) {
+							_labelBuffer.back().weapon = static_cast<std::uint8_t>(
+								ClassifyWeapon(a_ref->As<RE::Actor>()));
+						}
 
 						// Vitals over other people last exactly as long as the
 						// sweep does. Persistent bars over everyone are what a

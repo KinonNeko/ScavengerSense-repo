@@ -210,6 +210,110 @@ namespace SS
 				ImDrawFlags_Closed, std::max(1.0f, a_thick * 0.16f));
 		}
 
+		// What is in someone's hands, as geometry - same reasoning as the
+		// disposition shapes: a font can be missing a glyph, a few lines
+		// cannot.
+		void DrawWeaponIcon(ImDrawList* a_draw, WeaponKind a_kind, ImVec2 a_c, float a_size, ImU32 a_colour)
+		{
+			const float r = a_size * 0.5f;
+			const float stroke = std::max(a_size * 0.13f, 1.2f);
+
+			const auto line = [&](float x1, float y1, float x2, float y2, float a_width) {
+				ImDrawList_AddLine(a_draw, ImVec2{ a_c.x + x1 * r, a_c.y + y1 * r },
+					ImVec2{ a_c.x + x2 * r, a_c.y + y2 * r }, a_colour, a_width);
+			};
+
+			switch (a_kind) {
+			case WeaponKind::kFists:
+				// A closed hand: a solid knuckle with a flat top.
+				ImDrawList_AddCircleFilled(a_draw, ImVec2{ a_c.x, a_c.y + r * 0.15f },
+					r * 0.55f, a_colour, 12);
+				line(-0.55f, -0.30f, 0.55f, -0.30f, stroke);
+				break;
+
+			case WeaponKind::kDagger:
+			case WeaponKind::kSword:
+			case WeaponKind::kGreatsword:
+				{
+					// A blade on the diagonal; the guard says which weight.
+					const float reach = a_kind == WeaponKind::kDagger ? 0.55f
+										: a_kind == WeaponKind::kSword ? 0.85f
+																	   : 1.0f;
+					const float guard = a_kind == WeaponKind::kGreatsword ? 0.55f : 0.38f;
+					line(-reach, reach, reach * 0.92f, -reach * 0.92f, stroke);
+					// Crossguard, perpendicular to the blade near the grip.
+					const float gx = -reach * 0.55f;
+					const float gy = reach * 0.55f;
+					line(gx - guard * 0.7f, gy - guard * 0.7f, gx + guard * 0.7f, gy + guard * 0.7f,
+						stroke);
+				}
+				break;
+
+			case WeaponKind::kAxe:
+			case WeaponKind::kBattleaxe:
+				{
+					// Haft on the diagonal, a filled fan for the edge - two for
+					// the double bit.
+					line(-0.8f, 0.9f, 0.55f, -0.65f, stroke);
+					const ImVec2 head[3]{
+						ImVec2{ a_c.x + 0.25f * r, a_c.y - 0.95f * r },
+						ImVec2{ a_c.x + 0.95f * r, a_c.y - 0.25f * r },
+						ImVec2{ a_c.x + 0.45f * r, a_c.y - 0.55f * r }
+					};
+					ImDrawList_AddConvexPolyFilled(a_draw, head, 3, a_colour);
+					if (a_kind == WeaponKind::kBattleaxe) {
+						const ImVec2 back[3]{
+							ImVec2{ a_c.x - 0.15f * r, a_c.y - 0.55f * r },
+							ImVec2{ a_c.x + 0.15f * r, a_c.y - 1.0f * r },
+							ImVec2{ a_c.x + 0.35f * r, a_c.y - 0.75f * r }
+						};
+						ImDrawList_AddConvexPolyFilled(a_draw, back, 3, a_colour);
+					}
+				}
+				break;
+
+			case WeaponKind::kMace:
+				line(-0.6f, 0.9f, 0.35f, -0.35f, stroke);
+				ImDrawList_AddCircleFilled(a_draw, ImVec2{ a_c.x + 0.5f * r, a_c.y - 0.55f * r },
+					r * 0.42f, a_colour, 10);
+				break;
+
+			case WeaponKind::kBow:
+				// The stave as an arc, the string straight across its ends.
+				ImDrawList_PathArcTo(a_draw, a_c, r * 0.85f, -0.6f, 2.2f, 14);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+				line(0.85f * std::cos(-0.6f), 0.85f * std::sin(-0.6f),
+					0.85f * std::cos(2.2f), 0.85f * std::sin(2.2f), stroke * 0.7f);
+				break;
+
+			case WeaponKind::kCrossbow:
+				// A bolt upright through a horizontal stave.
+				line(0.0f, 0.95f, 0.0f, -0.85f, stroke);
+				ImDrawList_PathArcTo(a_draw, ImVec2{ a_c.x, a_c.y - 0.15f * r }, r * 0.8f,
+					3.6f, 5.8f, 12);
+				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
+				break;
+
+			case WeaponKind::kStaff:
+				line(-0.1f, 0.95f, 0.25f, -0.55f, stroke);
+				ImDrawList_AddCircle(a_draw, ImVec2{ a_c.x + 0.35f * r, a_c.y - 0.75f * r },
+					r * 0.28f, a_colour, 10, stroke * 0.8f);
+				break;
+
+			case WeaponKind::kSpell:
+				// A spark: crossing rays and a bright core.
+				line(-0.7f, 0.0f, 0.7f, 0.0f, stroke * 0.8f);
+				line(0.0f, -0.7f, 0.0f, 0.7f, stroke * 0.8f);
+				line(-0.45f, -0.45f, 0.45f, 0.45f, stroke * 0.6f);
+				line(-0.45f, 0.45f, 0.45f, -0.45f, stroke * 0.6f);
+				ImDrawList_AddCircleFilled(a_draw, a_c, r * 0.22f, a_colour, 8);
+				break;
+
+			default:
+				break;
+			}
+		}
+
 		void DrawIcon(ImDrawList* a_draw, Disposition a_icon, ImVec2 a_centre, float a_size, ImU32 a_colour)
 		{
 			const auto r = a_size * 0.5f;
@@ -462,6 +566,12 @@ namespace SS
 		_combat = std::move(a_entries);
 	}
 
+	void Labels::SetSelfStats(const SelfStats& a_stats)
+	{
+		std::scoped_lock guard{ _lock };
+		_selfStats = a_stats;
+	}
+
 	// The corner readout: the same bars as the tag, pinned to the screen.
 	//
 	// Its own draw rather than a fake tag, because a tag needs somewhere in the
@@ -542,6 +652,139 @@ namespace SS
 				settings->barsLostFx ? i : -1, a_now,
 				colours[i], settings->selfBarFrameColour, alpha,
 				static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
+		}
+
+		// The stats row: what is in hand, the level, the purse, the pack and
+		// the cold, under the bars for a top corner and above them for a
+		// bottom one - always growing into the screen.
+		const auto& stats = _selfStats;
+		const bool  anyStat = stats.level >= 0 || stats.gold >= 0 || stats.weight >= 0.0f ||
+		                     stats.cold >= 0.0f || stats.weapon != 0;
+		auto* font = igGetFont();
+		if (anyStat && font) {
+			const float fontSize = std::max(10.0f, thick * 1.9f);
+			const float pad = fontSize * 0.55f;
+
+			struct Piece
+			{
+				std::uint8_t  glyph{ 0 };  // WeaponKind, or the specials below
+				std::string   text;
+				std::uint32_t tint{ 0 };
+			};
+			constexpr std::uint8_t kGlyphCoin = 200;
+			constexpr std::uint8_t kGlyphWeight = 201;
+			constexpr std::uint8_t kGlyphFlake = 202;
+
+			std::vector<Piece> pieces;
+			if (stats.weapon != 0 || stats.level >= 0) {
+				Piece piece;
+				piece.glyph = stats.weapon;
+				if (stats.level >= 0) {
+					piece.text = std::format("Lv {}", stats.level);
+				}
+				pieces.push_back(std::move(piece));
+			}
+			if (stats.gold >= 0) {
+				pieces.push_back({ kGlyphCoin, std::to_string(stats.gold), 0 });
+			}
+			if (stats.weight >= 0.0f) {
+				Piece piece{ kGlyphWeight,
+					std::format("{:.0f}/{:.0f}", stats.weight, stats.weightMax), 0 };
+				if (stats.weightMax > 0.0f && stats.weight > stats.weightMax) {
+					piece.tint = settings->hostileColour;  // over-encumbered reads as danger
+				}
+				pieces.push_back(std::move(piece));
+			}
+			if (stats.cold >= 0.0f && stats.coldMax > 0.0f) {
+				const auto frac = std::clamp(stats.cold / stats.coldMax, 0.0f, 1.0f);
+				Piece      piece{ kGlyphFlake, std::format("{:.0f}%", frac * 100.0f), 0 };
+				if (frac > 0.66f) {
+					piece.tint = 0xCFE8FF;  // properly cold reads icy
+				}
+				pieces.push_back(std::move(piece));
+			}
+
+			float total = 0.0f;
+			std::vector<float> widths;
+			for (const auto& piece : pieces) {
+				ImVec2 sizeOf{};
+				if (!piece.text.empty()) {
+					ImFont_CalcTextSizeA(&sizeOf, font, fontSize,
+						std::numeric_limits<float>::max(), 0.0f, piece.text.c_str(), nullptr, nullptr);
+				}
+				const float w = (piece.glyph ? fontSize + fontSize * 0.2f : 0.0f) + sizeOf.x;
+				widths.push_back(w);
+				total += w + pad;
+			}
+			total -= pad;
+
+			float statsX = right ? a_width - settings->selfHudX - total : settings->selfHudX;
+			const float statsY = bottom
+			                        ? a_height - settings->selfHudY - step * static_cast<float>(shown) -
+			                              thick - fontSize * 1.5f
+			                        : settings->selfHudY + step * static_cast<float>(shown) +
+			                              thick * 0.8f;
+
+			const auto ink = PackColour(settings->selfColour, alpha * 0.92f);
+			const auto shadow = PackColour(0x000000, alpha * 0.8f);
+			for (std::size_t i = 0; i < pieces.size(); ++i) {
+				const auto& piece = pieces[i];
+				float       x = statsX;
+				if (piece.glyph) {
+					const ImVec2 centre{ x + fontSize * 0.5f, statsY + fontSize * 0.52f };
+					const auto   tint = piece.tint ? PackColour(piece.tint, alpha * 0.92f) : ink;
+					switch (piece.glyph) {
+					case kGlyphCoin:
+						ImDrawList_AddCircleFilled(draw, centre, fontSize * 0.32f, tint, 12);
+						ImDrawList_AddCircle(draw, centre, fontSize * 0.44f, tint, 12,
+							std::max(1.0f, fontSize * 0.08f));
+						break;
+					case kGlyphWeight:
+						{
+							// A pack: a filled trapezoid with a strap arc.
+							const float r = fontSize * 0.42f;
+							const ImVec2 body[4]{
+								ImVec2{ centre.x - r * 0.8f, centre.y + r },
+								ImVec2{ centre.x - r * 0.55f, centre.y - r * 0.35f },
+								ImVec2{ centre.x + r * 0.55f, centre.y - r * 0.35f },
+								ImVec2{ centre.x + r * 0.8f, centre.y + r }
+							};
+							ImDrawList_AddConvexPolyFilled(draw, body, 4, tint);
+							ImDrawList_PathArcTo(draw, ImVec2{ centre.x, centre.y - r * 0.35f },
+								r * 0.45f, 3.1415926f, 2.0f * 3.1415926f, 10);
+							ImDrawList_PathStroke(draw, tint, 0, std::max(1.0f, fontSize * 0.09f));
+						}
+						break;
+					case kGlyphFlake:
+						{
+							const float r = fontSize * 0.42f;
+							for (int spoke = 0; spoke < 3; ++spoke) {
+								const float angle = 3.1415926f * static_cast<float>(spoke) / 3.0f;
+								const float dx = std::cos(angle) * r;
+								const float dy = std::sin(angle) * r;
+								ImDrawList_AddLine(draw, ImVec2{ centre.x - dx, centre.y - dy },
+									ImVec2{ centre.x + dx, centre.y + dy }, tint,
+									std::max(1.0f, fontSize * 0.09f));
+							}
+						}
+						break;
+					default:
+						DrawWeaponIcon(draw, static_cast<WeaponKind>(piece.glyph), centre,
+							fontSize * 0.95f, tint);
+						break;
+					}
+					x += fontSize + fontSize * 0.2f;
+				}
+				if (!piece.text.empty()) {
+					const auto tint = piece.tint ? PackColour(piece.tint, alpha * 0.92f) : ink;
+					ImDrawList_AddText_FontPtr(draw, font, fontSize,
+						ImVec2{ x + 1.0f, statsY + 1.0f }, shadow, piece.text.c_str(), nullptr,
+						0.0f, nullptr);
+					ImDrawList_AddText_FontPtr(draw, font, fontSize, ImVec2{ x, statsY }, tint,
+						piece.text.c_str(), nullptr, 0.0f, nullptr);
+				}
+				statsX += widths[i] + pad;
+			}
 		}
 	}
 
@@ -923,6 +1166,10 @@ namespace SS
 			const std::uint32_t colours[3]{ settings->selfHealthColour,
 				settings->selfMagickaColour, settings->selfStaminaColour };
 
+			auto*      chipFont = igGetFont();
+			const auto chipBase = settings->labelFontSize > 0.0f ? settings->labelFontSize
+																 : igGetFontSize() * 0.55f;
+
 			for (const auto& c : combatSnapshot) {
 				if (barred.contains(c.owner.native_handle())) {
 					continue;
@@ -948,6 +1195,38 @@ namespace SS
 				const float span = settings->selfBarWidth * c.scale;
 				const float shear = settings->selfBarShear * thick;
 				const float step = thick + thick * 0.75f;
+
+				// A small chip above the stack: what they hold, and their
+				// level. Reads as a nameplate for a stack that has no name.
+				if (chipFont && (c.weapon != 0 || c.level >= 0)) {
+					const float chipSize = std::max(10.0f, chipBase * 0.85f * c.scale);
+					std::string levelText = c.level >= 0 ? std::to_string(c.level) : std::string{};
+					ImVec2      textSize{};
+					if (!levelText.empty()) {
+						ImFont_CalcTextSizeA(&textSize, chipFont, chipSize,
+							std::numeric_limits<float>::max(), 0.0f, levelText.c_str(), nullptr, nullptr);
+					}
+					const float glyph = c.weapon != 0 ? chipSize : 0.0f;
+					const float gap = glyph > 0.0f && !levelText.empty() ? chipSize * 0.25f : 0.0f;
+					const float total = glyph + gap + textSize.x;
+					float       x = at.x - total * 0.5f + settings->overheadOffsetX * c.scale;
+					const float y = at.y - chipSize * 1.15f + settings->overheadOffsetY * c.scale;
+
+					if (glyph > 0.0f) {
+						DrawWeaponIcon(draw, static_cast<WeaponKind>(c.weapon),
+							ImVec2{ x + glyph * 0.5f, y + chipSize * 0.5f }, glyph,
+							PackColour(0xE8E8E8, alpha * 0.9f));
+						x += glyph + gap;
+					}
+					if (!levelText.empty()) {
+						ImDrawList_AddText_FontPtr(draw, chipFont, chipSize,
+							ImVec2{ x + 1.0f, y + 1.0f }, PackColour(0x000000, alpha * 0.8f),
+							levelText.c_str(), nullptr, 0.0f, nullptr);
+						ImDrawList_AddText_FontPtr(draw, chipFont, chipSize, ImVec2{ x, y },
+							PackColour(0xE8E8E8, alpha * 0.9f), levelText.c_str(), nullptr, 0.0f,
+							nullptr);
+					}
+				}
 
 				int rows[3]{};
 				int shown = 0;
@@ -1082,7 +1361,8 @@ namespace SS
 			// the thing it names.
 			const bool  hasStar = settings->labelIcons && entry.favourite;
 			const bool  hasIcon = settings->labelIcons &&
-			                      (entry.icon != Disposition::kNone || entry.mark >= 0);
+			                      (entry.icon != Disposition::kNone || entry.mark >= 0 ||
+									  entry.weapon != 0);
 			const float iconSize = hasIcon ? thisSize * 0.78f : 0.0f;
 			const float iconGap = hasIcon ? thisSize * 0.28f : 0.0f;
 
@@ -1260,6 +1540,14 @@ namespace SS
 							PackColour(entry.markColour, alpha));
 						ImDrawList_PopClipRect(draw);
 					}
+				} else if (entry.weapon != 0) {
+					// The drawn weapon wins the slot: what they can do to you
+					// beats what they think of you. The colour still carries
+					// the relationship.
+					const auto kind = static_cast<WeaponKind>(entry.weapon);
+					DrawWeaponIcon(draw, kind, ImVec2{ centre.x + 1.0f, centre.y + 1.0f },
+						iconSize, PackColour(0x000000, alpha * 0.7f));
+					DrawWeaponIcon(draw, kind, centre, iconSize, PackColour(entry.colour, alpha));
 				} else {
 					DrawIcon(draw, entry.icon, ImVec2{ centre.x + 1.0f, centre.y + 1.0f }, iconSize,
 						PackColour(0x000000, alpha * 0.7f));

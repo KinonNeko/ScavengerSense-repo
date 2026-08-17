@@ -77,6 +77,24 @@ namespace SS
 			// above it is drawn as a dead zone. (Positional initialisation:
 			// fields go at the END.)
 			float         vitalsCap[3]{ 1.0f, 1.0f, 1.0f };
+			// Their level, -1 to say nothing; and what is in their hands as a
+			// WeaponKind, 0 to keep the relationship shape. Both at the END:
+			// the aggregate initialisers count on it.
+			std::int16_t  level{ -1 };
+			std::uint8_t  weapon{ 0 };
+		};
+
+		// The stats row under the corner readout. Values below zero hide the
+		// entry they belong to.
+		struct SelfStats
+		{
+			std::int32_t gold{ -1 };
+			float        weight{ -1.0f };
+			float        weightMax{ 0.0f };
+			float        cold{ -1.0f };
+			float        coldMax{ 0.0f };
+			std::int16_t level{ -1 };
+			std::uint8_t weapon{ 0 };
 		};
 
 		// The sonar ring, sampled as a height field so the render thread never
@@ -130,6 +148,8 @@ namespace SS
 		// vitals fields and world/owner/scale of each entry are used.
 		void SetCombatBars(std::vector<Entry> a_entries);
 
+		void SetSelfStats(const SelfStats& a_stats);
+
 		void SetRing(Ring a_ring);
 		void StopRing();
 
@@ -158,6 +178,7 @@ namespace SS
 		float              _selfHud[3]{ -1.0f, -1.0f, -1.0f };
 		float              _selfHudCap[3]{ 1.0f, 1.0f, 1.0f };
 		float              _selfHudAt{ -1000.0f };
+		SelfStats          _selfStats;
 		float              _washBorn{ 0.0f };
 		float              _washDies{ 0.0f };
 		std::mutex         _lock;

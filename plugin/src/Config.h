@@ -54,6 +54,25 @@ namespace SS
 		kCount
 	};
 
+	// What is in someone's hands, reduced to a drawable shape.
+	enum class WeaponKind : std::uint8_t
+	{
+		kNone = 0,  // nothing worth a shape, or the feature is off
+		kFists,
+		kSword,
+		kGreatsword,
+		kDagger,
+		kAxe,
+		kBattleaxe,
+		kMace,
+		kBow,
+		kCrossbow,
+		kStaff,
+		kSpell,
+
+		kCount
+	};
+
 	// Which actors are worth sensing. Corpses are lootable, so they count by
 	// default; dead-only is the "where did that kill land" case.
 	enum class ActorFilter : std::uint32_t
@@ -389,6 +408,26 @@ namespace SS
 		// what the corner readout is for.
 		bool     selfBarsOverhead{ false };
 		ShowWhen selfBarsOverheadWhen{ ShowWhen::kOnChange };
+
+		// [Player] - what the sense reads off you beyond the three vitals.
+		// Level and septims are cheap truths; weight is the pack-rat's meter;
+		// cold comes from whatever survival mod is running. All of it draws as
+		// a stats row under the corner readout.
+		bool        senseLevel{ true };
+		bool        senseGold{ true };
+		bool        senseWeight{ true };
+		bool        senseCold{ true };
+		// Where "how cold am I" comes from: a global variable by editor ID, so
+		// any survival mod can be pointed at. Survival Mode's is the default;
+		// the row hides itself when the global does not exist.
+		std::string coldGlobal{ "Survival_ColdLevel" };
+		float       coldMax{ 100.0f };
+		// Their level in parentheses after the name - enemies very much
+		// included; knowing you are outmatched is the point.
+		bool        levelOthers{ false };
+		// The tag icon follows the drawn weapon - yours and theirs - instead
+		// of the relationship shape. The colour still says friend or foe.
+		bool        weaponIcons{ false };
 
 		// A persistent readout pinned to a corner of the screen, drawn whether
 		// or not a sweep is running. Off by default: this mod is a sweep, and

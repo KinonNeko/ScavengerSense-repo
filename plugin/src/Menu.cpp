@@ -1067,6 +1067,41 @@ namespace SS::Menu
 			igSpacing();
 		}
 
+		// What the sense reads off people beyond the bars: you first, then them.
+		void DrawPlayer(Settings& a_settings)
+		{
+			if (Header(T("About me"))) {
+				igTextDisabled("%s", T("Drawn as a stats row under the corner readout."));
+				igCheckbox(T("My level"), &a_settings.senseLevel);
+				igCheckbox(T("My septims"), &a_settings.senseGold);
+				igCheckbox(T("My carry weight"), &a_settings.senseWeight);
+				Help(
+					"Current over maximum. It turns hostile red when you are\n"
+					"over-encumbered.");
+				igCheckbox(T("How cold I am"), &a_settings.senseCold);
+				Help(
+					"Read from a survival mod's global variable - Survival Mode's out\n"
+					"of the box. Point coldGlobal in the INI at another mod's variable\n"
+					"to use that instead; the row hides itself when none exists.");
+				igSpacing();
+			}
+
+			if (Header(T("About everyone"))) {
+				igCheckbox(T("Levels after names"), &a_settings.levelOthers);
+				Help(
+					"Their level in parentheses after the name, on tags and combat\n"
+					"bars alike - enemies very much included. Knowing you are\n"
+					"outmatched is the point.");
+
+				igCheckbox(T("Icons follow the drawn weapon"), &a_settings.weaponIcons);
+				Help(
+					"The shape beside a name becomes what they are holding - sword,\n"
+					"bow, spell - instead of the relationship marker. Yours too. The\n"
+					"colour still says friend or foe.");
+				igSpacing();
+			}
+		}
+
 		// How a bar looks, wherever it is drawn. Stated once: the same shape and
 		// timing serve the tag, the corner readout and other people.
 		void DrawBarStyle(Settings& a_settings)
@@ -1939,6 +1974,12 @@ namespace SS::Menu
 				igSpacing();
 				DrawCategories(settings);
 				DrawSelf(settings);
+				igEndTabItem();
+			}
+
+			if (igBeginTabItem(T("Player"), nullptr, 0)) {
+				igSpacing();
+				DrawPlayer(settings);
 				igEndTabItem();
 			}
 

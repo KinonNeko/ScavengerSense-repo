@@ -129,6 +129,12 @@ namespace SS
 		float                _startedRealAt{ 0.0f };  // real time, for the watchdog
 		float                _lastFired{ -1000.0f };
 
+		RE::TESGlobal* _coldGlobal{ nullptr };
+		bool           _coldLooked{ false };
+		// Gold walks the whole inventory, so it is asked once a second.
+		float          _goldAt{ -1000.0f };
+		std::int32_t   _gold{ -1 };
+
 		std::string      _status{ "not initialised" };
 		std::atomic_bool _ready{ false };
 		std::atomic_bool _active{ false };
