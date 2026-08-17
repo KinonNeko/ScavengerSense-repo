@@ -82,6 +82,8 @@ namespace SS
 			// the aggregate initialisers count on it.
 			std::int16_t  level{ -1 };
 			std::uint8_t  weapon{ 0 };
+			// The race chip text, empty for none. Still the END.
+			std::string   race;
 		};
 
 		// The stats row under the corner readout. Values below zero hide the
@@ -95,6 +97,7 @@ namespace SS
 			float        coldMax{ 0.0f };
 			std::int16_t level{ -1 };
 			std::uint8_t weapon{ 0 };
+			std::string  race;
 		};
 
 		// The sonar ring, sampled as a height field so the render thread never
@@ -168,6 +171,9 @@ namespace SS
 			std::vector<TrailMark> marks;  // oldest first
 			std::string            label;
 			std::uint32_t          colour{ 0xCBCBCB };
+			// Marked quarry draw at full strength with the scent line, sweep
+			// or no sweep - the mark is what lets the person be found.
+			bool                   bright{ false };
 		};
 		// a_lit says a sweep is running: trails brighten with everything else.
 		void SetTrails(std::vector<Trail> a_trails, bool a_lit);
@@ -175,6 +181,11 @@ namespace SS
 		// Winds the overlay down gracefully: every tag's deadline is pulled in
 		// to now + a_fade, the wash and the ring with them.
 		void Expire(float a_fade);
+
+		// The aim highlight while a sweep runs: brackets around whoever the
+		// trail key would mark, in the colour it would mark them.
+		void SetAim(bool a_valid, const RE::NiPoint3& a_feet, const RE::NiPoint3& a_head,
+			std::uint32_t a_colour);
 
 		void SetRing(Ring a_ring);
 		void StopRing();
@@ -202,6 +213,10 @@ namespace SS
 		std::vector<Entry> _combat;
 		std::vector<Trail> _trails;
 		bool               _trailsLit{ false };
+		bool               _aimValid{ false };
+		RE::NiPoint3       _aimFeet;
+		RE::NiPoint3       _aimHead;
+		std::uint32_t      _aimColour{ 0xFFA600 };
 		Ring               _ring;
 		float              _selfHud[3]{ -1.0f, -1.0f, -1.0f };
 		float              _selfHudCap[3]{ 1.0f, 1.0f, 1.0f };

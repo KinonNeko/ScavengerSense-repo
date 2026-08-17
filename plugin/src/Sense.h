@@ -24,9 +24,12 @@ namespace SS
 		void OnHotkey();
 
 		// The trail key: aimed at somebody it toggles tracking them, aimed at
-		// nothing it hides or shows every trail; a quick double press
-		// releases every mark.
+		// nothing it hides or shows every trail. Gated to a live sweep when
+		// the trail apparatus lives inside the sense.
 		void OnTrailHotkey();
+
+		// Holding the trail key wipes everything: marks, trails, quarry.
+		void OnTrailLongPress();
 
 		// The palette colour of a marked person, 0 when they are not marked.
 		[[nodiscard]] std::uint32_t MarkColour(RE::FormID a_id) const;
@@ -58,6 +61,7 @@ namespace SS
 			std::uint32_t harvested{};
 			std::uint32_t unnamed{};
 			std::uint32_t placeholder{};
+			std::uint32_t emptyContainer{};
 			std::uint32_t deadActor{};
 			std::uint32_t notEnemy{};
 			std::uint32_t actorsSeen{};
@@ -153,10 +157,6 @@ namespace SS
 		};
 		std::unordered_map<RE::FormID, Marked> _marked;
 		std::atomic_bool                       _trailsHidden{ false };
-		// The trail key's last press, for the double-press that releases all
-		// marks - and what that first press did, so the double can undo it.
-		float                                  _trailPressAt{ -1000.0f };
-		bool                                   _trailPressWasHide{ false };
 		// Where the player was last tick, for the transition wipe.
 		bool        _placeKnown{ false };
 		bool        _wasInterior{ false };

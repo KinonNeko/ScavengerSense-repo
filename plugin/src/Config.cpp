@@ -25,6 +25,7 @@ namespace SS
 			"book",
 			"valuable",
 			"activator",
+			"furniture",
 			"actor"
 		};
 
@@ -85,12 +86,12 @@ namespace SS
 		// Only actors get an outline by default: a silhouette is the clearest
 		// way to read a person, while loot is easier to spot as a solid glow.
 		constexpr bool kCategoryDefaultOutline[kCategoryCount] = {
-			false, false, false, false, false, false, false, false, true
+			false, false, false, false, false, false, false, false, false, true
 		};
 
 		// Defaults, matched 1:1 to kCategoryNames.
 		constexpr bool kCategoryDefaultEnabled[kCategoryCount] = {
-			true, true, true, true, true, true, true, true, false
+			true, true, true, true, true, true, true, true, true, false
 		};
 
 		constexpr std::uint32_t kCategoryDefaultColour[kCategoryCount] = {
@@ -102,6 +103,7 @@ namespace SS
 			0xC08CFF,  // book       - violet
 			0xFFD24A,  // valuable   - gold
 			0xB6C0CC,  // activator  - pale steel
+			0xD9B166,  // furniture  - oak
 			0xFF4A4A   // actor      - red
 		};
 
@@ -665,6 +667,7 @@ namespace SS
 		Get(table, "player", "coldMax", coldMax);
 		Get(table, "player", "levelOthers", levelOthers);
 		Get(table, "player", "weaponIcons", weaponIcons);
+		Get(table, "player", "raceIcons", raceIcons);
 		Get(table, "tracks", "enabled", trailsEnabled);
 		Get(table, "tracks", "lifetime", trailLifetime);
 		Get(table, "tracks", "names", trailNames);
@@ -673,8 +676,8 @@ namespace SS
 		Get(table, "tracks", "key", trailKey);
 		Get(table, "tracks", "gamepad", trailGamepad);
 		Get(table, "tracks", "range", trackRange);
-		Get(table, "tracks", "markNeedsSense", markNeedsSense);
 		Get(table, "tracks", "onlyWhileSensing", trailsOnlyWhileSensing);
+		Get(table, "tracks", "autoCapture", trailAutoCapture);
 		Get(table, "tracks", "multiMark", multiMark);
 		Get(table, "player", "statsPlace", statsPlace);
 		Get(table, "self", "hudCorner", selfHudCorner);
@@ -754,6 +757,7 @@ namespace SS
 		}
 		Get(table, "categories", "actorFilter", actorFilter);
 		Get(table, "categories", "enemiesOnly", actorEnemiesOnly);
+		Get(table, "categories", "hideEmpty", hideEmptyContainers);
 		Get(table, "categories", "actorByDisposition", actorByDisposition);
 		Get(table, "categories", "actorByRelationship", actorByRelationship);
 		Get(table, "categories", "rivalColor", rivalColour);
@@ -1231,6 +1235,9 @@ namespace SS
 		file << "; Tag icons follow the drawn weapon - yours and theirs - instead of\n";
 		file << "; the relationship shape. The colour still says friend or foe.\n";
 		file << "weaponIcons = " << boolean(weaponIcons) << "\n";
+		file << "; A race chip - first letters of the race's own localised name -\n";
+		file << "; beside people's tags and on your level entry.\n";
+		file << "raceIcons = " << boolean(raceIcons) << "\n";
 		file << "; Where the stats row lives: bars (riding the over-head stack),\n";
 		file << "; corner (under the corner readout), or both.\n";
 		file << "statsPlace = " << kStatsPlaceNames[static_cast<std::size_t>(statsPlace)] << "\n\n\n";
@@ -1257,12 +1264,13 @@ namespace SS
 		file << "; How far the mark reaches, in units - hunting picks a deer across\n";
 		file << "; a valley, far beyond the crosshair's activate range.\n";
 		file << "range = " << trackRange << "\n";
-		file << "; Marking only works while a sweep is live - it is part of the\n";
-		file << "; sense, not a free power. The hide/show press always works.\n";
-		file << "markNeedsSense = " << boolean(markNeedsSense) << "\n";
-		file << "; Trails drawn only while a sweep is live. Recording continues\n";
-		file << "; regardless, so opening the sense brings the whole picture back.\n";
+		file << "; The whole trail apparatus lives inside the sense: trails drawn,\n";
+		file << "; the key listened to, marks made - only while a sweep is live.\n";
+		file << "; Marked quarry stay visible regardless; recording never stops.\n";
 		file << "onlyWhileSensing = " << boolean(trailsOnlyWhileSensing) << "\n";
+		file << "; On arriving anywhere, open a recording window for everyone there\n";
+		file << "; - the sense remembers the room from the moment you entered.\n";
+		file << "autoCapture = " << boolean(trailAutoCapture) << "\n";
 		file << "; One quarry at a time unless enabled; multiple marks each take\n";
 		file << "; their own colour, trail and sweep glow agreeing.\n";
 		file << "multiMark = " << boolean(multiMark) << "\n\n\n";
@@ -1373,6 +1381,8 @@ namespace SS
 		file << "; because of something you did - anyone you have struck counts.\n";
 		file << "; Corpses stay with actorFilter above.\n";
 		file << "enemiesOnly = " << boolean(actorEnemiesOnly) << "\n\n";
+		file << "; An empty chest is an answer, not a find.\n";
+		file << "hideEmpty = " << boolean(hideEmptyContainers) << "\n\n";
 		file << "; Colour people by what they are to you rather than by the fact that\n";
 		file << "; they are people. \"Someone is there\" is much less useful than\n";
 		file << "; \"someone is there and they want to kill you\". This overrides the\n";

@@ -14,6 +14,7 @@ namespace SS
 		kBook,
 		kValuable,
 		kActivator,
+		kFurniture,
 		kActor,
 
 		kCount
@@ -366,6 +367,8 @@ namespace SS
 		// because of something you did - anyone you have struck counts.
 		// Applies to the living; corpses stay with actorFilter.
 		bool        actorEnemiesOnly{ false };
+		// An empty chest is an answer, not a find.
+		bool        hideEmptyContainers{ false };
 
 		// Colour people by whether they want to kill you rather than by the fact
 		// that they are people. "There is someone there" is much less useful
@@ -466,11 +469,15 @@ namespace SS
 		// How far the mark reaches: real hunting picks a deer across a valley,
 		// far beyond the crosshair's activate range.
 		float        trackRange{ 4096.0f };
-		// Marking is part of the sense: it only works while a sweep is live.
-		bool         markNeedsSense{ true };
-		// Trails as part of the sense too: drawn only while a sweep is live,
-		// for people who want the world clean between senses.
-		bool         trailsOnlyWhileSensing{ false };
+		// The whole trail apparatus as part of the sense: trails drawn, the
+		// key listened to, marks made - only while a sweep is live. Marked
+		// quarry are the exception: their trails stay visible and bright, or
+		// marking would be pointless.
+		bool         trailsOnlyWhileSensing{ true };
+		// On arriving anywhere, quietly open a recording window for everyone
+		// already there - the sense remembers the room from the moment you
+		// entered it, no sweep needed.
+		bool         trailAutoCapture{ false };
 		// One quarry at a time by default - a hunt has one prey. Multiple
 		// marks each take their own colour from a small palette, and the
 		// sweep glow over each marked person agrees with their trail.
@@ -482,6 +489,9 @@ namespace SS
 		// The tag icon follows the drawn weapon - yours and theirs - instead
 		// of the relationship shape. The colour still says friend or foe.
 		bool        weaponIcons{ false };
+		// A small race chip - the first letters of the race's own localised
+		// name - beside people's tags and on your stats row's level entry.
+		bool        raceIcons{ false };
 		// Where the stats row lives: riding the over-head bars by default, so
 		// everything about you sits in one glance.
 		StatsPlace  statsPlace{ StatsPlace::kBars };

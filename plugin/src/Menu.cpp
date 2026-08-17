@@ -741,6 +741,12 @@ namespace SS::Menu
 				"session. Monsters too, and corpses as well - a dead bandit shows,\n"
 				"a dead shopkeeper does not.");
 
+			igCheckbox(T("Skip empty containers"), &a_settings.hideEmptyContainers);
+			Help(
+				"A chest with nothing in it neither lights nor gets a tag. Saves\n"
+				"walking to a barrel that holds air - but respawning containers\n"
+				"you have cleared stay dark until they refill.");
+
 			igSpacing();
 			ClipboardBar();
 			Help(
@@ -1115,13 +1121,20 @@ namespace SS::Menu
 
 				igCheckbox(T("Trails only while sensing"), &a_settings.trailsOnlyWhileSensing);
 				Help(
-					"Draw trails only while a sweep is live, keeping the world clean\n"
-					"between senses. Recording continues either way, so opening the\n"
-					"sense brings the whole picture back.");
+					"The whole apparatus lives inside the sense: trails draw, and the\n"
+					"trail key works, only while a sweep is live. Recording continues\n"
+					"either way, and a marked quarry's trail stays lit regardless -\n"
+					"the mark is the point.");
+
+				igCheckbox(T("Capture everyone on arrival"), &a_settings.trailAutoCapture);
+				Help(
+					"Entering a new place starts a trail behind every loaded person\n"
+					"and creature at once, no sweep needed. The picture is complete\n"
+					"but busier, and costs a little more memory.");
 
 				igSpacing();
 				igSeparatorText(T("Trail key"));
-				igTextDisabled("%s", T("Press it to hide or show every trail. Aim at someone and press it to track them."));
+				igTextDisabled("%s", T("Aim at someone and press it to track them; press at nothing to hide or show trails. Hold it to wipe everything."));
 
 				const auto trailKeyName = [&]() -> std::string {
 					if (a_settings.trailKey < 0) {
@@ -1173,17 +1186,12 @@ namespace SS::Menu
 					"creature nearest your screen centre within reach - so a deer\n"
 					"across a valley is fair game.");
 
-				igCheckbox(T("Marking needs an open sense"), &a_settings.markNeedsSense);
-				Help(
-					"Marking only works while a sweep is live, as if the sense itself\n"
-					"is what latches on. Hiding and showing trails always works.");
-
 				igCheckbox(T("Track several at once"), &a_settings.multiMark);
 				Help(
 					"Off, a new mark replaces the old - a hunt has one prey. On, each\n"
 					"mark takes its own colour, and the sweep glow over a marked\n"
-					"person agrees with their trail. Double-press the key to release\n"
-					"every mark.");
+					"person agrees with their trail. Hold the key half a second to\n"
+					"release everything at once.");
 
 				igTextDisabled("%s", T("A marked quarry glows in their mark colour on every sweep."));
 			}
@@ -1231,6 +1239,12 @@ namespace SS::Menu
 					"The shape beside a name becomes what they are holding - sword,\n"
 					"bow, spell - instead of the relationship marker. Yours too. The\n"
 					"colour still says friend or foe.");
+
+				igCheckbox(T("Race beside the level"), &a_settings.raceIcons);
+				Help(
+					"A small chip from the race name - No for Nord, Im for Imperial -\n"
+					"joins the level, so the level's mark stops repeating the weapon\n"
+					"shape. On other people it sits before their weapon icon.");
 				igSpacing();
 			}
 		}

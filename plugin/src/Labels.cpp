@@ -579,6 +579,16 @@ namespace SS
 		_trailsLit = a_lit;
 	}
 
+	void Labels::SetAim(bool a_valid, const RE::NiPoint3& a_feet, const RE::NiPoint3& a_head,
+		std::uint32_t a_colour)
+	{
+		std::scoped_lock guard{ _lock };
+		_aimValid = a_valid;
+		_aimFeet = a_feet;
+		_aimHead = a_head;
+		_aimColour = a_colour;
+	}
+
 	void Labels::Expire(float a_fade)
 	{
 		std::scoped_lock guard{ _lock };
@@ -712,19 +722,31 @@ namespace SS
 				std::uint8_t  glyph{ 0 };  // WeaponKind, or the specials below
 				std::string   text;
 				std::uint32_t tint{ 0 };
+				// Boxed race letters drawn ahead of the glyph, empty for none.
+				std::string   chip;
 			};
 			constexpr std::uint8_t kGlyphCoin = 200;
 			constexpr std::uint8_t kGlyphWeight = 201;
 			constexpr std::uint8_t kGlyphFlake = 202;
 
+			// With race chips on, the level takes the race as its mark and the
+			// weapon stands alone - otherwise the two shared one glyph.
+			const bool raceChip = settings->raceIcons && !stats.race.empty();
+
 			std::vector<Piece> pieces;
 			if (stats.weapon != 0 || stats.level >= 0) {
 				Piece piece;
-				piece.glyph = stats.weapon;
+				piece.glyph = raceChip ? std::uint8_t{ 0 } : stats.weapon;
+				if (raceChip) {
+					piece.chip = stats.race;
+				}
 				if (stats.level >= 0) {
 					piece.text = std::format("Lv {}", stats.level);
 				}
 				pieces.push_back(std::move(piece));
+				if (raceChip && stats.weapon != 0) {
+					pieces.push_back({ stats.weapon, {}, 0, {} });
+				}
 			}
 			if (stats.gold >= 0) {
 				pieces.push_back({ kGlyphCoin, std::to_string(stats.gold), 0 });
@@ -754,7 +776,15 @@ namespace SS
 					ImFont_CalcTextSizeA(&sizeOf, font, fontSize,
 						std::numeric_limits<float>::max(), 0.0f, piece.text.c_str(), nullptr, nullptr);
 				}
-				const float w = (piece.glyph ? fontSize + fontSize * 0.2f : 0.0f) + sizeOf.x;
+				float chipW = 0.0f;
+				if (!piece.chip.empty()) {
+					ImVec2 chipSz{};
+					ImFont_CalcTextSizeA(&chipSz, font, fontSize * 0.72f,
+						std::numeric_limits<float>::max(), 0.0f, piece.chip.c_str(), nullptr, nullptr);
+					chipW = chipSz.x + fontSize * 0.36f + fontSize * 0.18f;
+				}
+				const float w =
+					chipW + (piece.glyph ? fontSize + fontSize * 0.2f : 0.0f) + sizeOf.x;
 				widths.push_back(w);
 				total += w + pad;
 			}
@@ -768,6 +798,24 @@ namespace SS
 			for (std::size_t i = 0; i < pieces.size(); ++i) {
 				const auto& piece = pieces[i];
 				float       x = statsX;
+				if (!piece.chip.empty()) {
+					const float chipFontSz = fontSize * 0.72f;
+					ImVec2      chipSz{};
+					ImFont_CalcTextSizeA(&chipSz, font, chipFontSz,
+						std::numeric_limits<float>::max(), 0.0f, piece.chip.c_str(), nullptr, nullptr);
+					const float  padX = fontSize * 0.18f;
+					const ImVec2 boxMin{ x, statsY + fontSize * 0.06f };
+					const ImVec2 boxMax{ x + chipSz.x + padX * 2.0f, statsY + fontSize * 0.98f };
+					ImDrawList_AddRectFilled(draw, boxMin, boxMax,
+						PackColour(0x000000, alpha * 0.45f), fontSize * 0.16f, 0);
+					ImDrawList_AddRect(draw, boxMin, boxMax, ink, fontSize * 0.16f, 0,
+						std::max(1.0f, fontSize * 0.06f));
+					const ImVec2 at{ boxMin.x + padX,
+						(boxMin.y + boxMax.y - chipSz.y) * 0.5f };
+					ImDrawList_AddText_FontPtr(draw, font, chipFontSz, at, ink,
+						piece.chip.c_str(), nullptr, 0.0f, nullptr);
+					x = boxMax.x + fontSize * 0.18f;
+				}
 				if (piece.glyph) {
 					const ImVec2 centre{ x + fontSize * 0.5f, statsY + fontSize * 0.52f };
 					const auto   tint = piece.tint ? PackColour(piece.tint, alpha * 0.92f) : ink;
@@ -1105,6 +1153,10 @@ namespace SS
 		std::vector<Trail> trailSnapshot;
 		bool               trailsLit = false;
 		SelfStats          statsSnapshot;
+		bool               aimValid = false;
+		RE::NiPoint3       aimFeet;
+		RE::NiPoint3       aimHead;
+		std::uint32_t      aimColour = 0xFFA600;
 		{
 			// The HUD callback runs on the render thread, so take a copy and get
 			// off the lock rather than holding it across any drawing.
@@ -1114,6 +1166,10 @@ namespace SS
 			trailSnapshot = _trails;
 			trailsLit = _trailsLit;
 			statsSnapshot = _selfStats;
+			aimValid = _aimValid;
+			aimFeet = _aimFeet;
+			aimHead = _aimHead;
+			aimColour = _aimColour;
 		}
 
 		auto* io = igGetIO();
@@ -1225,12 +1281,13 @@ namespace SS
 							const float ux = dx / len;
 							const float uy = dy / len;
 							const float s = std::clamp(len * 0.30f, 2.5f, 13.0f);
+							const bool  lit = trailsLit || trail.bright;
 							const float a =
-								std::clamp(mark.fade, 0.0f, 1.0f) * (trailsLit ? 1.0f : 0.8f);
+								std::clamp(mark.fade, 0.0f, 1.0f) * (lit ? 1.0f : 0.8f);
 
-							// A sweep lights the scent itself: a soft line
-							// joining the marks, on top of brighter marks.
-							if (trailsLit) {
+							// A sweep lights the scent itself - and a marked
+							// quarry's trail carries its own light always.
+							if (lit) {
 								ImDrawList_AddLine(draw, prev, at,
 									PackColour(trail.colour, a * 0.20f), s * 0.6f);
 							}
@@ -1299,6 +1356,35 @@ namespace SS
 			}
 		}
 
+		// The aim highlight: brackets around whoever the trail key would mark,
+		// in the colour it would mark them, breathing so it reads as live.
+		if (aimValid) {
+			ImVec2 feet;
+			ImVec2 head;
+			if (Project(aimFeet, width, height, feet) && Project(aimHead, width, height, head)) {
+				const float boxH = std::max(20.0f, feet.y - head.y);
+				const float boxW = boxH * 0.45f;
+				const float cx = (feet.x + head.x) * 0.5f;
+				const float top = head.y - boxH * 0.08f;
+				const float bottom = feet.y + boxH * 0.04f;
+				const float left = cx - boxW * 0.5f;
+				const float rightEdge = cx + boxW * 0.5f;
+				const float arm = std::clamp(boxW * 0.28f, 6.0f, 26.0f);
+				const float pulse = 0.65f + 0.25f * std::sin(now * 4.0f);
+				const auto  ink = PackColour(aimColour, pulse);
+				const float w = std::max(1.5f, boxH * 0.02f);
+
+				const auto corner = [&](float x, float y, float sx, float sy) {
+					ImDrawList_AddLine(draw, ImVec2{ x, y }, ImVec2{ x + arm * sx, y }, ink, w);
+					ImDrawList_AddLine(draw, ImVec2{ x, y }, ImVec2{ x, y + arm * sy }, ink, w);
+				};
+				corner(left, top, 1.0f, 1.0f);
+				corner(rightEdge, top, -1.0f, 1.0f);
+				corner(left, bottom, 1.0f, -1.0f);
+				corner(rightEdge, bottom, -1.0f, -1.0f);
+			}
+		}
+
 		// In-combat bars: people the player has hit, bars only, no tag. Also
 		// before the early-out - a fight does not need a sweep to be running.
 		if (!combatSnapshot.empty()) {
@@ -1344,11 +1430,14 @@ namespace SS
 				const float shear = settings->selfBarShear * thick;
 				const float step = thick + thick * 0.75f;
 
-				// A small chip above the stack: what they hold, and their
-				// level. Reads as a nameplate for a stack that has no name.
-				if (chipFont && (c.weapon != 0 || c.level >= 0)) {
+				// A small chip above the stack: race, level, and what they hold.
+				// Reads as a nameplate for a stack that has no name.
+				if (chipFont && (c.weapon != 0 || c.level >= 0 || !c.race.empty())) {
 					const float chipSize = std::max(10.0f, chipBase * 0.85f * c.scale);
 					std::string levelText = c.level >= 0 ? std::to_string(c.level) : std::string{};
+					if (!c.race.empty()) {
+						levelText = levelText.empty() ? c.race : c.race + " " + levelText;
+					}
 					ImVec2      textSize{};
 					if (!levelText.empty()) {
 						ImFont_CalcTextSizeA(&textSize, chipFont, chipSize,
@@ -1542,6 +1631,20 @@ namespace SS
 			const float starSize = hasStar ? thisSize * 0.68f : 0.0f;
 			const float starGap = hasStar ? thisSize * 0.18f : 0.0f;
 
+			// The race chip: two boxed letters ahead of the weapon icon, filled
+			// by the main thread only when the option is on.
+			const bool hasRace = settings->labelIcons && !entry.race.empty();
+			const auto raceFontSize = thisSize * 0.62f;
+			ImVec2     raceTextSize{};
+			float      raceBoxW = 0.0f;
+			float      raceW = 0.0f;
+			if (hasRace) {
+				ImFont_CalcTextSizeA(&raceTextSize, font, raceFontSize,
+					std::numeric_limits<float>::max(), 0.0f, entry.race.c_str(), nullptr, nullptr);
+				raceBoxW = raceTextSize.x + thisSize * 0.24f;
+				raceW = raceBoxW + thisSize * 0.16f;
+			}
+
 			// Arousal rides on the right of the name. Everything else a tag can
 			// carry is on the left, so there is one place to look for it and it
 			// cannot be confused with a marker.
@@ -1559,8 +1662,8 @@ namespace SS
 				heatTextSize.x += thisSize * 0.10f;
 			}
 
-			const float totalWidth = starSize + starGap + iconSize + tallySize.x + iconGap + size.x +
-			                         heatGap + heatSize + heatTextSize.x;
+			const float totalWidth = starSize + starGap + raceW + iconSize + tallySize.x + iconGap +
+			                         size.x + heatGap + heatSize + heatTextSize.x;
 
 			// The title sits on its own line above the name, smaller and
 			// centred on it. Above rather than beside, because a long title
@@ -1624,7 +1727,9 @@ namespace SS
 					PackColour(entry.colour, alpha * 0.35f), 1.0f);
 			}
 
-			const ImVec2 textAt{ topLeft.x + starSize + starGap + iconSize + tallySize.x + iconGap, topLeft.y };
+			const ImVec2 textAt{
+				topLeft.x + starSize + starGap + raceW + iconSize + tallySize.x + iconGap, topLeft.y
+			};
 
 			if (settings->labelBackdrop) {
 				const ImVec2 pad{ 4.0f, 2.0f };
@@ -1642,8 +1747,26 @@ namespace SS
 				DrawStar(draw, centre, starSize, PackColour(settings->favouriteColour, alpha));
 			}
 
+			if (hasRace) {
+				const float  midY = topLeft.y + size.y * 0.5f;
+				const float  boxLeft = topLeft.x + starSize + starGap;
+				const ImVec2 boxMin{ boxLeft, midY - raceFontSize * 0.66f };
+				const ImVec2 boxMax{ boxLeft + raceBoxW, midY + raceFontSize * 0.66f };
+				ImDrawList_AddRectFilled(draw, boxMin, boxMax,
+					PackColour(0x000000, alpha * 0.4f), thisSize * 0.12f, 0);
+				ImDrawList_AddRect(draw, boxMin, boxMax, PackColour(entry.colour, alpha * 0.85f),
+					thisSize * 0.12f, 0, std::max(1.0f, thisSize * 0.05f));
+				const ImVec2 raceAt{ boxLeft + thisSize * 0.12f,
+					midY - raceTextSize.y * 0.5f };
+				ImDrawList_AddText_FontPtr(draw, font, raceFontSize,
+					ImVec2{ raceAt.x + 1.0f, raceAt.y + 1.0f }, PackColour(0x000000, alpha * 0.7f),
+					entry.race.c_str(), nullptr, 0.0f, nullptr);
+				ImDrawList_AddText_FontPtr(draw, font, raceFontSize, raceAt,
+					PackColour(entry.colour, alpha), entry.race.c_str(), nullptr, 0.0f, nullptr);
+			}
+
 			if (hasIcon) {
-				const ImVec2 centre{ topLeft.x + starSize + starGap + iconSize * 0.5f,
+				const ImVec2 centre{ topLeft.x + starSize + starGap + raceW + iconSize * 0.5f,
 					topLeft.y + size.y * 0.5f };
 
 				// A user-supplied picture wins over the built-in shape. It is
@@ -1713,8 +1836,10 @@ namespace SS
 				}
 
 				if (!tally.empty()) {
-					const ImVec2 tallyAt{ topLeft.x + starSize + starGap + iconSize + thisSize * 0.06f,
-						topLeft.y + (size.y - tallySize.y) * 0.5f };
+					const ImVec2 tallyAt{
+						topLeft.x + starSize + starGap + raceW + iconSize + thisSize * 0.06f,
+						topLeft.y + (size.y - tallySize.y) * 0.5f
+					};
 					ImDrawList_AddText_FontPtr(draw, font, tallyFontSize,
 						ImVec2{ tallyAt.x + 1.0f, tallyAt.y + 1.0f },
 						PackColour(0x000000, alpha * 0.8f), tally.c_str(), nullptr, 0.0f, nullptr);

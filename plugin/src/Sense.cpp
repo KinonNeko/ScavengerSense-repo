@@ -259,6 +259,32 @@ namespace SS
 			return WeaponKind::kFists;
 		}
 
+		// The race chip: the first letters of the race's own localised name -
+		// "No" for Nord, one hanzi in Chinese - which is right for every race
+		// including modded ones, with no table to maintain.
+		[[nodiscard]] std::string RaceTag(RE::Actor* a_actor)
+		{
+			auto* base = a_actor ? a_actor->GetActorBase() : nullptr;
+			auto* race = base ? base->GetRace() : nullptr;
+			const char* name = race ? race->GetName() : nullptr;
+			if (!name || !name[0]) {
+				return {};
+			}
+
+			const auto text = ToUtf8(name);
+			const auto lead = static_cast<unsigned char>(text[0]);
+			if (lead < 0x80) {
+				// ASCII: two letters distinguish every vanilla pair.
+				return text.substr(0, std::min<std::size_t>(2, text.size()));
+			}
+			// One whole multi-byte character - a single hanzi carries plenty.
+			const std::size_t bytes = (lead & 0xE0) == 0xC0 ? 2
+			                          : (lead & 0xF0) == 0xE0 ? 3
+			                          : (lead & 0xF8) == 0xF0 ? 4
+			                                                  : 1;
+			return text.substr(0, std::min(bytes, text.size()));
+		}
+
 		// What the player currently is. Three states, in the order that matters:
 		// a beast form overrides everything, then vampirism, then nothing has
 		// happened to you.
@@ -641,8 +667,9 @@ namespace SS
 		case RE::FormType::SoulGem:
 			return Category::kValuable;
 		case RE::FormType::Activator:
-		case RE::FormType::Furniture:
 			return Category::kActivator;
+		case RE::FormType::Furniture:
+			return Category::kFurniture;
 		case RE::FormType::NPC:
 			return Category::kActor;
 		default:
@@ -664,6 +691,12 @@ namespace SS
 		}
 		if (a_ref->IsDisabled() || a_ref->IsDeleted() || a_ref->IsMarkedForDeletion()) {
 			++a_stats.disabled;
+			return false;
+		}
+		// An empty chest is an answer, not a find.
+		if (a_category == Category::kContainer && settings->hideEmptyContainers &&
+			a_ref->GetInventoryCounts().empty()) {
+			++a_stats.emptyContainer;
 			return false;
 		}
 		if (!a_ref->Is3DLoaded()) {
@@ -885,9 +918,9 @@ namespace SS
 
 		logger::info(
 			"scan @ radius {}: visited={} accepted={} highActors={} | rejected: wrongType={} categoryOff={} "
-			"disabled={} no3D={} harvested={} unnamed={} placeholder={} | actors seen={} castFailed={} dead={} notEnemy={}",
+			"disabled={} no3D={} harvested={} unnamed={} placeholder={} emptyChest={} | actors seen={} castFailed={} dead={} notEnemy={}",
 			settings->radius, stats.visited, stats.accepted, stats.highActors, stats.wrongType, stats.categoryOff,
-			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed, stats.placeholder,
+			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed, stats.placeholder, stats.emptyContainer,
 			stats.actorsSeen, stats.actorCastFailed, stats.deadActor, stats.notEnemy);
 
 		if (hits.empty()) {
@@ -1034,6 +1067,9 @@ namespace SS
 				if (settings->weaponIcons) {
 					_labelBuffer.back().weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
 				}
+				if (settings->raceIcons) {
+					_labelBuffer.back().race = RaceTag(player);
+				}
 
 				Labels::GetSingleton()->Replace(_labelBuffer);
 			}
@@ -1171,6 +1207,9 @@ namespace SS
 		if (settings->senseCold && _coldGlobal) {
 			stats.cold = _coldGlobal->value;
 			stats.coldMax = settings->coldMax;
+		}
+		if (settings->raceIcons) {
+			stats.race = RaceTag(player);
 		}
 		Labels::GetSingleton()->SetSelfStats(stats);
 	}
@@ -1384,6 +1423,9 @@ namespace SS
 				if (settings->weaponIcons) {
 					entry.weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
 				}
+				if (settings->raceIcons) {
+					entry.race = RaceTag(player);
+				}
 
 				// The rules are applied here, per bar, so the render side stays
 				// a dumb draw loop. Change tracking is PollSelf's, which runs
@@ -1467,6 +1509,9 @@ namespace SS
 			}
 			if (settings->weaponIcons) {
 				entry.weapon = static_cast<std::uint8_t>(ClassifyWeapon(actor));
+			}
+			if (settings->raceIcons) {
+				entry.race = RaceTag(actor);
 			}
 			entry.vitalsAt = now;
 			_combatBuffer.push_back(std::move(entry));
@@ -1554,28 +1599,35 @@ namespace SS
 		           : kMarkPalette[it->second.slot % std::size(kMarkPalette)];
 	}
 
-	// One key, three gestures: press over nothing toggles the trails, press
-	// over somebody marks or releases them, a quick double press releases
-	// every mark at once (undoing whatever the first press just did).
+	// Holding the key is the clean slate: every mark, trail and open
+	// recording window goes at once.
+	void Sense::OnTrailLongPress()
+	{
+		if (Settings::GetSingleton()->trailsOnlyWhileSensing && !_active) {
+			RE::SendHUDMessage::ShowHUDMessage(Locale::T("The sense is closed - sweep first to mark"));
+			return;
+		}
+		_marked.clear();
+		_trails.clear();
+		_quarry.clear();
+		Labels::GetSingleton()->SetTrails({}, false);
+		RE::SendHUDMessage::ShowHUDMessage(Locale::T("All trails wiped"));
+		logger::info("trails: long press, everything wiped");
+	}
+
+	// One key: a press over somebody marks or releases them, a press over
+	// nothing hides or shows every trail, a long press wipes the lot.
 	void Sense::OnTrailHotkey()
 	{
 		const auto* hotkeySettings = Settings::GetSingleton();
-		const float real = SS::RealNow();
 
-		if (real - _trailPressAt <= 0.35f) {
-			_trailPressAt = -1000.0f;
-			if (_trailPressWasHide) {
-				_trailsHidden.store(!_trailsHidden.load());
-			}
-			if (!_marked.empty()) {
-				_marked.clear();
-				RE::SendHUDMessage::ShowHUDMessage(Locale::T("All marks released"));
-				logger::info("trails: all marks released");
-			}
+		// The whole apparatus lives inside the sense when the option says so:
+		// outside a sweep the key does nothing but explain itself.
+		if (hotkeySettings->trailsOnlyWhileSensing && !_active) {
+			RE::SendHUDMessage::ShowHUDMessage(Locale::T("The sense is closed - sweep first to mark"));
+			logger::info("trails: key refused, no sweep running");
 			return;
 		}
-		_trailPressAt = real;
-		_trailPressWasHide = false;
 
 		auto* target = [&]() -> RE::Actor* {
 			if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
@@ -1587,14 +1639,6 @@ namespace SS
 			}
 			return PickByView(hotkeySettings->trackRange);
 		}();
-
-		// Marking is part of the sense: without a live sweep the press falls
-		// through to hide/show, and the toast says why.
-		if (target && hotkeySettings->markNeedsSense && !_active) {
-			RE::SendHUDMessage::ShowHUDMessage(Locale::T("The sense is closed - sweep first to mark"));
-			logger::info("trails: mark refused, no sweep running");
-			return;
-		}
 
 		if (target && !target->IsPlayerRef()) {
 			const auto  id = target->GetFormID();
@@ -1633,7 +1677,6 @@ namespace SS
 
 		const bool hidden = !_trailsHidden.load();
 		_trailsHidden.store(hidden);
-		_trailPressWasHide = true;
 		RE::SendHUDMessage::ShowHUDMessage(Locale::T(hidden ? "Trails hidden" : "Trails shown"));
 		logger::info("trails: {}", hidden ? "hidden" : "shown");
 	}
@@ -1673,12 +1716,33 @@ namespace SS
 		const auto* tes = RE::TES::GetSingleton();
 		const auto* currentWs = tes ? tes->GetRuntimeData2().worldSpace : nullptr;
 		const auto  worldspace = currentWs ? currentWs->GetFormID() : RE::FormID{ 0 };
-		if (_placeKnown && settings->trailsClearOnTransition &&
-			(interior != _wasInterior || (!interior && worldspace != _lastWorldspace))) {
+		const bool placeChanged =
+			_placeKnown && (interior != _wasInterior || (!interior && worldspace != _lastWorldspace));
+		if (placeChanged && settings->trailsClearOnTransition) {
 			_trails.clear();
 			_quarry.clear();
 			logger::info("trails: place changed, wiped");
 		}
+
+		// On arriving anywhere, the sense can remember the room from the
+		// moment you entered it: everyone already here gets a recording
+		// window, no sweep needed.
+		if (settings->trailAutoCapture && (placeChanged || !_placeKnown)) {
+			if (auto* lists = RE::ProcessLists::GetSingleton()) {
+				lists->ForEachHighActor([&](RE::Actor* a_actor) {
+					if (a_actor && !a_actor->IsPlayerRef() && a_actor->Is3DLoaded()) {
+						const auto life = a_actor->AsActorState()->GetLifeState();
+						if (life != RE::ACTOR_LIFE_STATE::kDying &&
+							life != RE::ACTOR_LIFE_STATE::kDead) {
+							_quarry[a_actor->GetFormID()] = { a_actor->CreateRefHandle(),
+								real + lifetime };
+						}
+					}
+					return RE::BSContainer::ForEachResult::kContinue;
+				});
+			}
+		}
+
 		_placeKnown = true;
 		_wasInterior = interior;
 		_lastWorldspace = worldspace;
@@ -1735,12 +1799,14 @@ namespace SS
 		}
 
 		// Hidden hides, it does not forget: recording carried on above, so
-		// showing them again brings the whole picture back. The same for
-		// trails that live only inside the sense.
-		if (_trailsHidden.load() || (settings->trailsOnlyWhileSensing && !_active)) {
+		// showing them again brings the whole picture back.
+		if (_trailsHidden.load()) {
 			Labels::GetSingleton()->SetTrails({}, false);
 			return;
 		}
+		// Inside-the-sense mode: between sweeps only marked quarry stay
+		// visible - hiding them too would make marking pointless.
+		const bool senseGate = settings->trailsOnlyWhileSensing && !_active;
 
 		// Age out, then hand Labels a drawable copy with the fades already
 		// worked out - the render thread never reconciles clocks.
@@ -1754,8 +1820,15 @@ namespace SS
 				continue;
 			}
 
+			const bool isMarked = _marked.contains(it->first);
+			if (senseGate && !isMarked) {
+				++it;
+				continue;
+			}
+
 			Labels::Trail drawable;
 			drawable.colour = trail.colour;
+			drawable.bright = isMarked;
 			if ((settings->trailNames || _marked.contains(it->first)) && !trail.name.empty()) {
 				// The translation carries a {} for the name; filled by hand so
 				// a bad translation cannot throw.
@@ -1881,6 +1954,29 @@ namespace SS
 			Labels::GetSingleton()->MoveTo(_anchorBuffer, _speakingBuffer, _vitalsBuffer);
 		}
 
+		// While the sense is open, brackets follow whoever the trail key
+		// would take - already-marked people show their own mark colour.
+		if (!suspended) {
+			RE::Actor* aim = nullptr;
+			if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
+				if (auto ref = pick->target.get(); ref) {
+					aim = ref->As<RE::Actor>();
+				}
+			}
+			if (!aim) {
+				aim = PickByView(Settings::GetSingleton()->trackRange);
+			}
+			if (aim && !aim->IsPlayerRef()) {
+				const auto tint = MarkColour(aim->GetFormID());
+				Labels::GetSingleton()->SetAim(true, aim->GetPosition(),
+					TagAnchor(aim, true), tint ? tint : 0xFFA600);
+			} else {
+				Labels::GetSingleton()->SetAim(false, {}, {}, 0xFFA600);
+			}
+		} else {
+			Labels::GetSingleton()->SetAim(false, {}, {}, 0xFFA600);
+		}
+
 		// Stop the clock rather than shifting each deadline. Shifting only ever
 		// moved the wave: the tags, the ring and the vignette are timed by
 		// Labels and kept running, so a long pause used to expire them while the
@@ -1918,6 +2014,7 @@ namespace SS
 
 		if (_next >= _pending.size() && now >= _waveEnd) {
 			logger::info("wave finished, {} shaders were applied", _appliedThisWave);
+			Labels::GetSingleton()->SetAim(false, {}, {}, 0xFFA600);
 			Labels::GetSingleton()->Clear();
 			_active = false;
 			_pending.clear();
@@ -2165,6 +2262,9 @@ namespace SS
 							_labelBuffer.back().weapon = static_cast<std::uint8_t>(
 								ClassifyWeapon(a_ref->As<RE::Actor>()));
 						}
+						if (isActor && settings->raceIcons) {
+							_labelBuffer.back().race = RaceTag(a_ref->As<RE::Actor>());
+						}
 
 						// Vitals over other people last exactly as long as the
 						// sweep does. Persistent bars over everyone are what a
@@ -2355,6 +2455,7 @@ namespace SS
 			_next = 0;
 			_active = false;
 		}
+		Labels::GetSingleton()->SetAim(false, {}, {}, 0xFFA600);
 		Labels::GetSingleton()->Clear();
 		EndTint();
 	}

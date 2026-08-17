@@ -74,6 +74,7 @@ overlay = false
 door = false
 flora = false
 activator = false
+furniture = false
 """),
     "31 Lights - containers and valuables": ("50-lights.ini", "containers and valuables only", """
 [Categories]
@@ -85,6 +86,7 @@ gear = false
 alchemy = false
 book = false
 activator = false
+furniture = false
 """),
 
     "40 People - living": ("60-people.ini", "light up living people", """

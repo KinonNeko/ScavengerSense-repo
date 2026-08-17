@@ -61,11 +61,19 @@ namespace SS
 					code = static_cast<std::int32_t>(raw);
 				}
 
-				// The trail key is a plain press - hiding trails or marking a
-				// quarry wants no double-tap ceremony.
+				// The trail key: short press acts on release, holding it half a
+				// second wipes everything - so the two gestures never both fire.
 				const auto trailWanted = isGamepad ? settings->trailGamepad : settings->trailKey;
-				if (trailWanted >= 0 && code == trailWanted && button->IsDown()) {
-					Sense::GetSingleton()->OnTrailHotkey();
+				if (trailWanted >= 0 && code == trailWanted) {
+					if (button->IsDown()) {
+						_trailLongFired = false;
+					} else if (button->IsPressed() && !_trailLongFired &&
+							   button->HeldDuration() >= 0.5f) {
+						_trailLongFired = true;
+						Sense::GetSingleton()->OnTrailLongPress();
+					} else if (button->IsUp() && !_trailLongFired) {
+						Sense::GetSingleton()->OnTrailHotkey();
+					}
 					continue;
 				}
 
@@ -140,6 +148,7 @@ namespace SS
 
 		ButtonState _keyboard;
 		ButtonState _gamepad;
+		bool        _trailLongFired{ false };
 	};
 
 	void OnMessage(SKSE::MessagingInterface::Message* a_message)
