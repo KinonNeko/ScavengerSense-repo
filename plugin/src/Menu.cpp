@@ -1304,10 +1304,11 @@ namespace SS::Menu
 			igCheckbox(T("Own the enemy bars"), &a_settings.pushTrueHUDAside);
 			Help(
 				"While the combat bars are on, this mod becomes the only place\n"
-				"enemy health is shown: TrueHUD's target widget is claimed through\n"
-				"its own API, its floating bars are dismissed as they appear, and\n"
-				"the game's own enemy health bar is hidden. All of it is handed\n"
-				"back the moment either box is unticked.");
+				"enemy health is shown: TrueHUD's whole overlay is hidden - the\n"
+				"sure way to silence its target widget even when another mod's\n"
+				"target lock is feeding it - and the game's own enemy health bar\n"
+				"is parked off screen. Everything is handed back the moment\n"
+				"either box is unticked.");
 
 			igSpacing();
 		}

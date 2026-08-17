@@ -113,6 +113,7 @@ namespace SS
 		// long enough to hand everything back when the feature turns off.
 		std::atomic_bool                         _enemyHudOwned{ false };
 		bool                                     _targetControlHeld{ false };
+		bool                                     _saidControlRefused{ false };
 		// Where the vanilla enemy health element normally sits. Captured the
 		// first time we park it off screen - hiding by position, because the
 		// HUD's own ActionScript re-drives visibility every target update and

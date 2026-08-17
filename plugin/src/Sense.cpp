@@ -1113,6 +1113,11 @@ namespace SS
 					RE::GFxValue{ static_cast<double>(_enemyHealthHomeY) });
 			}
 			_enemyHealthHomeY = kUnset;
+			if (auto* ui = RE::UI::GetSingleton()) {
+				if (auto menu = ui->GetMenu("TrueHUD"); menu && menu->uiMovie) {
+					menu->uiMovie->SetVisible(true);
+				}
+			}
 			if (g_trueHud && _targetControlHeld) {
 				g_trueHud->ReleaseTargetControl(SKSE::GetPluginHandle());
 				_targetControlHeld = false;
@@ -1128,7 +1133,24 @@ namespace SS
 				const auto result = g_trueHud->RequestTargetControl(SKSE::GetPluginHandle());
 				_targetControlHeld = result == TRUEHUD_API::APIResult::OK ||
 				                     result == TRUEHUD_API::APIResult::AlreadyGiven;
-				logger::info("TrueHUD target control -> {}", _targetControlHeld ? "held" : "refused");
+				if (_targetControlHeld) {
+					logger::info("TrueHUD target control -> held");
+				} else if (!_saidControlRefused) {
+					_saidControlRefused = true;
+					logger::info(
+						"TrueHUD target control refused - another mod owns it (TDM's "
+						"target lock does this); hiding TrueHUD's overlay instead");
+				}
+			}
+
+			// The decisive stroke: TrueHUD draws everything in its own menu
+			// movie, and nothing re-drives a movie's visibility. Hiding it
+			// silences the target widget even when another mod - TDM's target
+			// lock, typically - owns target control and keeps feeding it.
+			if (auto* ui = RE::UI::GetSingleton()) {
+				if (auto menu = ui->GetMenu("TrueHUD"); menu && menu->uiMovie) {
+					menu->uiMovie->SetVisible(false);
+				}
 			}
 
 			// Re-applied on a pulse because a HUD reload rebuilds the element
