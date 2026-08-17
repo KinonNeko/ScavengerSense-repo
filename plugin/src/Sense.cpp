@@ -524,6 +524,7 @@ namespace SS
 					                      settings->hideGameHud ||
 					                      settings->combatBars ||
 					                      settings->selfBarsOverhead ||
+					                      _enemyHudOwned.load() ||
 					                      GameMenus::GetSingleton()->HasHidden();
 					if (!_active && !idleWork) {
 						continue;
@@ -1068,7 +1069,7 @@ namespace SS
 		}
 
 		const float real = SS::RealNow();
-		_combatHits[target->GetFormID()] = { target->CreateRefHandle(), real, real, 0.0f };
+		_combatHits[target->GetFormID()] = { target->CreateRefHandle(), real, real };
 		_struckEver.insert(target->GetFormID());
 		if (Settings::GetSingleton()->debug) {
 			const auto* name = target->GetDisplayFullName();
@@ -1087,6 +1088,62 @@ namespace SS
 		const float real = SS::RealNow();
 		const bool  wantSelf = settings->selfBarsOverhead && player;
 		const bool  wantCombat = settings->combatBars && player;
+
+		// Owning the enemy bars outright: TrueHUD's target widget is claimed
+		// through its API so it never appears, its per-actor widgets are
+		// dismissed on a half-second pulse, and the vanilla enemy health
+		// element is hidden the same way. Before the early returns below, so
+		// everything is handed back the moment the feature turns off.
+		constexpr auto kEnemyHealthPath = "_root.HUDMovieBaseInstance.EnemyHealth_mc._visible";
+		const bool     wantOwn = wantCombat && settings->pushTrueHUDAside;
+		if (!wantOwn && _enemyHudOwned.load()) {
+			if (auto* ui = RE::UI::GetSingleton()) {
+				if (auto menu = ui->GetMenu(RE::HUDMenu::MENU_NAME); menu && menu->uiMovie) {
+					menu->uiMovie->SetVariable(kEnemyHealthPath, RE::GFxValue{ true });
+				}
+			}
+			if (g_trueHud && _targetControlHeld) {
+				g_trueHud->ReleaseTargetControl(SKSE::GetPluginHandle());
+				_targetControlHeld = false;
+			}
+			_enemyHudOwned.store(false);
+			logger::info("enemy bars: handed back to the game and TrueHUD");
+		}
+		if (wantOwn && real - _lastHudPush > 0.5f) {
+			_lastHudPush = real;
+			_enemyHudOwned.store(true);
+
+			if (g_trueHud && !_targetControlHeld) {
+				const auto result = g_trueHud->RequestTargetControl(SKSE::GetPluginHandle());
+				_targetControlHeld = result == TRUEHUD_API::APIResult::OK ||
+				                     result == TRUEHUD_API::APIResult::AlreadyGiven;
+				logger::info("TrueHUD target control -> {}", _targetControlHeld ? "held" : "refused");
+			}
+
+			// The vanilla element re-shows itself on HUD reloads, which is why
+			// this is a pulse rather than a one-off.
+			if (auto* ui = RE::UI::GetSingleton()) {
+				if (auto menu = ui->GetMenu(RE::HUDMenu::MENU_NAME); menu && menu->uiMovie) {
+					menu->uiMovie->SetVariable(kEnemyHealthPath, RE::GFxValue{ false });
+				}
+			}
+
+			// Every combatant, not just the ones fighting the player: a bar
+			// over somebody attacking your follower is still a bar we own.
+			if (g_trueHud) {
+				if (auto* lists = RE::ProcessLists::GetSingleton()) {
+					lists->ForEachHighActor([&](RE::Actor* a_actor) {
+						if (a_actor && !a_actor->IsPlayerRef() && a_actor->IsInCombat()) {
+							g_trueHud->RemoveActorInfoBar(a_actor->GetHandle(),
+								TRUEHUD_API::WidgetRemovalMode::Immediate);
+							g_trueHud->RemoveBoss(a_actor->GetHandle(),
+								TRUEHUD_API::WidgetRemovalMode::Immediate);
+						}
+						return RE::BSContainer::ForEachResult::kContinue;
+					});
+				}
+			}
+		}
 
 		if (!wantCombat && !_combatHits.empty()) {
 			_combatHits.clear();
@@ -1111,26 +1168,6 @@ namespace SS
 				_combatShown = false;
 			}
 			return;
-		}
-
-		// TrueHUD suppression cannot wait for the first hit: its bar appears
-		// the moment combat starts. Once a second, everyone in combat whose
-		// target is the player has TrueHUD's bar dismissed - ours takes over
-		// on the first hit, exactly as the feature is designed to.
-		if (g_trueHud && settings->pushTrueHUDAside && settings->combatBars &&
-			real - _lastHudPush > 1.0f) {
-			_lastHudPush = real;
-			if (auto* lists = RE::ProcessLists::GetSingleton()) {
-				const auto ph = player->CreateRefHandle();
-				lists->ForEachHighActor([&](RE::Actor* a_actor) {
-					if (a_actor && !a_actor->IsPlayerRef() && a_actor->IsInCombat() &&
-						a_actor->GetActorRuntimeData().currentCombatTarget == ph) {
-						g_trueHud->RemoveActorInfoBar(a_actor->GetHandle(),
-							TRUEHUD_API::WidgetRemovalMode::Immediate);
-					}
-					return RE::BSContainer::ForEachResult::kContinue;
-				});
-			}
 		}
 
 		const auto now = SS::Now();
@@ -1217,15 +1254,6 @@ namespace SS
 			// the bar leaves the way it arrived instead of popping off.
 			const float left =
 				std::max(0.0f, it->second.lastEngagedAt + settings->combatLinger - real);
-
-			// Ours wins the head: TrueHUD is asked to dismiss its bar for this
-			// person. Once a second, since it re-adds on its own triggers.
-			if (g_trueHud && settings->pushTrueHUDAside &&
-				real - it->second.lastPushAt > 1.0f) {
-				g_trueHud->RemoveActorInfoBar(actor->GetHandle(),
-					TRUEHUD_API::WidgetRemovalMode::Immediate);
-				it->second.lastPushAt = real;
-			}
 
 			Labels::Entry entry{};
 			entry.world = TagAnchor(actor, true);

@@ -1301,11 +1301,13 @@ namespace SS::Menu
 			}
 
 			igSpacing();
-			igCheckbox(T("Ask TrueHUD to step aside"), &a_settings.pushTrueHUDAside);
+			igCheckbox(T("Own the enemy bars"), &a_settings.pushTrueHUDAside);
 			Help(
-				"Whenever this mod draws bars over somebody, TrueHUD is asked -\n"
-				"through its own API - to dismiss its bar for that person, so the\n"
-				"two never stack. Does nothing when TrueHUD is not installed.");
+				"While the combat bars are on, this mod becomes the only place\n"
+				"enemy health is shown: TrueHUD's target widget is claimed through\n"
+				"its own API, its floating bars are dismissed as they appear, and\n"
+				"the game's own enemy health bar is hidden. All of it is handed\n"
+				"back the moment either box is unticked.");
 
 			igSpacing();
 		}

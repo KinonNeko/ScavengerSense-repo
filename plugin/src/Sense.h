@@ -100,9 +100,6 @@ namespace SS
 			// by death or disengagement, and the entry fades linger seconds
 			// after it stops moving.
 			float               lastEngagedAt{ 0.0f };
-			// Last time TrueHUD was asked to dismiss its bar for them; asked
-			// once a second, because TrueHUD re-adds on its own triggers.
-			float               lastPushAt{ 0.0f };
 		};
 		std::unordered_map<RE::FormID, HitTrack> _combatHits;
 		std::vector<Labels::Entry>               _combatBuffer;
@@ -111,6 +108,11 @@ namespace SS
 		// moment the fight ends, and Only enemies reads it for corpses too.
 		std::unordered_set<RE::FormID>           _struckEver;
 		float                                    _lastHudPush{ 0.0f };  // real time
+		// True while we are actively keeping other HUDs' enemy bars down.
+		// Atomic because the worker thread reads it to keep the tick alive
+		// long enough to hand everything back when the feature turns off.
+		std::atomic_bool                         _enemyHudOwned{ false };
+		bool                                     _targetControlHeld{ false };
 		bool                                     _combatShown{ false };
 		bool                                     _hitSinkRegistered{ false };
 		float                          _selfLast[3]{ -1.0f, -1.0f, -1.0f };
