@@ -149,33 +149,33 @@ autoCapture = true
 """),
 
     # The quick-start presets are only bundles of the same answers the
-    # detailed pages give one at a time.
-    "05 Preset - sense": ("20-preset.ini", "preset: the sense", """
-[Categories]
-actor = true
-actorFilter = living
-"""),
-    "06 Preset - sense HUD": ("20-preset.ini", "preset: the sense, plus a sense-built HUD", """
+    # detailed pages give one at a time. (KShakes's Choice is special: its
+    # fragment is the author's whole INI, written by write_payload from
+    # fomod/kshakes-preset.ini.)
+    "06 Preset - sense only": ("20-preset.ini", "preset: only sensing", """
 [Categories]
 actor = true
 actorFilter = living
 
-[Vitals]
-actors = true
-actorsAll = true
-hostileOnly = true
-actorsWhen = always
-combat = true
-combatAll = true
-
-[Self]
-overhead = true
+[Tracks]
+enabled = false
 """),
-    "07 Preset - hide HUD": ("21-hidehud.ini", "hide the game's own interface", """
+    "07 Preset - sense tracking": ("20-preset.ini", "preset: sensing and tracking", """
+[Categories]
+actor = true
+actorFilter = living
+"""),
+    "09 Hide HUD": ("21-hidehud.ini", "hide the game's own interface", """
 [General]
 hideGameHud = true
 """),
 }
+
+# The author's own settings, every one, shipped whole. Kept as a checked-in
+# file rather than a string here, refreshed from the live install when the
+# author's taste moves.
+KSHAKES_DIR = "05 Preset - KShakes"
+KSHAKES_SRC = "fomod/kshakes-preset.ini"
 
 
 def sync_payload():
@@ -238,6 +238,15 @@ def write_payload():
         path = os.path.join(BUILD, folder, SETUP)
         os.makedirs(path, exist_ok=True)
         open(os.path.join(path, name), "w", encoding="utf-8").write(fragment(title, body))
+
+    src = os.path.join(ROOT, KSHAKES_SRC)
+    if not os.path.exists(src):
+        sys.exit(f"missing {KSHAKES_SRC} - refresh it from the live install")
+    path = os.path.join(BUILD, KSHAKES_DIR, SETUP)
+    os.makedirs(path, exist_ok=True)
+    open(os.path.join(path, "10-kshakes.ini"), "w", encoding="utf-8").write(
+        fragment("KShakes's Choice - the author's own settings, every one",
+                 open(src, encoding="utf-8").read()))
 
 
 # ------------------------------------------------------------------ the XML
@@ -462,37 +471,45 @@ def build_xml():
     ])
 
     start = group("How would you like to begin", "SelectExactlyOne", [
-        plugin("Preset: the sense",
-               "Press a key and the world tells you what is worth taking: loot lights up "
-               "in an outward wave, names and titles float over things and people, the "
-               "colour drains while it runs.\n\nYour HUD and your combat mods stay "
-               "exactly as they are. Everything remains adjustable in the menu.",
-               "05 Preset - sense", type_="Recommended",
-               image="fomod/images/preset-sense.png"),
-        plugin("Preset: the sense, plus a sense-built combat HUD",
-               "As above, and the mod becomes your combat readout too: enemies you fight "
-               "carry health, magicka and stamina over their heads, your own bars follow "
-               "you in third person, and TrueHUD and the vanilla enemy bar step aside so "
-               "this is the only place that information appears.\n\nThe next page asks "
-               "what to do with the rest of the game's interface.",
-               "06 Preset - sense HUD", flags={"senseui": "on"},
+        plugin("KShakes's Choice - everything, tuned",
+               "The author's own settings, copied whole: the sense with tracking, the "
+               "sense-built HUD - combat bars, overhead bars, the stats row, TrueHUD "
+               "and the vanilla enemy bar stepping aside - and every slider where the "
+               "mod was tuned during development.\n\nThe complete experience in one "
+               "click. Everything remains adjustable in the menu afterwards.",
+               "05 Preset - KShakes", type_="Recommended",
                image="fomod/images/preset-sense-hud.png"),
-        plugin("Set every option myself",
-               "The full installer, page by page. The presets above are only bundles of "
-               "the same answers - anything they choose, you can choose here.",
+        plugin("Only sensing",
+               "Press a key and the world tells you what is worth taking: loot and "
+               "people light up in an outward wave, names float over them, the colour "
+               "drains while it runs.\n\nNo tracking, no HUD changes - your interface "
+               "and combat mods stay exactly as they are.",
+               "06 Preset - sense only",
+               image="fomod/images/preset-sense.png"),
+        plugin("Sensing and tracking",
+               "The sense as above, plus the hunt: crouch, sweep, and everyone the "
+               "sense has touched leaves footprints; mark a person or their trail - "
+               "middle mouse out of the box - and follow them across cells.\n\nStill "
+               "no HUD changes.",
+               "07 Preset - sense tracking",
+               image="fomod/images/tracking-crouch-sense.png"),
+        plugin("Choose everything myself",
+               "The full installer, page by page: tracking, looks, what lights up, "
+               "vitals bars, sound, the game's own interface. The presets above are "
+               "only bundles of the same answers - anything they choose, you can "
+               "choose here.",
                flags={"custom": "on"}),
     ])
 
-    hidehud = group("The rest of the game's interface", "SelectExactlyOne", [
+    hidehud = group("The game's own interface", "SelectExactlyOne", [
         plugin("Keep it",
-               "The game's own HUD - compass, crosshair, your bars - stays as it is. "
-               "Only the enemy bars are taken over.",
+               "The game's own HUD - compass, crosshair, your bars - stays as it is.",
                type_="Recommended"),
         plugin("Hide it - the sense is the interface",
-               "The vanilla HUD goes too. Sweeps, the corner readout and the over-head "
+               "The vanilla HUD goes. Sweeps, the corner readout and the over-head "
                "bars become the only interface; the hidden menus come back the moment "
                "you untick it on the Setup page.",
-               "07 Preset - hide HUD"),
+               "09 Hide HUD"),
     ])
 
     sweepbars = group("Vitals bars during a sweep", "SelectExactlyOne", [
@@ -623,9 +640,9 @@ onto separate keys, each with its own press, double-tap or hold.""",
            "  </requiredInstallFiles>\n\n"
            '  <installSteps order="Explicit">\n\n')
     xml += step("Scavenger Sense / 快速开始", [start, keys]) + "\n"
-    xml += step("Sense-built HUD / 界面接管", [hidehud], when=("senseui", "on")) + "\n"
-    xml += step("Tracking / 足迹追踪", [tracking, capture, trailkey]) + "\n"
-    xml += step("How it should look", [tags, effect, lights, people], when=("custom", "on")) + "\n"
+    xml += step("Tracking / 足迹追踪", [tracking, capture, trailkey], when=("custom", "on")) + "\n"
+    xml += step("How it should look / 外观",
+        [tags, effect, lights, people, hidehud], when=("custom", "on")) + "\n"
     xml += step("Vitals bars and sound / 状态条与提示音",
         [sweepbars, combat, overhead, survival, chime], when=("custom", "on")) + "\n"
     xml += step("Menu language / 菜单语言", [language]) + "\n"
@@ -635,8 +652,10 @@ onto separate keys, each with its own press, double-tap or hold.""",
 
 
 if __name__ == "__main__":
-    # clear out any payload folder we own, so a removed answer cannot linger
-    for d in FRAGMENTS:
+    # clear out any payload folder we own - current names and retired ones -
+    # so a removed answer cannot linger in the tree
+    retired = ["05 Preset - sense", "06 Preset - sense HUD", "07 Preset - hide HUD"]
+    for d in list(FRAGMENTS) + [KSHAKES_DIR] + retired:
         p = os.path.join(BUILD, d)
         if os.path.isdir(p):
             shutil.rmtree(p)

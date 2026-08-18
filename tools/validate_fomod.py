@@ -118,6 +118,9 @@ if os.path.isfile(CONFIG):
                 "book", "valuable", "activator", "furniture", "actor"]:
         for suffix in ("", "color", "outlineonly"):
             known.add(("categories", cat + suffix))
+    # read through Lookup directly, not Get: the string Get lower-cases its
+    # value and Scaleform menu names are case sensitive
+    known.add(("general", "hidemenus"))
     frag_files = [os.path.join(r, f)
                   for d in payload
                   for r, _, fs in os.walk(os.path.join(BUILD, d))
