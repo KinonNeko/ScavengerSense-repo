@@ -723,14 +723,36 @@ namespace SS
 			++a_stats.disabled;
 			return false;
 		}
-		// An empty chest is an answer, not a find. Looted containers keep
-		// zero-count residue entries in their inventory map, so "empty"
-		// means no entry with anything actually in it - .empty() on the map
-		// let every cleaned-out chest through.
+		// An empty chest is an answer, not a find. Two regimes, because the
+		// inventory API folds the BASE container's entries into every count:
+		// a looted chest keeps its base "LItemChest..." leveled entry at +1
+		// forever, which held every cleaned-out container at "full" and the
+		// counter at zero. So: a container never yet initialised is judged
+		// by its base contents, where a leveled list still holding its
+		// promise counts as something; one with inventory changes has had
+		// its lists rolled into concrete entries, and is judged by what a
+		// player would actually find - playable items with a positive count.
 		if (a_category == Category::kContainer && settings->hideEmptyContainers) {
-			const auto counts = a_ref->GetInventoryCounts();
-			const bool holdsAnything = std::ranges::any_of(
-				counts, [](const auto& a_pair) { return a_pair.second > 0; });
+			bool holdsAnything = false;
+			if (!a_ref->GetInventoryChanges(true)) {
+				if (const auto* container = a_ref->GetContainer()) {
+					container->ForEachContainerObject([&](RE::ContainerObject& a_entry) {
+						if (a_entry.obj && a_entry.count > 0) {
+							holdsAnything = true;
+							return RE::BSContainer::ForEachResult::kStop;
+						}
+						return RE::BSContainer::ForEachResult::kContinue;
+					});
+				}
+			} else {
+				const auto counts = a_ref->GetInventoryCounts(
+					[](RE::TESBoundObject& a_obj) {
+						return !a_obj.Is(RE::FormType::LeveledItem) && a_obj.GetPlayable();
+					},
+					true);
+				holdsAnything = std::ranges::any_of(
+					counts, [](const auto& a_pair) { return a_pair.second > 0; });
+			}
 			if (!holdsAnything) {
 				++a_stats.emptyContainer;
 				return false;
