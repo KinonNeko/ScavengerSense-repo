@@ -61,7 +61,37 @@ namespace SS
 					code = static_cast<std::int32_t>(raw);
 				}
 
-				if (settings->trailMode == TrailKeyMode::kMulti) {
+				if (settings->trailMode == TrailKeyMode::kAllInOne) {
+					// Everything on the sweep key: a double tap sweeps, a lone
+					// press marks - queued until the window has ruled out a
+					// second tap - and a hold wipes. The sweep's own trigger
+					// setting stands aside on this key while the mode is on.
+					const auto shared = isGamepad ? settings->gamepad : settings->keyboard;
+					if (shared >= 0 && code == shared) {
+						auto* sense = Sense::GetSingleton();
+						if (button->IsDown()) {
+							_trailLongFired = false;
+							const auto now = RealNow();
+							if (now - _trailTapAt <= settings->doubleTapWindow) {
+								// second tap: the sweep owns this press whole
+								_trailTapAt = -1000.0f;
+								_trailLongFired = true;
+								sense->CancelDeferredMark();
+								sense->OnHotkey();
+							} else {
+								_trailTapAt = now;
+							}
+						} else if (button->IsPressed() && !_trailLongFired &&
+								   button->HeldDuration() >= settings->trailHoldTime) {
+							_trailLongFired = true;
+							sense->CancelDeferredMark();
+							sense->OnTrailLongPress();
+						} else if (button->IsUp() && !_trailLongFired) {
+							sense->QueueDeferredMark(settings->doubleTapWindow);
+						}
+						continue;
+					}
+				} else if (settings->trailMode == TrailKeyMode::kMulti) {
 					// A key per tracking action, each with its own gesture. The
 					// same physical key may back more than one action, so every
 					// matching binding gets to see the event.

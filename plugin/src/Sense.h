@@ -31,6 +31,13 @@ namespace SS
 		// Holding the trail key wipes everything: marks, trails, quarry.
 		void OnTrailLongPress();
 
+		// The all-in-one key's lone press: queued on release and fired only
+		// after the double-tap window has ruled out a second tap - otherwise
+		// every sweep's first tap would mark whatever the aim rested on.
+		// All main thread: the input sink and the poll both run there.
+		void QueueDeferredMark(float a_delay);
+		void CancelDeferredMark();
+
 		// The multi-key mode's separated actions: mark or release what is
 		// under the aim, and hide or show every trail.
 		void OnTrailMark();
@@ -190,6 +197,9 @@ namespace SS
 		};
 		std::unordered_map<RE::FormID, Marked> _marked;
 		std::atomic_bool                       _trailsHidden{ false };
+		// When the all-in-one key's queued lone press comes due, real time;
+		// negative means nothing is pending.
+		float                                  _deferredMarkAt{ -1.0f };
 		// Whether the sneak-stance preview drove the marking sign last tick,
 		// so it can be put away exactly once when the stance ends.
 		bool                                   _sneakPreviewWas{ false };

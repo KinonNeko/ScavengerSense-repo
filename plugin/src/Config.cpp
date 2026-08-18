@@ -39,7 +39,7 @@ namespace SS
 
 		constexpr const char* kTrailWipeNames[] = { "hold", "doubletap", "off" };
 
-		constexpr const char* kTrailKeyModeNames[] = { "single", "multi" };
+		constexpr const char* kTrailKeyModeNames[] = { "single", "multi", "allinone" };
 
 		constexpr const char* kTrailRevealNames[] = { "crouchsense", "sense", "crouch", "always" };
 
@@ -1408,8 +1408,10 @@ namespace SS
 		file << "; long a hold must last.\n";
 		file << "wipe = " << kTrailWipeNames[static_cast<std::size_t>(trailWipe)] << "\n";
 		file << "holdTime = " << trailHoldTime << "\n";
-		file << "; single = one key does it all by context; multi = a key per\n";
-		file << "; action, each with its own gesture (press, double or hold).\n";
+		file << "; single = one trail key does it all by context; multi = a key per\n";
+		file << "; action, each with its own gesture (press, double or hold);\n";
+		file << "; allinone = everything on the sweep key - double tap sweeps, a\n";
+		file << "; lone press marks, a hold wipes.\n";
 		file << "keyMode = " << kTrailKeyModeNames[static_cast<std::size_t>(trailMode)] << "\n";
 		file << "markKey = " << trailMarkKey << "\n";
 		file << "markGamepad = " << trailMarkGamepad << "\n";

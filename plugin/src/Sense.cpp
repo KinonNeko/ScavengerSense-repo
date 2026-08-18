@@ -1914,6 +1914,19 @@ namespace SS
 		return false;
 	}
 
+	// The all-in-one key's lone press, queued until the double-tap window
+	// has ruled out a sweep. Refusals are silent here: on a shared key a
+	// stray tap outside the hunt is noise, not a question.
+	void Sense::QueueDeferredMark(float a_delay)
+	{
+		_deferredMarkAt = SS::RealNow() + a_delay;
+	}
+
+	void Sense::CancelDeferredMark()
+	{
+		_deferredMarkAt = -1.0f;
+	}
+
 	// The single-key mode: a press marks or releases whatever the aim finds
 	// - a person, or their footprints. Showing and hiding is the reveal
 	// rule's job now, so an empty press just says so; the wipe rides its
@@ -1970,6 +1983,21 @@ namespace SS
 
 		const float real = SS::RealNow();
 		const float lifetime = settings->trailLifetime;
+
+		// The all-in-one key's lone press comes due: no second tap arrived,
+		// so it was a mark after all. Quietly ignored when the ground is not
+		// readable - on a shared key a stray tap is noise, not a question.
+		if (_deferredMarkAt >= 0.0f && real >= _deferredMarkAt) {
+			_deferredMarkAt = -1.0f;
+			if (!TrailsRevealed()) {
+				logger::info("trails: lone press outside the hunt, ignored");
+			} else if (!MarkUnderAim()) {
+				if (settings->trailToasts) {
+					RE::SendHUDMessage::ShowHUDMessage(Locale::T("Nothing under the aim to mark"));
+				}
+				logger::info("trails: lone press, nothing under the aim");
+			}
+		}
 
 		// Marks from another place are nonsense in this one: an interior's
 		// coordinates mean nothing outside it. Wipe on transitions between

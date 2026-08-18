@@ -146,12 +146,16 @@ namespace SS
 		kCount
 	};
 
-	// How the tracking controls are laid on the keyboard: one key doing
-	// everything by context, or a key per action, each with its own gesture.
+	// How the tracking controls are laid on the keyboard: one trail key
+	// doing everything by context, a key per action each with its own
+	// gesture, or everything folded onto the sweep key itself - double tap
+	// sweeps, a lone press marks (fired after the double-tap window rules
+	// out a second tap), a hold wipes.
 	enum class TrailKeyMode : std::uint8_t
 	{
 		kSingle = 0,
 		kMulti,
+		kAllInOne,
 
 		kCount
 	};

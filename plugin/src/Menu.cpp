@@ -1280,16 +1280,49 @@ namespace SS::Menu
 			}
 
 			static const char* const kKeyModes[] = { "One key does it all",
-				"A key per action" };
+				"A key per action", "All on the sweep key" };
 			int keyMode = static_cast<int>(a_settings.trailMode);
-			if (igCombo_Str_arr(T("Control layout"), &keyMode, Translated(kKeyModes, 2), 2, -1)) {
-				a_settings.trailMode = static_cast<TrailKeyMode>(std::clamp(keyMode, 0, 1));
+			if (igCombo_Str_arr(T("Control layout"), &keyMode, Translated(kKeyModes, 3), 3, -1)) {
+				a_settings.trailMode = static_cast<TrailKeyMode>(std::clamp(keyMode, 0, 2));
 			}
 			Help(
 				"One key: a press marks or releases what the aim finds, and the\n"
-				"wipe rides its own gesture - showing is the reveal rule's job.\n"
-				"Or split the actions across keys of your choosing, hide and\n"
-				"show included, each with its own gesture.");
+				"wipe rides its own gesture. A key per action splits everything,\n"
+				"hide and show included. All on the sweep key folds the whole\n"
+				"hunt onto one button: double tap sweeps, a lone press marks,\n"
+				"a hold wipes.");
+
+			if (a_settings.trailMode == TrailKeyMode::kAllInOne) {
+				igTextDisabled("%s", T("The sweep key above carries everything. Double tap to sweep; a lone press marks once the window rules a second tap out; hold to wipe."));
+				Help(
+					"The lone press waits out the double-tap window before it\n"
+					"marks, so a sweep's first tap never takes anybody - marking\n"
+					"gains that little delay in exchange for the single button.\n"
+					"The sweep's Activate-on setting stands aside on this key,\n"
+					"and stray presses outside the hunt are quietly ignored.");
+				igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
+				igSliderFloat(T("Max gap between taps"), &a_settings.doubleTapWindow, 0.05f, 1.0f, "%.2f s", 0);
+				igSpacing();
+				return;
+			}
+
+			// A trail key that collides with the sweep key starves the sweep:
+			// the trail handler reads it first and eats the event. Say so
+			// rather than let the sweep silently die.
+			const auto clashes = [&](std::int32_t a_key, std::int32_t a_pad) {
+				return (a_key >= 0 && a_key == a_settings.keyboard) ||
+			           (a_pad >= 0 && a_pad == a_settings.gamepad);
+			};
+			const bool clash =
+				a_settings.trailMode == TrailKeyMode::kSingle
+					? clashes(a_settings.trailKey, a_settings.trailGamepad)
+					: clashes(a_settings.trailMarkKey, a_settings.trailMarkGamepad) ||
+					      clashes(a_settings.trailShowKey, a_settings.trailShowGamepad) ||
+					      clashes(a_settings.trailWipeKey, a_settings.trailWipeGamepad);
+			if (clash) {
+				igTextColored(ImVec4{ 1.0f, 0.7f, 0.3f, 1.0f }, "%s",
+					T("This is also the sweep key - the sweep would never fire. Pick another key, or the All on the sweep key layout."));
+			}
 
 			const auto gestureCombo = [&](Trigger& a_gesture) {
 				int gesture = static_cast<int>(a_gesture);
