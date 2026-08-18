@@ -922,9 +922,15 @@ namespace SS
 		hits.reserve(256);
 
 		// The placeholder list, split and lowercased once per sweep so Accept
-		// only ever does substring finds.
+		// only ever does substring finds. The engine's own placeholder in
+		// every language we know it by is built in and always filtered - a
+		// saved INI carries the old user list forward forever, so a new
+		// default would never reach anyone who had ever pressed Save.
 		_placeholderPieces.clear();
 		if (settings->ignorePlaceholders) {
+			for (const char* known : { "should not be visible", "此物应不可见" }) {
+				_placeholderPieces.emplace_back(known);
+			}
 			std::string piece;
 			for (const char c : settings->placeholderNames + ",") {
 				if (c == ',') {

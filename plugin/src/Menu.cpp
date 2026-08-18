@@ -498,9 +498,9 @@ namespace SS::Menu
 			igCheckbox(T("Ignore placeholder names"), &a_settings.ignorePlaceholders);
 			Help(
 				"Some objects wear the engine's placeholder name - \"This should\n"
-				"not be visible.\" on ore veins and the like. A localised game\n"
-				"translates that string, so if they still show, add what yours\n"
-				"actually says below - or aim at one and press the button.");
+				"not be visible.\" on ore veins and the like. The English and\n"
+				"Chinese strings are built in; if a mod or another language shows\n"
+				"one, add what it says below - or aim at it and press the button.");
 			if (a_settings.ignorePlaceholders) {
 				static char placeholderBuf[256]{};
 				static bool placeholderSynced = false;
