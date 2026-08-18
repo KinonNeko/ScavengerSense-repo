@@ -304,25 +304,27 @@ def step(name, groups, when=None):
     return x
 
 
-KEYS = """Nothing to tick - this is just so you know what to press.
+KEYS = """Nothing to tick - this is just so you know what to press. One key
+carries everything out of the box:
 
-    Y, twice     run a sweep. Keyboard.
-    A, twice     the same, on a controller.
-    M3           middle mouse: mark a quarry for tracking (see the Tracking page).
+    Y, twice     run a sweep.
+    Y, once      mark or release what you aim at - a person or their
+                 footprints - while the ground is readable (crouch, then
+                 sweep). The press waits a beat to be sure it is not the
+                 start of a double tap.
+    Y, held      wipe every mark and trail.
+    A            the same three on a controller.
     F1           open the settings menu, then pick Scavenger Sense - Settings.
 
-It is a double tap rather than a single press so that a key you already use for
-something else does not set off a sweep every time you touch it. The two taps
-have to land within a third of a second, and there is a half-second cooldown
-afterwards.
+Every binding and gesture is yours to change on the Keys page of the settings
+menu - move the sweep elsewhere, give tracking its own key (middle mouse is
+ready and waiting), or split marking, hiding and wiping onto separate keys,
+each with its own press, double tap or hold.
 
-Both keys, the controller button, the double tap window, and whether it should
-be a single press or a hold instead, are all on the Setup page in the menu. On a
-controller, note that A is also Activate - if that bothers you, Right Bumper is
-free in vanilla and one click away in the menu.
-
-If F1 does nothing, that key belongs to SKSE Menu Framework rather than to this
-mod - check its own INI for the key it opens on."""
+On a controller, note that A is also Activate - if that bothers you, Right
+Bumper is free in vanilla and one click away in the menu. If F1 does nothing,
+that key belongs to SKSE Menu Framework rather than to this mod - check its
+own INI for the key it opens on."""
 
 
 def build_xml():
@@ -576,10 +578,10 @@ def build_xml():
                "Crouch, then open the sense: everyone it has touched leaves footprints "
                "on the ground, pointing the way they went, readable until that sweep "
                "ends - even if you stand back up. A sweep opened standing shows a clean "
-               "world.\n\nAim at a person - or at their footprints - and press the trail "
-               "key to mark them: their trail turns bright, follows them across cells, "
-               "and shows in any stance until you release it. Hold the key half a second "
-               "to wipe every trail.\n\nThis is the default; nothing is installed.",
+               "world.\n\nAim at a person - or at their footprints - and press the sweep "
+               "key once to mark them: their trail turns bright, follows them across "
+               "cells, and shows in any stance until you release it. Hold the key to "
+               "wipe every trail.\n\nThis is the default; nothing is installed.",
                type_="Recommended", image="fomod/images/tracking-crouch-sense.png"),
         plugin("Trails without the crouch",
                "The same trails, visible whenever they exist - no crouch, no sweep "
@@ -605,16 +607,18 @@ def build_xml():
     ])
 
     trailkey = group("The trail key", "SelectAny", [
-        plugin("Middle mouse marks - nothing to tick", """Nothing to install - this is what to press.
+        plugin("The sweep key does it all - nothing to tick", """Nothing to install - this is what to press.
 
-The trail key is the middle mouse button (M3) out of the box. While the ground
-is readable - crouch, then sweep, unless you changed the rule above - aim at a
-person or at their footprints and press it to mark or release them. Hold it
-half a second to wipe every mark and trail.
+Out of the box the sweep key carries the whole hunt: double tap to sweep, a
+lone press to mark or release what you aim at - a person or their footprints -
+and a hold to wipe every mark and trail. The lone press waits out the double
+tap window first, so a sweep's opening tap never marks anybody.
 
-On a controller nothing is bound by default: pick a button on the Tracks page
-in the settings menu. The same page can also split marking, hiding and wiping
-onto separate keys, each with its own press, double-tap or hold.""",
+Prefer a separate button? The Keys page in the settings menu switches the
+layout: give tracking its own key - middle mouse is ready and waiting - or
+split marking, hiding and wiping onto separate keys, each with its own press,
+double tap or hold. Controllers use the same three gestures on the sweep
+button.""",
                type_="NotUsable"),
     ])
 

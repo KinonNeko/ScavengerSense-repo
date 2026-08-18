@@ -554,8 +554,9 @@ namespace SS
 		// door.
 		bool         trailsForgetMarked{ false };
 		TrailStyle   trailStyle{ TrailStyle::kChevrons };
-		// The trail key. 258 is the middle mouse button in SKSE's macro
-		// space - bound out of the box so tracking works on first launch.
+		// The trail key for the single-key layout. 258 is the middle mouse
+		// button in SKSE's macro space - ready the moment someone switches
+		// away from the all-in-one default, where the sweep key does it all.
 		std::int32_t trailKey{ 258 };
 		std::int32_t trailGamepad{ -1 };
 		// How far the mark reaches: real hunting picks a deer across a valley,
@@ -578,10 +579,11 @@ namespace SS
 		// hold has to last to count.
 		TrailWipe    trailWipe{ TrailWipe::kHold };
 		float        trailHoldTime{ 0.5f };
-		// One key for everything (the default), or a key per action. In
-		// multi mode each action carries its own binding and gesture; the
-		// hold time and double-tap window are shared.
-		TrailKeyMode trailMode{ TrailKeyMode::kSingle };
+		// Everything on the sweep key by default: double tap sweeps, a lone
+		// press marks, a hold wipes - one button carries the whole hunt.
+		// Single gives tracking its own key (middle mouse out of the box);
+		// multi splits every action, each with its own binding and gesture.
+		TrailKeyMode trailMode{ TrailKeyMode::kAllInOne };
 		std::int32_t trailMarkKey{ -1 };
 		std::int32_t trailMarkGamepad{ -1 };
 		Trigger      trailMarkGesture{ Trigger::kPress };
