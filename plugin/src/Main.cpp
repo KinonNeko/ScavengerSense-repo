@@ -88,10 +88,11 @@ namespace SS
 						continue;
 					}
 				} else {
-					// The single trail key: a short press acts on release; the
-					// wipe rides whichever gesture the player chose - a hold, a
-					// double tap, or nothing - and swallows the press that made
-					// it, so the two never both fire.
+					// The single trail key: the mark rides whichever gesture the
+					// player chose, and so does the wipe - which goes first and
+					// swallows the press that made it, so the two never both
+					// fire. A single-press mark still acts on release, keeping
+					// it distinct from a hold on the same key.
 					const auto trailWanted =
 						isGamepad ? settings->trailGamepad : settings->trailKey;
 					if (trailWanted >= 0 && code == trailWanted) {
@@ -113,7 +114,15 @@ namespace SS
 								   button->HeldDuration() >= settings->trailHoldTime) {
 							_trailLongFired = true;
 							Sense::GetSingleton()->OnTrailLongPress();
-						} else if (button->IsUp() && !_trailLongFired) {
+						}
+
+						if (settings->trailMarkGesture == Trigger::kPress) {
+							if (button->IsUp() && !_trailLongFired) {
+								Sense::GetSingleton()->OnTrailHotkey();
+							}
+						} else if (!_trailLongFired &&
+								   Qualifies(*button, _trailMark, settings->trailMarkGesture,
+									   settings->doubleTapWindow, settings->trailHoldTime)) {
 							Sense::GetSingleton()->OnTrailHotkey();
 						}
 						continue;

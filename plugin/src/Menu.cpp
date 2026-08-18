@@ -1305,6 +1305,11 @@ namespace SS::Menu
 				igTextDisabled("%s", T("Aim at someone - or their footprints - and press to track them. Hold to wipe everything."));
 				BindingControls(1, a_settings.trailKey, a_settings.trailGamepad);
 
+				gestureCombo(a_settings.trailMarkGesture);
+				Help(
+					"The gesture that marks or releases what the aim finds. When it\n"
+					"collides with the wipe below, the wipe wins the press.");
+
 				static const char* const kWipeGestures[] = { "Hold the key", "Double-tap it",
 					"Never" };
 				int wipe = static_cast<int>(a_settings.trailWipe);
@@ -1314,7 +1319,8 @@ namespace SS::Menu
 				Help(
 					"The clean slate: every mark, trail and open recording goes at\n"
 					"once. Pick the gesture, or take it off the key entirely.");
-				if (a_settings.trailWipe == TrailWipe::kHold) {
+				if (a_settings.trailWipe == TrailWipe::kHold ||
+					a_settings.trailMarkGesture == Trigger::kHold) {
 					igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
 				}
 			} else {
@@ -1345,10 +1351,10 @@ namespace SS::Menu
 			igSpacing();
 		}
 
-		// What the sense reads off people beyond the bars: you first, then them.
-		void DrawPlayer(Settings& a_settings)
+		// Your stats row: what it says and which bar stack it rides.
+		void DrawStatsRowCfg(Settings& a_settings)
 		{
-			if (Header(T("About me"))) {
+			if (Header(T("Stats row"))) {
 				static const char* const kStatsPlaces[] = { "Riding my overhead bars",
 					"Under the corner readout", "Both" };
 				int place = static_cast<int>(a_settings.statsPlace);
@@ -1372,7 +1378,11 @@ namespace SS::Menu
 					"to use that instead; the row hides itself when none exists.");
 				igSpacing();
 			}
+		}
 
+		// Levels, weapons and races on everyone's tags and chips.
+		void DrawPeopleReading(Settings& a_settings)
+		{
 			if (Header(T("About everyone"))) {
 				igCheckbox(T("Levels after names"), &a_settings.levelOthers);
 				Help(
@@ -2234,14 +2244,6 @@ namespace SS::Menu
 				igEndTabItem();
 			}
 
-			if (igBeginTabItem(T("Keys"), nullptr, 0)) {
-				igSpacing();
-				DrawHotkey(settings);
-				DrawTrailKeys(settings);
-				igTextDisabled("%s",
-					T("The settings menu itself opens on SKSE Menu Framework's key - F1 out of the box, set in its own INI."));
-				igEndTabItem();
-			}
 
 			if (igBeginTabItem(T("Look"), nullptr, 0)) {
 				igSpacing();
@@ -2254,6 +2256,7 @@ namespace SS::Menu
 			if (igBeginTabItem(T("Tags"), nullptr, 0)) {
 				igSpacing();
 				DrawLabels(settings);
+				DrawPeopleReading(settings);
 				DrawMarkers(settings);
 				igEndTabItem();
 			}
@@ -2271,16 +2274,11 @@ namespace SS::Menu
 				igEndTabItem();
 			}
 
-			if (igBeginTabItem(T("Player"), nullptr, 0)) {
-				igSpacing();
-				DrawPlayer(settings);
-				igEndTabItem();
-			}
-
 			if (igBeginTabItem(T("Vitals"), nullptr, 0)) {
 				igSpacing();
 				DrawBarStyle(settings);
 				DrawMyVitals(settings);
+				DrawStatsRowCfg(settings);
 				DrawOtherVitals(settings);
 				igEndTabItem();
 			}
@@ -2302,6 +2300,15 @@ namespace SS::Menu
 				DrawInterface(settings);
 				DrawPresets(settings);
 				DrawActions(settings);
+				igEndTabItem();
+			}
+
+			if (igBeginTabItem(T("Keys"), nullptr, 0)) {
+				igSpacing();
+				DrawHotkey(settings);
+				DrawTrailKeys(settings);
+				igTextDisabled("%s",
+					T("The settings menu itself opens on SKSE Menu Framework's key - F1 out of the box, set in its own INI."));
 				igEndTabItem();
 			}
 
