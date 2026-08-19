@@ -259,7 +259,7 @@ namespace SS
 				if (!Settings::GetSingleton()->stopOnMenu) {
 					return;
 				}
-				logger::info("{} opened, ending the sweep", a_name);
+				logger::info("{} opened, ending the sweep on the next frame", a_name);
 				// Off the event and onto the task queue. Cancel walks the engine's
 				// shader-effect list and marks ours finished, and doing that from
 				// inside a menu-open event means mutating engine state while the menu
@@ -269,9 +269,16 @@ namespace SS
 				// them. One frame later is invisible to the player and asks nothing
 				// of anybody's re-entrancy.
 				if (auto* task = SKSE::GetTaskInterface()) {
-					task->AddTask([]() { Sense::GetSingleton()->Cancel(); });
+					task->AddTask([name = a_name]() {
+						Sense::GetSingleton()->Cancel();
+						// Proof of ordering, not decoration: this line arriving after the
+						// one above is the only way to see from outside that the sweep
+						// ends on the task queue and not inside the menu event.
+						logger::info("sweep ended on the task queue, after {}", name);
+					});
 				} else {
 					Sense::GetSingleton()->Cancel();
+					logger::warn("no task interface - sweep ended inside the menu event");
 				}
 			});
 			GameMenus::GetSingleton()->Install();
