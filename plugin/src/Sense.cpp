@@ -766,21 +766,20 @@ namespace SS
 			}
 		}
 
-		// A spent resource node wears the same face as a full one: a vein that
-		// has been mined out, an ash pile somebody already went through. Both
-		// are activators, and they fail in two different ways. An ash pile
-		// carries its loot as inventory changes, so it is judged like a chest.
-		// A vein keeps its count inside a Papyrus script we cannot read from
-		// here, but a spent one stops accepting activation, and that much is
-		// visible. An activator with neither signal is just an activator.
-		if (a_category == Category::kActivator && settings->hideDepleted) {
+		// A spent resource node wears the same face as a full one, and the two
+		// kinds go quiet differently. An ash pile carries its loot as inventory
+		// changes, so it is judged like a chest. A vein keeps its count inside a
+		// Papyrus script we cannot read from here, but a spent one stops
+		// accepting activation. Separate switches: wanting the veins gone is not
+		// the same as wanting the ash gone.
+		if (a_category == Category::kActivator) {
 			if (a_ref->GetInventoryChanges(true)) {
-				if (!HoldsAnything(a_ref)) {
-					++a_stats.depleted;
+				if (settings->hideEmptyAsh && !HoldsAnything(a_ref)) {
+					++a_stats.emptyAsh;
 					return false;
 				}
-			} else if (a_ref->IsActivationBlocked()) {
-				++a_stats.depleted;
+			} else if (settings->hideDepletedOre && a_ref->IsActivationBlocked()) {
+				++a_stats.depletedOre;
 				return false;
 			}
 		}
@@ -1028,9 +1027,9 @@ namespace SS
 
 		logger::info(
 			"scan @ radius {}: visited={} accepted={} highActors={} | rejected: wrongType={} categoryOff={} "
-			"disabled={} no3D={} harvested={} unnamed={} placeholder={} emptyChest={} depleted={} owned={} | actors seen={} castFailed={} dead={} notEnemy={}",
+			"disabled={} no3D={} harvested={} unnamed={} placeholder={} emptyChest={} ore={} ash={} owned={} | actors seen={} castFailed={} dead={} notEnemy={}",
 			settings->radius, stats.visited, stats.accepted, stats.highActors, stats.wrongType, stats.categoryOff,
-			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed, stats.placeholder, stats.emptyContainer, stats.depleted,
+			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed, stats.placeholder, stats.emptyContainer, stats.depletedOre, stats.emptyAsh,
 			stats.owned, stats.actorsSeen, stats.actorCastFailed, stats.deadActor, stats.notEnemy);
 
 		if (hits.empty()) {
@@ -1332,28 +1331,57 @@ namespace SS
 		if (settings->ammoCounter) {
 			Labels::Ammo ammo;
 			const auto   kind = ClassifyWeapon(player);
-			if (kind == WeaponKind::kBow || kind == WeaponKind::kCrossbow) {
-				if (auto* drawn = player->GetCurrentAmmo()) {
-					const auto real = SS::RealNow();
-					if (real - _ammoAt > 0.2f) {
-						_ammoAt = real;
-						const auto counts = player->GetInventoryCounts(
-							[drawn](RE::TESBoundObject& a_obj) {
-								return &a_obj == static_cast<RE::TESBoundObject*>(drawn);
-							},
-							true);
-						_ammoCount = 0;
-						for (const auto& [obj, count] : counts) {
-							_ammoCount += count;
+			const bool   ranged = kind == WeaponKind::kBow || kind == WeaponKind::kCrossbow;
+
+			if (ranged) {
+				// One throttled inventory walk gives the worn ammunition, its count
+				// and its name together. GetCurrentAmmo is only a fallback: it
+				// reports what is nocked, which is nothing for most of the time a
+				// bow is merely in hand - which is why leaning on it showed nothing.
+				const auto real = SS::RealNow();
+				if (real - _ammoAt > 0.2f) {
+					_ammoAt = real;
+					_ammoCount = 0;
+					_ammoName.clear();
+					for (const auto& [object, entry] : player->GetInventory()) {
+						if (object && object->Is(RE::FormType::Ammo) && entry.second &&
+							entry.second->IsWorn()) {
+							_ammoCount = entry.first;
+							if (const char* full = object->GetName(); full && *full) {
+								_ammoName = full;
+							}
+							break;
 						}
-						const char* full = drawn->GetFullName();
-						_ammoName = full ? full : "";
 					}
+					if (_ammoCount == 0 && _ammoName.empty()) {
+						if (auto* nocked = player->GetCurrentAmmo()) {
+							if (const char* full = nocked->GetName(); full && *full) {
+								_ammoName = full;
+							}
+						}
+					}
+				}
+
+				if (_ammoCount > 0 || !_ammoName.empty()) {
 					ammo.count = _ammoCount;
 					ammo.name = _ammoName;
 					ammo.show = AmmoAnchorPoint(player, settings->ammoAnchor, ammo.world);
 				}
 			}
+
+			// Not yet confirmed against a real skeleton, so say what was seen:
+			// which of the steps failed is not guessable from the outside. The
+			// player's own position rides along, so a node that came back stale
+			// or at the origin is obvious by comparison.
+			if (const auto realLog = SS::RealNow(); realLog - _ammoLogAt > 2.0f) {
+				_ammoLogAt = realLog;
+				const auto self = player->GetPosition();
+				logger::info(
+					"ammo: kind={} ranged={} count={} name=\"{}\" show={} at=({:.0f},{:.0f},{:.0f}) me=({:.0f},{:.0f},{:.0f})",
+					static_cast<int>(kind), ranged, _ammoCount, _ammoName, ammo.show,
+					ammo.world.x, ammo.world.y, ammo.world.z, self.x, self.y, self.z);
+			}
+
 			Labels::GetSingleton()->SetAmmo(ammo);
 		}
 

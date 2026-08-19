@@ -894,7 +894,16 @@ namespace SS
 		Get(table, "categories", "actorFilter", actorFilter);
 		Get(table, "categories", "enemiesOnly", actorEnemiesOnly);
 		Get(table, "categories", "hideEmpty", hideEmptyContainers);
-		Get(table, "categories", "hideDepleted", hideDepleted);
+		// 0.8.1 split one switch into two. Anyone who had the old key on gets
+		// both, so the setting they chose keeps meaning what it meant.
+		bool legacyDepleted = false;
+		Get(table, "categories", "hideDepleted", legacyDepleted);
+		if (legacyDepleted) {
+			hideDepletedOre = true;
+			hideEmptyAsh = true;
+		}
+		Get(table, "categories", "hideDepletedOre", hideDepletedOre);
+		Get(table, "categories", "hideEmptyAsh", hideEmptyAsh);
 		Get(table, "categories", "hideStealing", hideStealing);
 		Get(table, "categories", "actorByDisposition", actorByDisposition);
 		Get(table, "categories", "actorByRelationship", actorByRelationship);
@@ -1577,9 +1586,10 @@ namespace SS
 		file << "enemiesOnly = " << boolean(actorEnemiesOnly) << "\n\n";
 		file << "; An empty chest is an answer, not a find.\n";
 		file << "hideEmpty = " << boolean(hideEmptyContainers) << "\n";
-		file << "; A mined-out ore vein and a picked-clean ash pile are scenery\n";
-		file << "; wearing a resource's face. Hide both.\n";
-		file << "hideDepleted = " << boolean(hideDepleted) << "\n";
+		file << "; A mined-out ore vein is scenery wearing a resource's face.\n";
+		file << "hideDepletedOre = " << boolean(hideDepletedOre) << "\n";
+		file << "; An ash pile somebody has already picked clean.\n";
+		file << "hideEmptyAsh = " << boolean(hideEmptyAsh) << "\n";
 		file << "; Nothing whose taking would be theft lights or gets a tag.\n";
 		file << "hideStealing = " << boolean(hideStealing) << "\n\n";
 		file << "; Colour people by what they are to you rather than by the fact that\n";

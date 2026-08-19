@@ -463,12 +463,13 @@ namespace SS
 		bool        actorEnemiesOnly{ false };
 		// An empty chest is an answer, not a find.
 		bool        hideEmptyContainers{ false };
-		// A mined-out ore vein and a picked-clean ash pile are both scenery
-		// wearing a resource's face. Same idea as hideEmptyContainers, but for
-		// activators: the ones that carry an inventory are judged by what is
-		// left in it, and the ones that have stopped accepting activation -
-		// which is how a spent vein reads from outside its script - are gone.
-		bool        hideDepleted{ false };
+		// A mined-out ore vein: scenery wearing a resource's face. Its count
+		// lives inside a Papyrus script we cannot read, but a spent one stops
+		// accepting activation, and that much is visible from here.
+		bool        hideDepletedOre{ false };
+		// An ash pile somebody already went through. It carries its loot as
+		// inventory changes, so it is judged the way a chest is.
+		bool        hideEmptyAsh{ false };
 		// Nothing whose taking would be theft - the red hand - lights or
 		// gets a tag. For scavengers with principles.
 		bool        hideStealing{ false };

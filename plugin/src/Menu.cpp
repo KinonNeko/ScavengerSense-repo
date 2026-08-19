@@ -802,13 +802,17 @@ namespace SS::Menu
 				"walking to a barrel that holds air - but respawning containers\n"
 				"you have cleared stay dark until they refill.");
 
-			igCheckbox(T("Skip spent ore veins and ash piles"), &a_settings.hideDepleted);
+			igCheckbox(T("Skip mined-out ore veins"), &a_settings.hideDepletedOre);
 			Help(
-				"A vein you have already mined out and an ash pile somebody has\n"
-				"picked clean stop lighting up. Ash piles are judged by what is\n"
-				"left in them; a vein by whether it still lets you mine it, which\n"
-				"is the only part of its state readable from outside its script -\n"
-				"so a mod that reworks mining may not be caught.");
+				"A vein you have already worked stops lighting up. It is judged by\n"
+				"whether it still lets you mine it, which is the only part of its\n"
+				"state readable from outside its script - so a mod that reworks\n"
+				"mining may not be caught.");
+
+			igCheckbox(T("Skip picked-clean ash piles"), &a_settings.hideEmptyAsh);
+			Help(
+				"An ash pile with nothing left in it goes dark, the same way an\n"
+				"empty chest does.");
 
 			igCheckbox(T("Skip what I would be stealing"), &a_settings.hideStealing);
 			Help(
