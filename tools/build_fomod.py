@@ -474,11 +474,29 @@ def build_xml():
 
     start = group("How would you like to begin", "SelectExactlyOne", [
         plugin("KShakes's Choice - everything, tuned",
+               "READ THIS FIRST - this is the only choice here that changes your "
+               "HUD.\n\nIt switches the combat bars on, and while those are on this "
+               "mod becomes the only enemy health on screen: TrueHUD's overlay is "
+               "hidden and the vanilla enemy bar is parked off screen. Both come "
+               "back the moment you untick the combat bars in the menu. Your own "
+               "health, magicka and stamina are drawn by this mod too. Nothing else "
+               "about the game's interface is touched.\n\n"
+               "If you have TrueHUD, a target-lock mod, or any HUD replacer you are "
+               "happy with, pick one of the others below - they leave your interface "
+               "completely alone.\n\n--\n\n"
                "The author's own settings, copied whole: the sense with tracking, the "
-               "sense-built HUD - combat bars, overhead bars, the stats row, TrueHUD "
-               "and the vanilla enemy bar stepping aside - and every slider where the "
-               "mod was tuned during development.\n\nThe complete experience in one "
-               "click. Everything remains adjustable in the menu afterwards.",
+               "sense-built HUD - combat bars, overhead bars, the stats row - and "
+               "every slider where the mod was tuned during development. The complete "
+               "experience in one click, and every part of it stays adjustable in the "
+               "menu afterwards.\n\n--\n\n"
+               "请先阅读：这是本页唯一会改变你 HUD 的选项。"
+               "它会开启战斗状态条；开启期间，本模组将成为屏幕上"
+               "唯一的敌人血量来源：TrueHUD 的覆盖层会被隐藏，"
+               "原版敌人血条会被挪出屏幕。在菜单里取消勾选"
+               "战斗状态条，两者立刻全部归还。\n\n"
+               "如果你在用 TrueHUD、目标锁定类模组，或任何你满意的"
+               "HUD 替换模组，请选择下面其他选项——它们完全不动"
+               "你的界面。",
                "05 Preset - KShakes", type_="Recommended",
                image="fomod/images/preset-sense-hud.png"),
         plugin("Only sensing",

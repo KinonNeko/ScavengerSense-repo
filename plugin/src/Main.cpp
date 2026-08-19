@@ -334,7 +334,7 @@ namespace SS
 }
 
 SKSEPluginInfo(
-	.Version = REL::Version{ 0, 8, 0, 0 },
+	.Version = REL::Version{ 0, 8, 1, 0 },
 	.Name = "ScavengerSense"sv,
 	.Author = "KShakes"sv)
 
