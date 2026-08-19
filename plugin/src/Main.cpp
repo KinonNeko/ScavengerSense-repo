@@ -260,7 +260,19 @@ namespace SS
 					return;
 				}
 				logger::info("{} opened, ending the sweep", a_name);
-				Sense::GetSingleton()->Cancel();
+				// Off the event and onto the task queue. Cancel walks the engine's
+				// shader-effect list and marks ours finished, and doing that from
+				// inside a menu-open event means mutating engine state while the menu
+				// that just opened is still building itself. The console is the case
+				// that bites: More Informative Console reads the effects on whatever
+				// the crosshair found, at exactly the moment we would be retiring
+				// them. One frame later is invisible to the player and asks nothing
+				// of anybody's re-entrancy.
+				if (auto* task = SKSE::GetTaskInterface()) {
+					task->AddTask([]() { Sense::GetSingleton()->Cancel(); });
+				} else {
+					Sense::GetSingleton()->Cancel();
+				}
 			});
 			GameMenus::GetSingleton()->Install();
 			// Compile the post-process shaders now rather than on the first
