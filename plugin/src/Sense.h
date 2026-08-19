@@ -74,6 +74,7 @@ namespace SS
 			std::uint32_t unnamed{};
 			std::uint32_t placeholder{};
 			std::uint32_t emptyContainer{};
+			std::uint32_t depleted{};
 			std::uint32_t owned{};
 			std::uint32_t deadActor{};
 			std::uint32_t notEnemy{};
@@ -95,6 +96,9 @@ namespace SS
 		void Tick();
 		// Reads the player's vitals every frame for the corner readout.
 		void PollSelf();
+		// Turns the chosen anchor into a world point. Main thread only: it walks
+		// the skeleton, which the render thread must never do.
+		static bool AmmoAnchorPoint(RE::Actor* a_actor, AmmoAnchor a_anchor, RE::NiPoint3& a_out);
 		// Keeps bars over people the player has hit while a fight is on.
 		void PollCombat();
 		// Records breadcrumbs behind anyone the sense has touched, and hands
@@ -124,6 +128,8 @@ namespace SS
 		void EndTint();
 
 		[[nodiscard]] static Category Categorise(const RE::TESBoundObject* a_base);
+		// Whether a reference holds anything a player would actually find.
+		static bool HoldsAnything(RE::TESObjectREFR* a_ref);
 		[[nodiscard]] bool            Accept(RE::TESObjectREFR* a_ref, Category a_category, ScanStats& a_stats) const;
 
 		std::vector<RE::TESEffectShader*>         _pool;
@@ -246,6 +252,11 @@ namespace SS
 		bool           _coldLooked{ false };
 		// Gold walks the whole inventory, so it is asked once a second.
 		float          _goldAt{ -1000.0f };
+		// The ammo count is throttled like gold: walking the inventory every
+		// frame to count arrows is waste, and a fifth of a second is invisible.
+		float        _ammoAt{ -1000.0f };
+		std::int32_t _ammoCount{ 0 };
+		std::string  _ammoName;
 		std::int32_t   _gold{ -1 };
 
 		std::string      _status{ "not initialised" };

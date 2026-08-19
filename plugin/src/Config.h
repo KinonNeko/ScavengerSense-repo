@@ -246,6 +246,17 @@ namespace SS
 		kBottomRight
 	};
 
+	// Where the ammo readout hangs. All three are anchored to a point in the
+	// world and then nudged in screen pixels, so the same offset means the
+	// same thing at any resolution. The bow is the hopeful one: it follows a
+	// weapon node when one can be found, and falls back to the hand.
+	enum class AmmoAnchor
+	{
+		kBody = 0,
+		kHead,
+		kBow
+	};
+
 	// When a bar is worth drawing at all.
 	enum class ShowWhen
 	{
@@ -452,6 +463,12 @@ namespace SS
 		bool        actorEnemiesOnly{ false };
 		// An empty chest is an answer, not a find.
 		bool        hideEmptyContainers{ false };
+		// A mined-out ore vein and a picked-clean ash pile are both scenery
+		// wearing a resource's face. Same idea as hideEmptyContainers, but for
+		// activators: the ones that carry an inventory are judged by what is
+		// left in it, and the ones that have stopped accepting activation -
+		// which is how a spent vein reads from outside its script - are gone.
+		bool        hideDepleted{ false };
 		// Nothing whose taking would be theft - the red hand - lights or
 		// gets a tag. For scavengers with principles.
 		bool        hideStealing{ false };
@@ -630,6 +647,17 @@ namespace SS
 		float    selfHudX{ 48.0f };
 		float    selfHudY{ 48.0f };
 		float    selfHudScale{ 1.6f };
+
+		// [Ammo] - how many arrows are left, put where you are already looking
+		// instead of in a corner. Off by default, like every always-on readout
+		// in this mod.
+		bool          ammoCounter{ false };
+		AmmoAnchor    ammoAnchor{ AmmoAnchor::kBody };
+		// Applied after the anchor is projected, in screen pixels.
+		float         ammoOffsetX{ 0.0f };
+		float         ammoOffsetY{ 0.0f };
+		float         ammoScale{ 1.0f };
+		std::uint32_t ammoColour{ 0xE8C36A };
 
 		// [Vitals] - the same bars over other people, for the length of a sweep.
 		// Never persistent: a bar over everyone in the radius all the time is

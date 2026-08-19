@@ -156,6 +156,19 @@ namespace SS
 
 		void SetSelfStats(const SelfStats& a_stats);
 
+		// How much of the drawn ammunition is left. The main thread resolves the
+		// anchor - body, head or bow - into a world point before handing it over,
+		// because finding a skeleton node means touching game data and the render
+		// thread must never do that. show=false puts it away.
+		struct Ammo
+		{
+			bool         show{ false };
+			std::int32_t count{ 0 };
+			std::string  name;
+			RE::NiPoint3 world;
+		};
+		void SetAmmo(const Ammo& a_ammo);
+
 		// Draws the stats row at a point: -1 grows right from it, +1 grows
 		// left, 0 centres. Render thread; takes a snapshot, not the member.
 		void DrawStatsRow(void* a_drawList, const SelfStats& stats, const Settings* settings,
@@ -215,6 +228,7 @@ namespace SS
 
 		void SubmitPostFX(void* a_drawList, float a_now);
 		void DrawSelfHud(void* a_drawList, float a_width, float a_height, float a_now);
+		void DrawAmmo(void* a_drawList, float a_width, float a_height);
 		void DrawWash(void* a_drawList, float a_width, float a_height, float a_now);
 		void DrawRing(void* a_drawList, float a_width, float a_height, float a_now);
 
@@ -233,6 +247,7 @@ namespace SS
 		float              _selfHudCap[3]{ 1.0f, 1.0f, 1.0f };
 		float              _selfHudAt{ -1000.0f };
 		SelfStats          _selfStats;
+		Ammo               _ammo;
 		float              _washBorn{ 0.0f };
 		float              _washDies{ 0.0f };
 		std::mutex         _lock;

@@ -744,6 +744,12 @@ namespace SS
 		_selfStats = a_stats;
 	}
 
+	void Labels::SetAmmo(const Ammo& a_ammo)
+	{
+		std::scoped_lock guard{ _lock };
+		_ammo = a_ammo;
+	}
+
 	void Labels::SetTrails(std::vector<Trail> a_trails, bool a_lit)
 	{
 		std::scoped_lock guard{ _lock };
@@ -781,6 +787,51 @@ namespace SS
 		if (_ring.endAt > by) {
 			_ring.endAt = by;
 		}
+	}
+
+	// The ammo readout. The anchor arrives as a world point already chosen by
+	// the main thread; everything here is projection plus the player's pixel
+	// nudge, so the same offset lands in the same place at any resolution.
+	// Caller holds the lock.
+	void Labels::DrawAmmo(void* a_drawList, float a_width, float a_height)
+	{
+		const auto* settings = Settings::GetSingleton();
+		if (!settings->ammoCounter || !_ammo.show) {
+			return;
+		}
+
+		ImVec2 at{};
+		if (!Project(_ammo.world, a_width, a_height, at)) {
+			return;  // behind the camera
+		}
+		at.x += settings->ammoOffsetX;
+		at.y += settings->ammoOffsetY;
+
+		auto* font = igGetFont();
+		if (!font) {
+			return;
+		}
+		const float fontSize =
+			(settings->labelFontSize > 0.0f ? settings->labelFontSize : igGetFontSize()) *
+			settings->ammoScale;
+
+		// "Steel Arrow x24" when the name is known, bare count when it is not.
+		const std::string text = _ammo.name.empty() ?
+			std::format("x{}", _ammo.count) :
+			std::format("{} x{}", _ammo.name, _ammo.count);
+
+		// Centred on the anchor, so a nudge of zero reads as "on the thing".
+		ImVec2 size{};
+		ImFont_CalcTextSizeA(&size, font, fontSize, FLT_MAX, 0.0f, text.c_str(), nullptr, nullptr);
+		const ImVec2 pos{ at.x - size.x * 0.5f, at.y - size.y * 0.5f };
+
+		auto* draw = static_cast<ImDrawList*>(a_drawList);
+		const ImU32 shadow = PackColour(0x000000, 0.75f);
+		const ImU32 ink = PackColour(settings->ammoColour, 1.0f);
+		ImDrawList_AddText_FontPtr(draw, font, fontSize, ImVec2{ pos.x + 1.0f, pos.y + 1.0f },
+			shadow, text.c_str(), nullptr, 0.0f, nullptr);
+		ImDrawList_AddText_FontPtr(draw, font, fontSize, pos, ink, text.c_str(), nullptr,
+			0.0f, nullptr);
 	}
 
 	// The corner readout: the same bars as the tag, pinned to the screen.
@@ -1426,6 +1477,7 @@ namespace SS
 			// here that is not tied to a sweep, so it has to survive an empty
 			// tag list.
 			DrawSelfHud(draw, width, height, now);
+			DrawAmmo(draw, width, height);
 		}
 
 		// Breadcrumb trails go under everything else: they lie on the ground.

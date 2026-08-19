@@ -51,6 +51,8 @@ namespace SS
 
 		constexpr const char* kCornerNames[] = { "off", "topleft", "topright", "bottomleft", "bottomright" };
 
+		constexpr const char* kAmmoAnchorNames[] = { "body", "head", "bow" };
+
 		constexpr const char* kShowWhenNames[] = { "always", "change", "notfull" };
 
 		constexpr auto kPresetDir = "Data/SKSE/Plugins/ScavengerSense/presets";
@@ -416,6 +418,23 @@ namespace SS
 			}
 			logger::warn("unrecognised corner \"{}\" - keeping {}", raw,
 				kCornerNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, AmmoAnchor& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kAmmoAnchorNames); ++i) {
+				if (raw == kAmmoAnchorNames[i]) {
+					a_value = static_cast<AmmoAnchor>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised ammo anchor \"{}\" - keeping {}", raw,
+				kAmmoAnchorNames[static_cast<std::size_t>(a_value)]);
 		}
 
 		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, ShowWhen& a_value)
@@ -798,6 +817,12 @@ namespace SS
 		Get(table, "self", "hudX", selfHudX);
 		Get(table, "self", "hudY", selfHudY);
 		Get(table, "self", "hudScale", selfHudScale);
+		Get(table, "ammo", "counter", ammoCounter);
+		Get(table, "ammo", "anchor", ammoAnchor);
+		Get(table, "ammo", "offsetX", ammoOffsetX);
+		Get(table, "ammo", "offsetY", ammoOffsetY);
+		Get(table, "ammo", "scale", ammoScale);
+		Get(table, "ammo", "color", ammoColour);
 
 		Get(table, "vitals", "actors", vitalsActors);
 		Get(table, "vitals", "actorsAll", vitalsActorsAll);
@@ -869,6 +894,7 @@ namespace SS
 		Get(table, "categories", "actorFilter", actorFilter);
 		Get(table, "categories", "enemiesOnly", actorEnemiesOnly);
 		Get(table, "categories", "hideEmpty", hideEmptyContainers);
+		Get(table, "categories", "hideDepleted", hideDepleted);
 		Get(table, "categories", "hideStealing", hideStealing);
 		Get(table, "categories", "actorByDisposition", actorByDisposition);
 		Get(table, "categories", "actorByRelationship", actorByRelationship);
@@ -945,6 +971,9 @@ namespace SS
 		selfHudLinger = std::clamp(selfHudLinger, 0.3f, 30.0f);
 		selfHudFade = std::clamp(selfHudFade, 0.0f, selfHudLinger);
 		selfHudScale = std::clamp(selfHudScale, 0.5f, 5.0f);
+		ammoOffsetX = std::clamp(ammoOffsetX, -4000.0f, 4000.0f);
+		ammoOffsetY = std::clamp(ammoOffsetY, -4000.0f, 4000.0f);
+		ammoScale = std::clamp(ammoScale, 0.4f, 5.0f);
 		selfHudX = std::clamp(selfHudX, 0.0f, 4000.0f);
 		selfHudY = std::clamp(selfHudY, 0.0f, 4000.0f);
 		arousalMin = std::clamp(arousalMin, 0, 100);
@@ -1335,6 +1364,20 @@ namespace SS
 		file << "hudY = " << selfHudY << "\n";
 		file << "hudScale = " << selfHudScale << "\n\n\n";
 
+		file << "[Ammo]\n\n";
+		file << "; How much of the drawn ammunition is left, hung in the world rather\n";
+		file << "; than pinned to a corner. Shows only with a bow or crossbow out.\n";
+		file << "counter = " << boolean(ammoCounter) << "\n";
+		file << "; Where it hangs: body, head or bow.\n";
+		file << "anchor = " << kAmmoAnchorNames[static_cast<std::size_t>(ammoAnchor)] << "\n";
+		file << "; Nudge in screen pixels, applied after the anchor is projected.\n";
+		file << "offsetX = " << ammoOffsetX << "\n";
+		file << "offsetY = " << ammoOffsetY << "\n";
+		file << "scale = " << ammoScale << "\n";
+		file << "color = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
+			<< (ammoColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n\n\n";
+
+
 		file << "[Player]\n\n";
 		file << "; What the sense reads off you beyond the three vitals, drawn as a\n";
 		file << "; stats row under the corner readout.\n";
@@ -1534,6 +1577,9 @@ namespace SS
 		file << "enemiesOnly = " << boolean(actorEnemiesOnly) << "\n\n";
 		file << "; An empty chest is an answer, not a find.\n";
 		file << "hideEmpty = " << boolean(hideEmptyContainers) << "\n";
+		file << "; A mined-out ore vein and a picked-clean ash pile are scenery\n";
+		file << "; wearing a resource's face. Hide both.\n";
+		file << "hideDepleted = " << boolean(hideDepleted) << "\n";
 		file << "; Nothing whose taking would be theft lights or gets a tag.\n";
 		file << "hideStealing = " << boolean(hideStealing) << "\n\n";
 		file << "; Colour people by what they are to you rather than by the fact that\n";

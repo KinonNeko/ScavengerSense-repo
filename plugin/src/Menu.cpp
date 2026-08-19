@@ -802,6 +802,14 @@ namespace SS::Menu
 				"walking to a barrel that holds air - but respawning containers\n"
 				"you have cleared stay dark until they refill.");
 
+			igCheckbox(T("Skip spent ore veins and ash piles"), &a_settings.hideDepleted);
+			Help(
+				"A vein you have already mined out and an ash pile somebody has\n"
+				"picked clean stop lighting up. Ash piles are judged by what is\n"
+				"left in them; a vein by whether it still lets you mine it, which\n"
+				"is the only part of its state readable from outside its script -\n"
+				"so a mod that reworks mining may not be caught.");
+
 			igCheckbox(T("Skip what I would be stealing"), &a_settings.hideStealing);
 			Help(
 				"Anything the red hand would appear on - somebody else's goods,\n"
@@ -1598,6 +1606,36 @@ namespace SS::Menu
 				igDragFloat(T("Margin across"), &a_settings.selfHudX, 1.0f, 0.0f, 600.0f, "%.0f px", 0);
 				igDragFloat(T("Margin down"), &a_settings.selfHudY, 1.0f, 0.0f, 600.0f, "%.0f px", 0);
 				Help("Drag for single pixels, Ctrl+click to type a number.");
+			}
+
+			igSpacing();
+			igSeparatorText(T("Ammunition"));
+
+			igCheckbox(T("Show what is left in the quiver"), &a_settings.ammoCounter);
+			Help(
+				"How much of the drawn ammunition you have, hung in the world\n"
+				"rather than pinned to a corner. Only appears with a bow or a\n"
+				"crossbow actually out.");
+
+			if (a_settings.ammoCounter) {
+				static const char* const kAnchors[] = { "Beside the body", "Over the head",
+					"On the bow" };
+				int anchor = static_cast<int>(a_settings.ammoAnchor);
+				if (igCombo_Str_arr(T("Hangs"), &anchor, Translated(kAnchors, 3), 3, -1)) {
+					a_settings.ammoAnchor = static_cast<AmmoAnchor>(std::clamp(anchor, 0, 2));
+				}
+				Help(
+					"The body and the head come off the skeleton. The bow follows the\n"
+					"weapon node, which moves as you draw and loose - so it is the\n"
+					"liveliest of the three, and the one most likely to sit oddly if a\n"
+					"mod has changed the skeleton.");
+
+				igDragFloat(T("Nudge across"), &a_settings.ammoOffsetX, 1.0f, -1000.0f, 1000.0f, "%.0f px", 0);
+				igDragFloat(T("Nudge down"), &a_settings.ammoOffsetY, 1.0f, -1000.0f, 1000.0f, "%.0f px", 0);
+				Help("Drag for single pixels, Ctrl+click to type a number.");
+
+				igSliderFloat(T("Ammo size"), &a_settings.ammoScale, 0.4f, 5.0f, "%.2fx", 0);
+				ColourPicker(T("Ammo colour"), a_settings.ammoColour);
 			}
 
 			igSpacing();

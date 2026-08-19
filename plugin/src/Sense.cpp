@@ -707,6 +707,40 @@ namespace SS
 		}
 	}
 
+	// Whether a reference holds anything a player would actually find. Two
+	// regimes, because the inventory API folds the BASE container's entries
+	// into every count: a looted chest keeps its base "LItemChest..." leveled
+	// entry at +1 forever, which held every cleaned-out container at "full"
+	// and the counter at zero. So: one never yet initialised is judged by its
+	// base contents, where a leveled list still holding its promise counts as
+	// something; one with inventory changes has had its lists rolled into
+	// concrete entries, and is judged by what a player would actually find -
+	// playable items with a positive count.
+	bool Sense::HoldsAnything(RE::TESObjectREFR* a_ref)
+	{
+		if (!a_ref->GetInventoryChanges(true)) {
+			bool found = false;
+			if (const auto* container = a_ref->GetContainer()) {
+				container->ForEachContainerObject([&](RE::ContainerObject& a_entry) {
+					if (a_entry.obj && a_entry.count > 0) {
+						found = true;
+						return RE::BSContainer::ForEachResult::kStop;
+					}
+					return RE::BSContainer::ForEachResult::kContinue;
+				});
+			}
+			return found;
+		}
+
+		const auto counts = a_ref->GetInventoryCounts(
+			[](RE::TESBoundObject& a_obj) {
+				return !a_obj.Is(RE::FormType::LeveledItem) && a_obj.GetPlayable();
+			},
+			true);
+		return std::ranges::any_of(
+			counts, [](const auto& a_pair) { return a_pair.second > 0; });
+	}
+
 	bool Sense::Accept(RE::TESObjectREFR* a_ref, Category a_category, ScanStats& a_stats) const
 	{
 		const auto* settings = Settings::GetSingleton();
@@ -723,38 +757,29 @@ namespace SS
 			++a_stats.disabled;
 			return false;
 		}
-		// An empty chest is an answer, not a find. Two regimes, because the
-		// inventory API folds the BASE container's entries into every count:
-		// a looted chest keeps its base "LItemChest..." leveled entry at +1
-		// forever, which held every cleaned-out container at "full" and the
-		// counter at zero. So: a container never yet initialised is judged
-		// by its base contents, where a leveled list still holding its
-		// promise counts as something; one with inventory changes has had
-		// its lists rolled into concrete entries, and is judged by what a
-		// player would actually find - playable items with a positive count.
+		// An empty chest is an answer, not a find.
 		if (a_category == Category::kContainer && settings->hideEmptyContainers) {
-			bool holdsAnything = false;
-			if (!a_ref->GetInventoryChanges(true)) {
-				if (const auto* container = a_ref->GetContainer()) {
-					container->ForEachContainerObject([&](RE::ContainerObject& a_entry) {
-						if (a_entry.obj && a_entry.count > 0) {
-							holdsAnything = true;
-							return RE::BSContainer::ForEachResult::kStop;
-						}
-						return RE::BSContainer::ForEachResult::kContinue;
-					});
-				}
-			} else {
-				const auto counts = a_ref->GetInventoryCounts(
-					[](RE::TESBoundObject& a_obj) {
-						return !a_obj.Is(RE::FormType::LeveledItem) && a_obj.GetPlayable();
-					},
-					true);
-				holdsAnything = std::ranges::any_of(
-					counts, [](const auto& a_pair) { return a_pair.second > 0; });
-			}
-			if (!holdsAnything) {
+			if (!HoldsAnything(a_ref)) {
 				++a_stats.emptyContainer;
+				return false;
+			}
+		}
+
+		// A spent resource node wears the same face as a full one: a vein that
+		// has been mined out, an ash pile somebody already went through. Both
+		// are activators, and they fail in two different ways. An ash pile
+		// carries its loot as inventory changes, so it is judged like a chest.
+		// A vein keeps its count inside a Papyrus script we cannot read from
+		// here, but a spent one stops accepting activation, and that much is
+		// visible. An activator with neither signal is just an activator.
+		if (a_category == Category::kActivator && settings->hideDepleted) {
+			if (a_ref->GetInventoryChanges(true)) {
+				if (!HoldsAnything(a_ref)) {
+					++a_stats.depleted;
+					return false;
+				}
+			} else if (a_ref->IsActivationBlocked()) {
+				++a_stats.depleted;
 				return false;
 			}
 		}
@@ -1002,9 +1027,9 @@ namespace SS
 
 		logger::info(
 			"scan @ radius {}: visited={} accepted={} highActors={} | rejected: wrongType={} categoryOff={} "
-			"disabled={} no3D={} harvested={} unnamed={} placeholder={} emptyChest={} owned={} | actors seen={} castFailed={} dead={} notEnemy={}",
+			"disabled={} no3D={} harvested={} unnamed={} placeholder={} emptyChest={} depleted={} owned={} | actors seen={} castFailed={} dead={} notEnemy={}",
 			settings->radius, stats.visited, stats.accepted, stats.highActors, stats.wrongType, stats.categoryOff,
-			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed, stats.placeholder, stats.emptyContainer,
+			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed, stats.placeholder, stats.emptyContainer, stats.depleted,
 			stats.owned, stats.actorsSeen, stats.actorCastFailed, stats.deadActor, stats.notEnemy);
 
 		if (hits.empty()) {
@@ -1227,6 +1252,58 @@ namespace SS
 		logger::info("wave started: lighting {} of {} hits, ends at t+{:.2f}s | menus open: {}",
 			keepAlso, hits.size(), _waveEnd - _waveStart, GameMenus::GetSingleton()->Describe());
 	}
+	// Turns the chosen anchor into a world point.
+	//
+	// Deliberately the third-person skeleton even in first person: the body is
+	// still posed there whether or not it is drawn, where the first-person one
+	// sits inside the camera and projects to nonsense. A missing node falls
+	// back to the reference's own position, which is at the feet, lifted to
+	// something like chest height.
+	bool Sense::AmmoAnchorPoint(RE::Actor* a_actor, AmmoAnchor a_anchor, RE::NiPoint3& a_out)
+	{
+		auto* root = a_actor->Get3D(false);
+		if (!root) {
+			root = a_actor->Get3D();
+		}
+
+		if (root) {
+			const auto node = [root](const char* a_name) -> RE::NiAVObject* {
+				return root->GetObjectByName(RE::BSFixedString{ a_name });
+			};
+
+			RE::NiAVObject* found = nullptr;
+			switch (a_anchor) {
+			case AmmoAnchor::kHead:
+				found = node("NPC Head [Head]");
+				break;
+			case AmmoAnchor::kBow:
+				// Whichever the skeleton actually carries. A bow in the hands rides
+				// the weapon node; slung, it sits on the back. The hand is the last
+				// resort so the setting still means something either way.
+				for (const char* name : { "WEAPON", "WeaponBow", "NPC L Hand [LHnd]" }) {
+					found = node(name);
+					if (found) {
+						break;
+					}
+				}
+				break;
+			case AmmoAnchor::kBody:
+			default:
+				found = node("NPC Spine2 [Spn2]");
+				break;
+			}
+
+			if (found) {
+				a_out = found->world.translate;
+				return true;
+			}
+		}
+
+		a_out = a_actor->GetPosition();
+		a_out.z += 90.0f;
+		return true;
+	}
+
 
 	// The corner readout, refreshed whether or not a sweep is running.
 	//
@@ -1239,13 +1316,44 @@ namespace SS
 		const auto* settings = Settings::GetSingleton();
 		// The over-head stack leans on the change tracking done here, so it
 		// keeps this alive even with the corner readout off.
-		if (settings->selfHudCorner == Corner::kOff && !settings->selfBarsOverhead) {
+		if (settings->selfHudCorner == Corner::kOff && !settings->selfBarsOverhead &&
+			!settings->ammoCounter) {
 			return;
 		}
 
 		auto* player = RE::PlayerCharacter::GetSingleton();
 		if (!player) {
 			return;
+		}
+
+		// The ammo readout. Only with a bow or crossbow actually out: a count of
+		// arrows means nothing while you are holding a sword.
+		if (settings->ammoCounter) {
+			Labels::Ammo ammo;
+			const auto   kind = ClassifyWeapon(player);
+			if (kind == WeaponKind::kBow || kind == WeaponKind::kCrossbow) {
+				if (auto* drawn = player->GetCurrentAmmo()) {
+					const auto real = SS::RealNow();
+					if (real - _ammoAt > 0.2f) {
+						_ammoAt = real;
+						const auto counts = player->GetInventoryCounts(
+							[drawn](RE::TESBoundObject& a_obj) {
+								return &a_obj == static_cast<RE::TESBoundObject*>(drawn);
+							},
+							true);
+						_ammoCount = 0;
+						for (const auto& [obj, count] : counts) {
+							_ammoCount += count;
+						}
+						const char* full = drawn->GetFullName();
+						_ammoName = full ? full : "";
+					}
+					ammo.count = _ammoCount;
+					ammo.name = _ammoName;
+					ammo.show = AmmoAnchorPoint(player, settings->ammoAnchor, ammo.world);
+				}
+			}
+			Labels::GetSingleton()->SetAmmo(ammo);
 		}
 
 		float now[3]{ -1.0f, -1.0f, -1.0f };
