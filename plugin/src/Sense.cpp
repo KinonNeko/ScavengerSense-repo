@@ -643,6 +643,7 @@ namespace SS
 					                      settings->hideGameHud ||
 					                      settings->combatBars ||
 					                      settings->selfBarsOverhead ||
+					                      settings->ammoCounter ||
 					                      settings->trailsEnabled ||
 					                      _enemyHudOwned.load() ||
 					                      GameMenus::GetSingleton()->HasHidden();
