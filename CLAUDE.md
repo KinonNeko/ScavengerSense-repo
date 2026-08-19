@@ -12,10 +12,10 @@ too: relationships, titles, and vitals bars.
 Nexus:  https://www.nexusmods.com/skyrimspecialedition/mods/188380
 Source: https://github.com/KinonNeko/ScavengerSense-repo
 
-**0.5 beta is what is published.** The repo is at **0.6 beta**: packaged and
-verified as a FOMOD, but not uploaded, and never installed from that zip into a
-clean profile. The installer questions have not been exercised against the 0.6
-defaults — everything so far was tested as loose files.
+**0.8 beta is what is published**, on Nexus and as tag `v0.8-beta`. The repo
+and the published build are the same code; the version lives in three places
+that must agree — `REL::Version` in `Main.cpp`, `MachineVersion` in
+`fomod/info.xml`, and `project(... VERSION)` in `plugin/CMakeLists.txt`.
 
 ## Build
 
@@ -29,6 +29,13 @@ cmake --build plugin/build --config Release
 
 Cross-compiling from Linux (what the original session used) additionally wants
 `-DCMAKE_TOOLCHAIN_FILE=msvc-toolchain.cmake` and an MSVC sysroot.
+
+Verified on Windows with VS 2022 17.14, MSVC 14.44.35207, Windows SDK
+10.0.26100 and CMake 3.31.6. `cmake.exe` ships inside the VS tree, not on
+`PATH`:
+`<VS>/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe`.
+The C++ workload alone is not enough — the **C++ CMake tools for Windows**
+component has to be ticked as well, or there is no cmake and no ninja.
 
 The first build compiles CommonLibSSE-NG — 363 targets, slow. After that a
 source change is seconds. **Do not delete `plugin/build`** to "start clean"

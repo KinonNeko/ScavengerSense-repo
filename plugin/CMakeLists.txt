@@ -1,20 +1,23 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(ScavengerSense VERSION 1.0.0 LANGUAGES CXX)
+project(ScavengerSense VERSION 0.8.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
 
+# CommonLibSSE's install(EXPORT) requires spdlog to be in an export set when
+# spdlog is a real subproject target; without this, generation fails. It has to
+# be set BEFORE spdlog is added: set afterwards, it only reaches spdlog via the
+# cache on the *next* configure, so a clean clone fails the first time and
+# succeeds the second.
+set(SPDLOG_INSTALL ON CACHE BOOL "" FORCE)
+
 FetchContent_Declare(spdlog SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../spdlog OVERRIDE_FIND_PACKAGE)
 FetchContent_MakeAvailable(spdlog)
 
 set(RAPIDCSV_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../rapidcsv/src CACHE PATH "" FORCE)
-
-# CommonLibSSE's install(EXPORT) requires spdlog to be in an export set when
-# spdlog is a real subproject target; without this, generation fails.
-set(SPDLOG_INSTALL ON CACHE BOOL "" FORCE)
 
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(SKSE_SUPPORT_XBYAK OFF CACHE BOOL "" FORCE)
