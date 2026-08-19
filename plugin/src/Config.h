@@ -257,6 +257,15 @@ namespace SS
 		kBow
 	};
 
+	// When the ammo readout is worth drawing at all. Separate from ShowWhen,
+	// which asks whether a value has moved; this asks what you are doing.
+	enum class AmmoWhen
+	{
+		kAlways = 0,
+		kDrawn,    // only while the bow is actually being pulled
+		kSensing,  // only for the length of a sweep
+	};
+
 	// When a bar is worth drawing at all.
 	enum class ShowWhen
 	{
@@ -653,12 +662,17 @@ namespace SS
 		// instead of in a corner. Off by default, like every always-on readout
 		// in this mod.
 		bool          ammoCounter{ false };
-		AmmoAnchor    ammoAnchor{ AmmoAnchor::kBody };
+		AmmoAnchor    ammoAnchor{ AmmoAnchor::kBow };
 		// Applied after the anchor is projected, in screen pixels.
-		float         ammoOffsetX{ 0.0f };
+		float         ammoOffsetX{ 50.0f };
 		float         ammoOffsetY{ 0.0f };
-		float         ammoScale{ 1.0f };
-		std::uint32_t ammoColour{ 0xE8C36A };
+		float         ammoScale{ 1.5f };
+		std::uint32_t ammoColour{ 0xF4F3F0 };
+		AmmoWhen      ammoWhen{ AmmoWhen::kAlways };
+		// Its own fade, in seconds, so it can come and go at a different pace
+		// from everything else. Zero on either side snaps instead.
+		float         ammoFadeIn{ 0.20f };
+		float         ammoFadeOut{ 0.45f };
 
 		// [Vitals] - the same bars over other people, for the length of a sweep.
 		// Never persistent: a bar over everyone in the radius all the time is

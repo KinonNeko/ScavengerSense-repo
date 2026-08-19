@@ -1337,7 +1337,7 @@ namespace SS
 				// One throttled inventory walk gives the worn ammunition, its count
 				// and its name together. GetCurrentAmmo is only a fallback: it
 				// reports what is nocked, which is nothing for most of the time a
-				// bow is merely in hand - which is why leaning on it showed nothing.
+				// bow is merely in hand.
 				const auto real = SS::RealNow();
 				if (real - _ammoAt > 0.2f) {
 					_ammoAt = real;
@@ -1361,25 +1361,50 @@ namespace SS
 						}
 					}
 				}
+			}
 
-				if (_ammoCount > 0 || !_ammoName.empty()) {
-					ammo.count = _ammoCount;
-					ammo.name = _ammoName;
-					ammo.show = AmmoAnchorPoint(player, settings->ammoAnchor, ammo.world);
+			// Whether it wants to be on screen at all, before the fade has its say.
+			bool wanted = ranged && (_ammoCount > 0 || !_ammoName.empty());
+			if (wanted) {
+				switch (settings->ammoWhen) {
+				case AmmoWhen::kDrawn:
+					{
+						// Every stage of a shot, from starting the pull to the end of
+						// the follow-through, so it does not blink out mid-loose.
+						const auto state = player->AsActorState()->GetAttackState();
+						wanted = state >= RE::ATTACK_STATE_ENUM::kBowDraw &&
+							state <= RE::ATTACK_STATE_ENUM::kBowFollowThrough;
+					}
+					break;
+				case AmmoWhen::kSensing:
+					wanted = _active.load();
+					break;
+				case AmmoWhen::kAlways:
+				default:
+					break;
 				}
 			}
 
-			// Not yet confirmed against a real skeleton, so say what was seen:
-			// which of the steps failed is not guessable from the outside. The
-			// player's own position rides along, so a node that came back stale
-			// or at the origin is obvious by comparison.
-			if (const auto realLog = SS::RealNow(); realLog - _ammoLogAt > 2.0f) {
-				_ammoLogAt = realLog;
-				const auto self = player->GetPosition();
-				logger::info(
-					"ammo: kind={} ranged={} count={} name=\"{}\" show={} at=({:.0f},{:.0f},{:.0f}) me=({:.0f},{:.0f},{:.0f})",
-					static_cast<int>(kind), ranged, _ammoCount, _ammoName, ammo.show,
-					ammo.world.x, ammo.world.y, ammo.world.z, self.x, self.y, self.z);
+			// Its own fade, eased here rather than on the render thread, which has
+			// no business knowing what time it is. A long frame is capped so a
+			// stutter or a loading screen cannot jump the whole way at once.
+			const auto real = SS::RealNow();
+			const float dt = _ammoTickAt < 0.0f ? 0.0f : std::clamp(real - _ammoTickAt, 0.0f, 0.25f);
+			_ammoTickAt = real;
+			const float span = wanted ? settings->ammoFadeIn : settings->ammoFadeOut;
+			if (span <= 0.001f) {
+				_ammoAlpha = wanted ? 1.0f : 0.0f;
+			} else {
+				_ammoAlpha = std::clamp(_ammoAlpha + (wanted ? dt : -dt) / span, 0.0f, 1.0f);
+			}
+
+			// Still placed while fading out, so it dies where it stood rather than
+			// snapping to the last anchor it happened to be given.
+			if (_ammoAlpha > 0.004f) {
+				ammo.count = _ammoCount;
+				ammo.name = _ammoName;
+				ammo.alpha = _ammoAlpha;
+				ammo.show = AmmoAnchorPoint(player, settings->ammoAnchor, ammo.world);
 			}
 
 			Labels::GetSingleton()->SetAmmo(ammo);

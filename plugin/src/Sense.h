@@ -256,7 +256,9 @@ namespace SS
 		// The ammo count is throttled like gold: walking the inventory every
 		// frame to count arrows is waste, and a fifth of a second is invisible.
 		float        _ammoAt{ -1000.0f };
-		float        _ammoLogAt{ -1000.0f };
+		// The readout's own fade, eased here so the render thread only reads it.
+		float        _ammoAlpha{ 0.0f };
+		float        _ammoTickAt{ -1.0f };
 		std::int32_t _ammoCount{ 0 };
 		std::string  _ammoName;
 		std::int32_t   _gold{ -1 };

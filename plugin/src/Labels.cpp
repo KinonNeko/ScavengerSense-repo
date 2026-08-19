@@ -796,7 +796,7 @@ namespace SS
 	void Labels::DrawAmmo(void* a_drawList, float a_width, float a_height)
 	{
 		const auto* settings = Settings::GetSingleton();
-		if (!settings->ammoCounter || !_ammo.show) {
+		if (!settings->ammoCounter || !_ammo.show || _ammo.alpha <= 0.004f) {
 			return;
 		}
 
@@ -826,8 +826,8 @@ namespace SS
 		const ImVec2 pos{ at.x - size.x * 0.5f, at.y - size.y * 0.5f };
 
 		auto* draw = static_cast<ImDrawList*>(a_drawList);
-		const ImU32 shadow = PackColour(0x000000, 0.75f);
-		const ImU32 ink = PackColour(settings->ammoColour, 1.0f);
+		const ImU32 shadow = PackColour(0x000000, 0.75f * _ammo.alpha);
+		const ImU32 ink = PackColour(settings->ammoColour, _ammo.alpha);
 		ImDrawList_AddText_FontPtr(draw, font, fontSize, ImVec2{ pos.x + 1.0f, pos.y + 1.0f },
 			shadow, text.c_str(), nullptr, 0.0f, nullptr);
 		ImDrawList_AddText_FontPtr(draw, font, fontSize, pos, ink, text.c_str(), nullptr,

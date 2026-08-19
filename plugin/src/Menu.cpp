@@ -1622,6 +1622,17 @@ namespace SS::Menu
 				"crossbow actually out.");
 
 			if (a_settings.ammoCounter) {
+				static const char* const kAmmoWhen[] = { "Always", "Only while drawing",
+					"Only while sensing" };
+				int ammoWhen = static_cast<int>(a_settings.ammoWhen);
+				if (igCombo_Str_arr(T("Show ammo"), &ammoWhen, Translated(kAmmoWhen, 3), 3, -1)) {
+					a_settings.ammoWhen = static_cast<AmmoWhen>(std::clamp(ammoWhen, 0, 2));
+				}
+				Help(
+					"Always, only while the bow is actually being pulled - through to\n"
+					"the end of the follow-through, so it does not blink out as you\n"
+					"loose - or only for the length of a sweep.");
+
 				static const char* const kAnchors[] = { "Beside the body", "Over the head",
 					"On the bow" };
 				int anchor = static_cast<int>(a_settings.ammoAnchor);
@@ -1637,6 +1648,12 @@ namespace SS::Menu
 				igDragFloat(T("Nudge across"), &a_settings.ammoOffsetX, 1.0f, -1000.0f, 1000.0f, "%.0f px", 0);
 				igDragFloat(T("Nudge down"), &a_settings.ammoOffsetY, 1.0f, -1000.0f, 1000.0f, "%.0f px", 0);
 				Help("Drag for single pixels, Ctrl+click to type a number.");
+
+				igSliderFloat(T("Fade in"), &a_settings.ammoFadeIn, 0.0f, 2.0f, "%.2f s", 0);
+				igSliderFloat(T("Fade out"), &a_settings.ammoFadeOut, 0.0f, 2.0f, "%.2f s", 0);
+				Help(
+					"Its own fade, nothing else's. Zero on either side snaps instead\n"
+					"of easing.");
 
 				igSliderFloat(T("Ammo size"), &a_settings.ammoScale, 0.4f, 5.0f, "%.2fx", 0);
 				ColourPicker(T("Ammo colour"), a_settings.ammoColour);

@@ -166,6 +166,9 @@ namespace SS
 			std::int32_t count{ 0 };
 			std::string  name;
 			RE::NiPoint3 world;
+			// Eased on the main thread, so the render side never has to reconcile
+			// clocks to know how far through a fade it is.
+			float        alpha{ 1.0f };
 		};
 		void SetAmmo(const Ammo& a_ammo);
 

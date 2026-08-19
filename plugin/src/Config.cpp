@@ -53,6 +53,8 @@ namespace SS
 
 		constexpr const char* kAmmoAnchorNames[] = { "body", "head", "bow" };
 
+		constexpr const char* kAmmoWhenNames[] = { "always", "drawn", "sensing" };
+
 		constexpr const char* kShowWhenNames[] = { "always", "change", "notfull" };
 
 		constexpr auto kPresetDir = "Data/SKSE/Plugins/ScavengerSense/presets";
@@ -435,6 +437,23 @@ namespace SS
 			}
 			logger::warn("unrecognised ammo anchor \"{}\" - keeping {}", raw,
 				kAmmoAnchorNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, AmmoWhen& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kAmmoWhenNames); ++i) {
+				if (raw == kAmmoWhenNames[i]) {
+					a_value = static_cast<AmmoWhen>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised ammo rule \"{}\" - keeping {}", raw,
+				kAmmoWhenNames[static_cast<std::size_t>(a_value)]);
 		}
 
 		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, ShowWhen& a_value)
@@ -823,6 +842,9 @@ namespace SS
 		Get(table, "ammo", "offsetY", ammoOffsetY);
 		Get(table, "ammo", "scale", ammoScale);
 		Get(table, "ammo", "color", ammoColour);
+		Get(table, "ammo", "when", ammoWhen);
+		Get(table, "ammo", "fadeIn", ammoFadeIn);
+		Get(table, "ammo", "fadeOut", ammoFadeOut);
 
 		Get(table, "vitals", "actors", vitalsActors);
 		Get(table, "vitals", "actorsAll", vitalsActorsAll);
@@ -983,6 +1005,8 @@ namespace SS
 		ammoOffsetX = std::clamp(ammoOffsetX, -4000.0f, 4000.0f);
 		ammoOffsetY = std::clamp(ammoOffsetY, -4000.0f, 4000.0f);
 		ammoScale = std::clamp(ammoScale, 0.4f, 5.0f);
+		ammoFadeIn = std::clamp(ammoFadeIn, 0.0f, 5.0f);
+		ammoFadeOut = std::clamp(ammoFadeOut, 0.0f, 5.0f);
 		selfHudX = std::clamp(selfHudX, 0.0f, 4000.0f);
 		selfHudY = std::clamp(selfHudY, 0.0f, 4000.0f);
 		arousalMin = std::clamp(arousalMin, 0, 100);
@@ -1383,6 +1407,12 @@ namespace SS
 		file << "offsetX = " << ammoOffsetX << "\n";
 		file << "offsetY = " << ammoOffsetY << "\n";
 		file << "scale = " << ammoScale << "\n";
+		file << "; When it is worth drawing: always, drawn (only while the bow is\n";
+		file << "; actually being pulled), or sensing (only during a sweep).\n";
+		file << "when = " << kAmmoWhenNames[static_cast<std::size_t>(ammoWhen)] << "\n";
+		file << "; Its own fade, in seconds. Zero on either side snaps.\n";
+		file << "fadeIn = " << ammoFadeIn << "\n";
+		file << "fadeOut = " << ammoFadeOut << "\n";
 		file << "color = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
 			<< (ammoColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n\n\n";
 
