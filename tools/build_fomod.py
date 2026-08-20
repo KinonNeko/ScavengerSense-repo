@@ -137,6 +137,7 @@ enabled = false
 
     "57 Tracking - always": ("75-tracking.ini", "trails visible without the crouch", """
 [Tracks]
+enabled = true
 reveal = always
 """),
     "58 Tracking - off": ("75-tracking.ini", "no footprint tracking", """
@@ -145,7 +146,15 @@ enabled = false
 """),
     "59 Tracking - everyone": ("76-capture.ini", "trails behind everyone loaded", """
 [Tracks]
+enabled = true
 autoCapture = true
+"""),
+    # The crouch-and-sense hunt used to install nothing, because trails were on
+    # out of the box. The shipped defaults are the "Only sensing" answer now, so
+    # the answer that wants trails has to turn them on itself.
+    "60 Tracking - hunt": ("75-tracking.ini", "trails: the crouch-and-sense hunt", """
+[Tracks]
+enabled = true
 """),
 
     # The quick-start presets are only bundles of the same answers the
@@ -164,6 +173,9 @@ enabled = false
 [Categories]
 actor = true
 actorFilter = living
+
+[Tracks]
+enabled = true
 """),
     "09 Hide HUD": ("21-hidehud.ini", "hide the game's own interface", """
 [General]
@@ -603,8 +615,9 @@ def build_xml():
                "world.\n\nAim at a person - or at their footprints - and press the sweep "
                "key once to mark them: their trail turns bright, follows them across "
                "cells, and shows in any stance until you release it. Hold the key to "
-               "wipe every trail.\n\nThis is the default; nothing is installed.",
-               type_="Recommended", image="fomod/images/tracking-crouch-sense.png"),
+               "wipe every trail.\n\nThis is the recommended answer.",
+               "60 Tracking - hunt", type_="Recommended",
+               image="fomod/images/tracking-crouch-sense.png"),
         plugin("Trails without the crouch",
                "The same trails, visible whenever they exist - no crouch, no sweep "
                "needed. Marked quarry glow in their mark colour.\n\nBusier, but nothing "

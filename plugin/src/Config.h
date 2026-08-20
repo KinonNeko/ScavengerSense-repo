@@ -467,7 +467,7 @@ namespace SS
 		float         soundVolume{ 1.0f };
 		std::uint32_t soundFormID{ 0 };
 
-		ActorFilter actorFilter{ ActorFilter::kAll };
+		ActorFilter actorFilter{ ActorFilter::kLivingOnly };
 		// Only sense people who mean you harm: hostile by nature, or hostile
 		// because of something you did - anyone you have struck counts.
 		// Applies to the living; corpses stay with actorFilter.
@@ -569,7 +569,7 @@ namespace SS
 		// limits: recording starts when we first see somebody and stops when
 		// they unload, so it is a scent picked up at first contact, not
 		// forensics.
-		bool  trailsEnabled{ true };
+		bool  trailsEnabled{ false };
 		float trailLifetime{ 90.0f };  // seconds a mark survives
 		bool  trailNames{ true };      // whose footprints these are
 		// Marks from another place are nonsense in this one: an interior's

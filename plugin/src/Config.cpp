@@ -101,9 +101,10 @@ namespace SS
 			false, false, false, false, false, false, false, false, false, true
 		};
 
-		// Defaults, matched 1:1 to kCategoryNames.
+		// Defaults, matched 1:1 to kCategoryNames. People are on: the shipped
+		// defaults are the installer's "Only sensing" answer.
 		constexpr bool kCategoryDefaultEnabled[kCategoryCount] = {
-			true, true, true, true, true, true, true, true, true, false
+			true, true, true, true, true, true, true, true, true, true
 		};
 
 		constexpr std::uint32_t kCategoryDefaultColour[kCategoryCount] = {
