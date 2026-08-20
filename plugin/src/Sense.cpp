@@ -554,7 +554,19 @@ namespace SS
 		// without it, so a warning is all it rates.
 		_sweepSound = handler->LookupForm<RE::BGSSoundDescriptorForm>(kSweepSoundFormID, kPluginFile);
 		if (!_sweepSound) {
-			logger::warn("sweep chime descriptor {:08X} not found - the esp predates it", kSweepSoundFormID);
+			// Say which of the two it is. "Not found" covered both a record the
+			// engine never loaded and one it loaded as something else, and those
+			// want opposite fixes - the old wording blamed a stale esp for both.
+			if (auto* raw = handler->LookupForm(kSweepSoundFormID, kPluginFile)) {
+				logger::warn(
+					"sweep chime {:08X} loaded as form type {} (\"{}\"), not a sound "
+					"descriptor - the SNDR record is being rejected, not missing",
+					kSweepSoundFormID, static_cast<int>(raw->GetFormType()),
+					raw->GetFormEditorID() ? raw->GetFormEditorID() : "");
+			} else {
+				logger::warn("sweep chime {:08X} is not in {} at all - no form with that id",
+					kSweepSoundFormID, kPluginFile);
+			}
 		}
 
 		if (_pool.empty()) {
