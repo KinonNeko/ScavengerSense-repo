@@ -307,7 +307,12 @@ def imad(duration=6.0, saturation=0.25, brightness=0.85, contrast=1.15) -> bytes
 
 # ------------------------------------------------------------------- SNDR
 
-SNDR_FORMID = 0x000890
+# SELF_INDEX, for the reason spelled out above: without it this record
+# claims to be an override of a Skyrim.esm form that does not exist, and
+# the engine discards it. The shaders and the imod carried the prefix from
+# the start; the chime was added later and missed it, so it has never once
+# been reachable.
+SNDR_FORMID = SELF_INDEX | 0x000890
 
 
 def sweep_sound() -> bytes:
