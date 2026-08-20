@@ -11,6 +11,44 @@ namespace SS
 	{
 		std::unordered_map<std::string, std::string> g_strings;
 
+		// Which code page the game's own strings are in.
+		//
+		// Normally CP_ACP, and on almost every machine that is the end of it.
+		// But Windows has a beta option, "Use Unicode UTF-8 for worldwide
+		// language support", that sets the ANSI code page to 65001 while the
+		// game goes on handing out names in the locale's legacy page. Decoding
+		// GBK bytes as UTF-8 gives mojibake, which is what such a machine sees.
+		//
+		// So when ACP claims UTF-8, ask the system locale what its ANSI page
+		// actually is - 936 for Chinese, 932 for Japanese, 949 for Korean - and
+		// use that instead. Asked once and remembered: the answer cannot change
+		// while the game is running.
+		//
+		// When ACP is anything but 65001 this returns CP_ACP and nothing about
+		// the old behaviour changes at all.
+		[[nodiscard]] UINT TextCodePage()
+		{
+			static const UINT page = []() -> UINT {
+				if (::GetACP() != CP_UTF8) {
+					return CP_ACP;
+				}
+				int       legacy = 0;
+				const int got = ::GetLocaleInfoEx(LOCALE_NAME_SYSTEM_DEFAULT,
+					LOCALE_IDEFAULTANSICODEPAGE | LOCALE_RETURN_NUMBER,
+					reinterpret_cast<LPWSTR>(&legacy),
+					static_cast<int>(sizeof(legacy) / sizeof(wchar_t)));
+				if (got == 0 || legacy <= 0 || static_cast<UINT>(legacy) == CP_UTF8) {
+					logger::info("locale: ACP is UTF-8 and the system locale offers no legacy "
+						"code page - game text will be read as UTF-8");
+					return CP_ACP;
+				}
+				logger::info("locale: ACP is UTF-8 (the Windows beta option), so game text "
+						"that is not valid UTF-8 will be read as code page {}", legacy);
+				return static_cast<UINT>(legacy);
+			}();
+			return page;
+		}
+
 		// Strict UTF-8 validation. Anything that fails is assumed to be in the
 		// system code page - which for a Chinese install means GBK.
 		bool IsUtf8(const char* a_text, std::size_t a_length)
@@ -104,13 +142,14 @@ namespace SS
 			return std::string{ a_text, length };
 		}
 
-		const int wide = MultiByteToWideChar(CP_ACP, 0, a_text, static_cast<int>(length), nullptr, 0);
+		const UINT page = TextCodePage();
+		const int  wide = MultiByteToWideChar(page, 0, a_text, static_cast<int>(length), nullptr, 0);
 		if (wide <= 0) {
 			return std::string{ a_text, length };
 		}
 
 		std::wstring buffer(static_cast<std::size_t>(wide), L'\0');
-		MultiByteToWideChar(CP_ACP, 0, a_text, static_cast<int>(length), buffer.data(), wide);
+		MultiByteToWideChar(page, 0, a_text, static_cast<int>(length), buffer.data(), wide);
 
 		const int utf8 = WideCharToMultiByte(CP_UTF8, 0, buffer.data(), wide, nullptr, 0, nullptr, nullptr);
 		if (utf8 <= 0) {

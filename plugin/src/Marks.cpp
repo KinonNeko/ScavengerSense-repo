@@ -392,8 +392,24 @@ namespace SS
 			// Actor rather than the base: the base's faction array misses ranks
 			// added to this particular reference at runtime, which is exactly
 			// how mods record what someone has done.
+			// Read the faction list rather than asking the engine. Actor::IsInFaction
+			// is a virtual call into the game, and it is what leaves an actor in a
+			// state where More Informative Console dies enumerating that same
+			// actor's factions. Titles had the identical call and the identical
+			// problem; VisitFactions is plain C++ and answers the same question.
 			for (auto* faction : rule.factions) {
-				if (faction && a_actor->IsInFaction(faction)) {
+				if (!faction) {
+					continue;
+				}
+				bool matched = false;
+				a_actor->VisitFactions([&](RE::TESFaction* a_it, std::int8_t a_rank) {
+					if (a_it == faction) {
+						matched = a_rank >= 0;
+						return true;  // stop
+					}
+					return false;
+				});
+				if (matched) {
 					return static_cast<int>(i);
 				}
 			}

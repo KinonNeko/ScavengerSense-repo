@@ -90,6 +90,12 @@ namespace SS
 			// rather than a share. Negative where nothing is known. END, as
 			// everything else here has to be.
 			float         vitalsPeak[3]{ -1.0f, -1.0f, -1.0f };
+			// The owner's handle as a bare number. The render thread compares
+			// these to bar a duplicate bar and never resolves one, so it must
+			// not hold the handle itself: copying an ObjectRefHandle is an
+			// interlocked refcount on the engine's global handle table, and
+			// Render copies every entry, every frame. END, like the rest.
+			std::uint32_t ownerId{ 0 };
 		};
 
 		// The stats row under the corner readout. Values below zero hide the

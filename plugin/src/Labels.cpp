@@ -734,6 +734,14 @@ namespace SS
 
 	void Labels::SetCombatBars(std::vector<Entry> a_entries)
 	{
+		// Main thread, so this is the place to trade the handle for its number
+		// and let the handle go. What crosses to the render thread must not
+		// carry anything whose copy touches engine state.
+		for (auto& entry : a_entries) {
+			entry.ownerId = entry.owner.native_handle();
+			entry.owner = {};
+		}
+
 		std::scoped_lock guard{ _lock };
 		_combat = std::move(a_entries);
 	}
@@ -800,12 +808,12 @@ namespace SS
 			return;
 		}
 
+		const bool onScreen = settings->ammoAnchor == AmmoAnchor::kScreen;
+
 		ImVec2 at{};
-		if (!Project(_ammo.world, a_width, a_height, at)) {
+		if (!onScreen && !Project(_ammo.world, a_width, a_height, at)) {
 			return;  // behind the camera
 		}
-		at.x += settings->ammoOffsetX;
-		at.y += settings->ammoOffsetY;
 
 		auto* font = igGetFont();
 		if (!font) {
@@ -815,15 +823,30 @@ namespace SS
 			(settings->labelFontSize > 0.0f ? settings->labelFontSize : igGetFontSize()) *
 			settings->ammoScale;
 
-		// "Steel Arrow x24" when the name is known, bare count when it is not.
-		const std::string text = _ammo.name.empty() ?
-			std::format("x{}", _ammo.count) :
+		// The name is a lot of tag for a number glanced at mid-draw, so it is
+		// optional; without it the count stands alone.
+		const std::string text = (!settings->ammoNameShown || _ammo.name.empty()) ?
+			std::format("{}", _ammo.count) :
 			std::format("{} x{}", _ammo.name, _ammo.count);
 
-		// Centred on the anchor, so a nudge of zero reads as "on the thing".
 		ImVec2 size{};
 		ImFont_CalcTextSizeA(&size, font, fontSize, FLT_MAX, 0.0f, text.c_str(), nullptr, nullptr);
-		const ImVec2 pos{ at.x - size.x * 0.5f, at.y - size.y * 0.5f };
+		// A world anchor is centred on the thing; a screen anchor is inset from
+		// the corner it was given, with the same pixel pair doing the insetting.
+		ImVec2 pos{};
+		if (onScreen) {
+			const float inX = settings->ammoOffsetX;
+			const float inY = settings->ammoOffsetY;
+			const bool  right = settings->ammoCorner == Corner::kTopRight ||
+				settings->ammoCorner == Corner::kBottomRight;
+			const bool  bottom = settings->ammoCorner == Corner::kBottomLeft ||
+				settings->ammoCorner == Corner::kBottomRight;
+			pos.x = right ? a_width - inX - size.x : inX;
+			pos.y = bottom ? a_height - inY - size.y : inY;
+		} else {
+			pos.x = at.x + settings->ammoOffsetX - size.x * 0.5f;
+			pos.y = at.y + settings->ammoOffsetY - size.y * 0.5f;
+		}
 
 		auto* draw = static_cast<ImDrawList*>(a_drawList);
 		const ImU32 shadow = PackColour(0x000000, 0.75f * _ammo.alpha);
@@ -1339,6 +1362,14 @@ namespace SS
 
 	void Labels::Replace(std::vector<Entry> a_entries)
 	{
+		// Main thread, so this is the place to trade the handle for its number
+		// and let the handle go. What crosses to the render thread must not
+		// carry anything whose copy touches engine state.
+		for (auto& entry : a_entries) {
+			entry.ownerId = entry.owner.native_handle();
+			entry.owner = {};
+		}
+
 		std::scoped_lock guard{ _lock };
 		_entries = std::move(a_entries);
 	}
@@ -1712,7 +1743,7 @@ namespace SS
 			std::unordered_set<std::uint32_t> barred;
 			for (const auto& entry : snapshot) {
 				if (entry.vitals[0] >= 0.0f) {
-					barred.insert(entry.owner.native_handle());
+					barred.insert(entry.ownerId);
 				}
 			}
 
@@ -1724,7 +1755,7 @@ namespace SS
 																 : igGetFontSize() * 0.55f;
 
 			for (const auto& c : combatSnapshot) {
-				if (barred.contains(c.owner.native_handle())) {
+				if (barred.contains(c.ownerId)) {
 					continue;
 				}
 				ImVec2 at;

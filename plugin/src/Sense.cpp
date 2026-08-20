@@ -349,7 +349,17 @@ namespace SS
 			// werewolf faction the game puts you in when you take the blood.
 			if (auto* handler = RE::TESDataHandler::GetSingleton(); handler) {
 				if (auto* wolf = handler->LookupForm<RE::TESFaction>(0x0C6CE0, "Skyrim.esm"); wolf) {
-					if (a_player->IsInFaction(wolf)) {
+					// Read the list rather than asking the engine, for the same reason
+					// the title and marker rules do.
+					bool beast = false;
+					a_player->VisitFactions([&](RE::TESFaction* a_it, std::int8_t a_rank) {
+						if (a_it == wolf) {
+							beast = a_rank >= 0;
+							return true;  // stop
+						}
+						return false;
+					});
+					if (beast) {
 						return Disposition::kSelfWerewolf;
 					}
 				}
@@ -807,6 +817,20 @@ namespace SS
 		// accepting activation. Separate switches: wanting the veins gone is not
 		// the same as wanting the ash gone.
 		if (a_category == Category::kActivator) {
+			// Two reports say these switches do not do what they claim: the vein
+			// one hides every vein, mined or not, and the ash one does nothing at
+			// all. Rather than guess at a third signal, say what each activator
+			// actually looks like and let one mined vein settle it.
+			if (settings->debug) {
+				const auto* base = a_ref->GetBaseObject();
+				logger::info("ORE_ASH: {:08X} edid='{}' base={} blocked={} inv={} flags={:08X}",
+					a_ref->GetFormID(),
+					base && base->GetFormEditorID() ? base->GetFormEditorID() : "",
+					base ? static_cast<int>(base->GetFormType()) : -1,
+					a_ref->IsActivationBlocked(),
+					a_ref->GetInventoryChanges(true) != nullptr,
+					a_ref->GetFormFlags());
+			}
 			if (a_ref->GetInventoryChanges(true)) {
 				if (settings->hideEmptyAsh && !HoldsAnything(a_ref)) {
 					++a_stats.emptyAsh;
@@ -1439,7 +1463,10 @@ namespace SS
 				ammo.count = _ammoCount;
 				ammo.name = _ammoName;
 				ammo.alpha = _ammoAlpha;
-				ammo.show = AmmoAnchorPoint(player, settings->ammoAnchor, ammo.world);
+				// The screen anchor has nowhere in the world to be, so it skips the
+				// skeleton walk entirely and is simply on.
+				ammo.show = settings->ammoAnchor == AmmoAnchor::kScreen ||
+					AmmoAnchorPoint(player, settings->ammoAnchor, ammo.world);
 			}
 
 			Labels::GetSingleton()->SetAmmo(ammo);

@@ -482,9 +482,26 @@ namespace SS
 				continue;
 			}
 
+			// Membership and rank without asking the engine. Actor::IsInFaction is
+			// a virtual call into the game and GetFactionRank is a bare relocation,
+			// and bisection showed the first of them is what leaves this actor in a
+			// state where More Informative Console dies enumerating its factions.
+			// VisitFactions is plain C++ in CommonLibSSE - the base record's list
+			// plus the reference's ExtraFactionChanges - so it answers both
+			// questions in one walk and touches nothing.
 			for (auto* faction : rule.factions) {
-				if (faction && a_actor->IsInFaction(faction) &&
-					a_actor->GetFactionRank(faction, isPlayer) >= rule.minRank) {
+				if (!faction) {
+					continue;
+				}
+				bool matched = false;
+				a_actor->VisitFactions([&](RE::TESFaction* a_it, std::int8_t a_rank) {
+					if (a_it == faction) {
+						matched = a_rank >= 0 && a_rank >= rule.minRank;
+						return true;  // stop
+					}
+					return false;
+				});
+				if (matched) {
 					return static_cast<int>(i);
 				}
 			}

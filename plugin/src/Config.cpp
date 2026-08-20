@@ -51,7 +51,7 @@ namespace SS
 
 		constexpr const char* kCornerNames[] = { "off", "topleft", "topright", "bottomleft", "bottomright" };
 
-		constexpr const char* kAmmoAnchorNames[] = { "body", "head", "bow" };
+		constexpr const char* kAmmoAnchorNames[] = { "body", "head", "bow", "screen" };
 
 		constexpr const char* kAmmoWhenNames[] = { "always", "drawn", "sensing" };
 
@@ -881,6 +881,8 @@ namespace SS
 		Get(table, "ammo", "offsetY", ammoOffsetY);
 		Get(table, "ammo", "scale", ammoScale);
 		Get(table, "ammo", "color", ammoColour);
+		Get(table, "ammo", "showName", ammoNameShown);
+		Get(table, "ammo", "corner", ammoCorner);
 		Get(table, "ammo", "when", ammoWhen);
 		Get(table, "ammo", "fadeIn", ammoFadeIn);
 		Get(table, "ammo", "fadeOut", ammoFadeOut);
@@ -1443,12 +1445,17 @@ namespace SS
 		file << "; How much of the drawn ammunition is left, hung in the world rather\n";
 		file << "; than pinned to a corner. Shows only with a bow or crossbow out.\n";
 		file << "counter = " << boolean(ammoCounter) << "\n";
-		file << "; Where it hangs: body, head or bow.\n";
+		file << "; Where it hangs: body, head, bow, or screen for a corner.\n";
 		file << "anchor = " << kAmmoAnchorNames[static_cast<std::size_t>(ammoAnchor)] << "\n";
 		file << "; Nudge in screen pixels, applied after the anchor is projected.\n";
 		file << "offsetX = " << ammoOffsetX << "\n";
 		file << "offsetY = " << ammoOffsetY << "\n";
 		file << "scale = " << ammoScale << "\n";
+		file << "; The ammunition's name beside the count, or the count alone.\n";
+		file << "showName = " << boolean(ammoNameShown) << "\n";
+		file << "; Which corner the screen anchor uses: off, topleft, topright,\n";
+		file << "; bottomleft, bottomright.\n";
+		file << "corner = " << kCornerNames[static_cast<std::size_t>(ammoCorner)] << "\n";
 		file << "; When it is worth drawing: always, drawn (only while the bow is\n";
 		file << "; actually being pulled), or sensing (only during a sweep).\n";
 		file << "when = " << kAmmoWhenNames[static_cast<std::size_t>(ammoWhen)] << "\n";

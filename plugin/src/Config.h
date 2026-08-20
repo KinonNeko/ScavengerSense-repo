@@ -254,7 +254,10 @@ namespace SS
 	{
 		kBody = 0,
 		kHead,
-		kBow
+		kBow,
+		// Not in the world at all: pinned to a corner of the screen, where a
+		// number can be read without looking away from what you are shooting.
+		kScreen
 	};
 
 	// When the ammo readout is worth drawing at all. Separate from ShowWhen,
@@ -693,6 +696,12 @@ namespace SS
 		float         ammoOffsetY{ 0.0f };
 		float         ammoScale{ 1.5f };
 		std::uint32_t ammoColour{ 0xF4F3F0 };
+		// The count on its own. "Steel Arrow x24" is a lot of tag for a number
+		// you glance at mid-draw.
+		bool          ammoNameShown{ true };
+		// Which corner the screen anchor hangs from, and how far in. The pixel
+		// nudge is reused as that inset, so there is one pair of numbers.
+		Corner        ammoCorner{ Corner::kBottomRight };
 		AmmoWhen      ammoWhen{ AmmoWhen::kDrawn };
 		// Its own fade, in seconds, so it can come and go at a different pace
 		// from everything else. Zero on either side snaps instead.

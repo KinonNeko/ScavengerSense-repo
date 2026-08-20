@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(ScavengerSense VERSION 0.8.2 LANGUAGES CXX)
+project(ScavengerSense VERSION 0.8.5 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

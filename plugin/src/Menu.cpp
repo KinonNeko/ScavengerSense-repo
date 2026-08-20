@@ -401,48 +401,163 @@ namespace SS::Menu
 
 		// ------------------------------------------------------------ sections
 
-		void DrawHotkey(Settings& a_settings)
+		// The Keys page, in the order the decisions actually happen.
+		//
+		// The control layout comes first because it decides what the rest of the
+		// page even means: choose to put everything on the sweep key and that key
+		// sets its own gestures, so the sweep's own trigger has nothing left to
+		// decide. Showing that trigger anyway - which this page used to do, above
+		// the layout that disabled it - is how it came to be reported as broken.
+		void DrawKeys(Settings& a_settings)
 		{
-			if (!Header(T("Sweep key"))) {
+			if (!Header(T("Controls"))) {
 				return;
 			}
 
+			static const char* const kKeyModes[] = { "One key does it all",
+				"A key per action", "All on the sweep key" };
+			int keyMode = static_cast<int>(a_settings.trailMode);
+			if (igCombo_Str_arr(T("Control layout"), &keyMode, Translated(kKeyModes, 3), 3, -1)) {
+				a_settings.trailMode = static_cast<TrailKeyMode>(std::clamp(keyMode, 0, 2));
+			}
+			Help(
+				"One key: a press marks or releases what the aim finds, and the\n"
+				"wipe rides its own gesture. A key per action splits everything,\n"
+				"hide and show included. All on the sweep key folds the whole\n"
+				"hunt onto one button, and that button then sets its own gestures.");
+
+			const bool sharesOneKey = a_settings.trailMode == TrailKeyMode::kAllInOne;
+
+			igSpacing();
+			igSeparatorText(sharesOneKey ? T("The one key") : T("Sweep"));
 			BindingControls(0, a_settings.keyboard, a_settings.gamepad);
 			Help(
 				"The button keeps doing its normal job as well, so pick a spare one.");
 
-			igSpacing();
-
-			int trigger = static_cast<int>(a_settings.trigger);
-			if (igCombo_Str_arr(T("Activate on"), &trigger, Translated(kTriggerLabels, static_cast<int>(std::size(kTriggerLabels))),
-					static_cast<int>(std::size(kTriggerLabels)), -1)) {
-				a_settings.trigger = static_cast<Trigger>(
-					std::clamp(trigger, 0, static_cast<int>(Trigger::kCount) - 1));
-			}
-			Help(
-				"Double tap and hold leave the ordinary press free for whatever else\n"
-				"the key already does.");
-
-			switch (a_settings.trigger) {
-			case Trigger::kDoubleTap:
+			if (sharesOneKey) {
+				igTextDisabled("%s",
+					T("Double tap to sweep. A lone press marks what you are aiming at, once the gap above has ruled a second tap out. Hold to wipe every trail."));
+				Help(
+					"The lone press waits out the double-tap window before it\n"
+					"marks, so a sweep's first tap never takes anybody - marking\n"
+					"gains that little delay in exchange for the single button.\n"
+					"The sweep's Activate-on setting stands aside on this key,\n"
+					"and stray presses outside the hunt are quietly ignored.");
 				igSliderFloat(T("Max gap between taps"), &a_settings.doubleTapWindow, 0.05f, 1.0f, "%.2f s", 0);
+				igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
+			} else {
+				int trigger = static_cast<int>(a_settings.trigger);
+				if (igCombo_Str_arr(T("Activate on"), &trigger,
+						Translated(kTriggerLabels, static_cast<int>(std::size(kTriggerLabels))),
+						static_cast<int>(std::size(kTriggerLabels)), -1)) {
+					a_settings.trigger = static_cast<Trigger>(
+						std::clamp(trigger, 0, static_cast<int>(Trigger::kCount) - 1));
+				}
 				Help(
-					"How long you have to get the second tap in.");
-				break;
+					"Double tap and hold leave the ordinary press free for whatever else\n"
+					"the key already does.");
 
-			case Trigger::kHold:
-				igSliderFloat(T("Hold for"), &a_settings.holdTime, 0.05f, 3.0f, "%.2f s", 0);
-				Help(
-					"How long to hold. It fires while you are still holding, no need to let go.");
-				break;
-
-			default:
-				break;
+				switch (a_settings.trigger) {
+				case Trigger::kDoubleTap:
+					igSliderFloat(T("Max gap between taps"), &a_settings.doubleTapWindow, 0.05f, 1.0f, "%.2f s", 0);
+					Help("How long you have to get the second tap in.");
+					break;
+				case Trigger::kHold:
+					igSliderFloat(T("Hold for"), &a_settings.holdTime, 0.05f, 3.0f, "%.2f s", 0);
+					Help(
+						"How long to hold. It fires while you are still holding, no need to let go.");
+					break;
+				default:
+					break;
+				}
 			}
 
 			igSpacing();
 			igCheckbox(T("Press again to cancel"), &a_settings.toggle);
 			igSliderFloat(T("Cooldown"), &a_settings.cooldown, 0.0f, 10.0f, "%.2f s", 0);
+
+			if (sharesOneKey) {
+				igSpacing();
+				return;
+			}
+
+			igSpacing();
+			igSeparatorText(T("Tracking"));
+
+			// A tracking key that collides with the sweep key starves the sweep: the
+			// tracking handler reads the event first and eats it.
+			const auto clashes = [&](std::int32_t a_key, std::int32_t a_pad) {
+				return (a_key >= 0 && a_key == a_settings.keyboard) ||
+					(a_pad >= 0 && a_pad == a_settings.gamepad);
+			};
+			const bool clash =
+				a_settings.trailMode == TrailKeyMode::kSingle
+					? clashes(a_settings.trailKey, a_settings.trailGamepad)
+					: clashes(a_settings.trailMarkKey, a_settings.trailMarkGamepad) ||
+						clashes(a_settings.trailShowKey, a_settings.trailShowGamepad) ||
+						clashes(a_settings.trailWipeKey, a_settings.trailWipeGamepad);
+			if (clash) {
+				igTextColored(ImVec4{ 1.0f, 0.7f, 0.3f, 1.0f }, "%s",
+					T("This is also the sweep key - the sweep would never fire. Pick another key, or the All on the sweep key layout."));
+			}
+
+			const auto gestureCombo = [&](Trigger& a_gesture) {
+				int gesture = static_cast<int>(a_gesture);
+				if (igCombo_Str_arr(T("Gesture"), &gesture,
+						Translated(kTriggerLabels, static_cast<int>(std::size(kTriggerLabels))),
+						static_cast<int>(std::size(kTriggerLabels)), -1)) {
+					a_gesture = static_cast<Trigger>(
+						std::clamp(gesture, 0, static_cast<int>(Trigger::kCount) - 1));
+				}
+			};
+
+			if (a_settings.trailMode == TrailKeyMode::kSingle) {
+				igTextDisabled("%s",
+					T("Aim at someone - or their footprints - and press to track them. Hold to wipe everything."));
+				BindingControls(1, a_settings.trailKey, a_settings.trailGamepad);
+
+				gestureCombo(a_settings.trailMarkGesture);
+				Help(
+					"The gesture that marks or releases what the aim finds. When it\n"
+					"collides with the wipe below, the wipe wins the press.");
+
+				static const char* const kWipeGestures[] = { "Hold the key", "Double-tap it",
+					"Never" };
+				int wipe = static_cast<int>(a_settings.trailWipe);
+				if (igCombo_Str_arr(T("Wipe everything by"), &wipe, Translated(kWipeGestures, 3), 3, -1)) {
+					a_settings.trailWipe = static_cast<TrailWipe>(std::clamp(wipe, 0, 2));
+				}
+				Help(
+					"The clean slate: every mark, trail and open recording goes at\n"
+					"once. Pick the gesture, or take it off the key entirely.");
+				if (a_settings.trailWipe == TrailWipe::kHold ||
+					a_settings.trailMarkGesture == Trigger::kHold) {
+					igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
+				}
+			} else {
+				igPushID_Int(1);
+				igSeparatorText(T("Mark what I aim at"));
+				BindingControls(2, a_settings.trailMarkKey, a_settings.trailMarkGamepad);
+				gestureCombo(a_settings.trailMarkGesture);
+				igPopID();
+
+				igPushID_Int(2);
+				igSeparatorText(T("Hide and show trails"));
+				BindingControls(3, a_settings.trailShowKey, a_settings.trailShowGamepad);
+				gestureCombo(a_settings.trailShowGesture);
+				igPopID();
+
+				igPushID_Int(3);
+				igSeparatorText(T("Wipe everything"));
+				BindingControls(4, a_settings.trailWipeKey, a_settings.trailWipeGamepad);
+				gestureCombo(a_settings.trailWipeGesture);
+				igPopID();
+
+				igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
+				Help(
+					"Shared by every action whose gesture is a hold; the double\n"
+					"tap shares the sweep key's window.");
+			}
 
 			igSpacing();
 		}
@@ -1291,116 +1406,6 @@ namespace SS::Menu
 		}
 
 		// Every tracking shortcut, in the same dress as the sweep key above it.
-		void DrawTrailKeys(Settings& a_settings)
-		{
-			if (!Header(T("Trail key"))) {
-				return;
-			}
-
-			static const char* const kKeyModes[] = { "One key does it all",
-				"A key per action", "All on the sweep key" };
-			int keyMode = static_cast<int>(a_settings.trailMode);
-			if (igCombo_Str_arr(T("Control layout"), &keyMode, Translated(kKeyModes, 3), 3, -1)) {
-				a_settings.trailMode = static_cast<TrailKeyMode>(std::clamp(keyMode, 0, 2));
-			}
-			Help(
-				"One key: a press marks or releases what the aim finds, and the\n"
-				"wipe rides its own gesture. A key per action splits everything,\n"
-				"hide and show included. All on the sweep key folds the whole\n"
-				"hunt onto one button: double tap sweeps, a lone press marks,\n"
-				"a hold wipes.");
-
-			if (a_settings.trailMode == TrailKeyMode::kAllInOne) {
-				igTextDisabled("%s", T("The sweep key above carries everything. Double tap to sweep; a lone press marks once the window rules a second tap out; hold to wipe."));
-				Help(
-					"The lone press waits out the double-tap window before it\n"
-					"marks, so a sweep's first tap never takes anybody - marking\n"
-					"gains that little delay in exchange for the single button.\n"
-					"The sweep's Activate-on setting stands aside on this key,\n"
-					"and stray presses outside the hunt are quietly ignored.");
-				igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
-				igSliderFloat(T("Max gap between taps"), &a_settings.doubleTapWindow, 0.05f, 1.0f, "%.2f s", 0);
-				igSpacing();
-				return;
-			}
-
-			// A trail key that collides with the sweep key starves the sweep:
-			// the trail handler reads it first and eats the event. Say so
-			// rather than let the sweep silently die.
-			const auto clashes = [&](std::int32_t a_key, std::int32_t a_pad) {
-				return (a_key >= 0 && a_key == a_settings.keyboard) ||
-			           (a_pad >= 0 && a_pad == a_settings.gamepad);
-			};
-			const bool clash =
-				a_settings.trailMode == TrailKeyMode::kSingle
-					? clashes(a_settings.trailKey, a_settings.trailGamepad)
-					: clashes(a_settings.trailMarkKey, a_settings.trailMarkGamepad) ||
-					      clashes(a_settings.trailShowKey, a_settings.trailShowGamepad) ||
-					      clashes(a_settings.trailWipeKey, a_settings.trailWipeGamepad);
-			if (clash) {
-				igTextColored(ImVec4{ 1.0f, 0.7f, 0.3f, 1.0f }, "%s",
-					T("This is also the sweep key - the sweep would never fire. Pick another key, or the All on the sweep key layout."));
-			}
-
-			const auto gestureCombo = [&](Trigger& a_gesture) {
-				int gesture = static_cast<int>(a_gesture);
-				if (igCombo_Str_arr(T("Gesture"), &gesture,
-						Translated(kTriggerLabels, static_cast<int>(std::size(kTriggerLabels))),
-						static_cast<int>(std::size(kTriggerLabels)), -1)) {
-					a_gesture = static_cast<Trigger>(
-						std::clamp(gesture, 0, static_cast<int>(Trigger::kCount) - 1));
-				}
-			};
-
-			if (a_settings.trailMode == TrailKeyMode::kSingle) {
-				igTextDisabled("%s", T("Aim at someone - or their footprints - and press to track them. Hold to wipe everything."));
-				BindingControls(1, a_settings.trailKey, a_settings.trailGamepad);
-
-				gestureCombo(a_settings.trailMarkGesture);
-				Help(
-					"The gesture that marks or releases what the aim finds. When it\n"
-					"collides with the wipe below, the wipe wins the press.");
-
-				static const char* const kWipeGestures[] = { "Hold the key", "Double-tap it",
-					"Never" };
-				int wipe = static_cast<int>(a_settings.trailWipe);
-				if (igCombo_Str_arr(T("Wipe everything by"), &wipe, Translated(kWipeGestures, 3), 3, -1)) {
-					a_settings.trailWipe = static_cast<TrailWipe>(std::clamp(wipe, 0, 2));
-				}
-				Help(
-					"The clean slate: every mark, trail and open recording goes at\n"
-					"once. Pick the gesture, or take it off the key entirely.");
-				if (a_settings.trailWipe == TrailWipe::kHold ||
-					a_settings.trailMarkGesture == Trigger::kHold) {
-					igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
-				}
-			} else {
-				igPushID_Int(1);
-				igSeparatorText(T("Mark what I aim at"));
-				BindingControls(2, a_settings.trailMarkKey, a_settings.trailMarkGamepad);
-				gestureCombo(a_settings.trailMarkGesture);
-				igPopID();
-
-				igPushID_Int(2);
-				igSeparatorText(T("Hide and show trails"));
-				BindingControls(3, a_settings.trailShowKey, a_settings.trailShowGamepad);
-				gestureCombo(a_settings.trailShowGesture);
-				igPopID();
-
-				igPushID_Int(3);
-				igSeparatorText(T("Wipe everything"));
-				BindingControls(4, a_settings.trailWipeKey, a_settings.trailWipeGamepad);
-				gestureCombo(a_settings.trailWipeGesture);
-				igPopID();
-
-				igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
-				Help(
-					"Shared by every action whose gesture is a hold; the double\n"
-					"tap shares the sweep key's window.");
-			}
-
-			igSpacing();
-		}
 
 		// Your stats row: what it says and which bar stack it rides.
 		void DrawStatsRowCfg(Settings& a_settings)
@@ -1623,9 +1628,9 @@ namespace SS::Menu
 
 			igCheckbox(T("Show what is left in the quiver"), &a_settings.ammoCounter);
 			Help(
-				"How much of the drawn ammunition you have, hung in the world\n"
-				"rather than pinned to a corner. Only appears with a bow or a\n"
-				"crossbow actually out.");
+				"How much of the drawn ammunition you have. It can hang on you in\n"
+				"the world or sit in a corner of the screen. Only appears with a\n"
+				"bow or a crossbow actually out.");
 
 			if (a_settings.ammoCounter) {
 				static const char* const kAmmoWhen[] = { "Always", "Only while drawing",
@@ -1640,16 +1645,29 @@ namespace SS::Menu
 					"loose - or only for the length of a sweep.");
 
 				static const char* const kAnchors[] = { "Beside the body", "Over the head",
-					"On the bow" };
+					"On the bow", "On the screen edge" };
 				int anchor = static_cast<int>(a_settings.ammoAnchor);
-				if (igCombo_Str_arr(T("Hangs"), &anchor, Translated(kAnchors, 3), 3, -1)) {
-					a_settings.ammoAnchor = static_cast<AmmoAnchor>(std::clamp(anchor, 0, 2));
+				if (igCombo_Str_arr(T("Hangs"), &anchor, Translated(kAnchors, 4), 4, -1)) {
+					a_settings.ammoAnchor = static_cast<AmmoAnchor>(std::clamp(anchor, 0, 3));
 				}
 				Help(
 					"The body and the head come off the skeleton. The bow follows the\n"
 					"weapon node, which moves as you draw and loose - so it is the\n"
 					"liveliest of the three, and the one most likely to sit oddly if a\n"
 					"mod has changed the skeleton.");
+
+				if (a_settings.ammoAnchor == AmmoAnchor::kScreen) {
+					static const char* const kAmmoCorners[] = { "Off", "Top left", "Top right",
+						"Bottom left", "Bottom right" };
+					int ammoCorner = static_cast<int>(a_settings.ammoCorner);
+					if (igCombo_Str_arr(T("Corner"), &ammoCorner, Translated(kAmmoCorners, 5), 5, -1)) {
+						a_settings.ammoCorner = static_cast<Corner>(std::clamp(ammoCorner, 0, 4));
+					}
+					Help(
+						"Which corner it sits in. The two numbers below become the inset\n"
+						"from that corner rather than a nudge.");
+				}
+
 
 				igDragFloat(T("Nudge across"), &a_settings.ammoOffsetX, 1.0f, -1000.0f, 1000.0f, "%.0f px", 0);
 				igDragFloat(T("Nudge down"), &a_settings.ammoOffsetY, 1.0f, -1000.0f, 1000.0f, "%.0f px", 0);
@@ -1662,6 +1680,10 @@ namespace SS::Menu
 					"of easing.");
 
 				igSliderFloat(T("Ammo size"), &a_settings.ammoScale, 0.4f, 5.0f, "%.2fx", 0);
+				igCheckbox(T("Show the ammunition's name"), &a_settings.ammoNameShown);
+				Help(
+					"Off leaves the count on its own, which is easier to read at a\n"
+					"glance and much shorter.");
 				ColourPicker(T("Ammo colour"), a_settings.ammoColour);
 			}
 
@@ -2425,8 +2447,7 @@ namespace SS::Menu
 
 			if (igBeginTabItem(T("Keys"), nullptr, 0)) {
 				igSpacing();
-				DrawHotkey(settings);
-				DrawTrailKeys(settings);
+				DrawKeys(settings);
 				igTextDisabled("%s",
 					T("The settings menu itself opens on SKSE Menu Framework's key - F1 out of the box, set in its own INI."));
 				igEndTabItem();
