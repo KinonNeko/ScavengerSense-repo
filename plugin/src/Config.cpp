@@ -55,6 +55,10 @@ namespace SS
 
 		constexpr const char* kAmmoWhenNames[] = { "always", "drawn", "sensing" };
 
+		constexpr const char* kCombatBarsWhenNames[] = { "struck", "fighting", "aimed" };
+
+		constexpr const char* kBarNumbersNames[] = { "off", "current", "outofmax", "percent" };
+
 		constexpr const char* kShowWhenNames[] = { "always", "change", "notfull" };
 
 		constexpr auto kPresetDir = "Data/SKSE/Plugins/ScavengerSense/presets";
@@ -457,6 +461,40 @@ namespace SS
 				kAmmoWhenNames[static_cast<std::size_t>(a_value)]);
 		}
 
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, CombatBarsWhen& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kCombatBarsWhenNames); ++i) {
+				if (raw == kCombatBarsWhenNames[i]) {
+					a_value = static_cast<CombatBarsWhen>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised combat bar rule \"{}\" - keeping {}", raw,
+				kCombatBarsWhenNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, BarNumbers& a_value)
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < std::size(kBarNumbersNames); ++i) {
+				if (raw == kBarNumbersNames[i]) {
+					a_value = static_cast<BarNumbers>(i);
+					return;
+				}
+			}
+			logger::warn("unrecognised bar number style \"{}\" - keeping {}", raw,
+				kBarNumbersNames[static_cast<std::size_t>(a_value)]);
+		}
+
 		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, ShowWhen& a_value)
 		{
 			std::string raw;
@@ -854,6 +892,8 @@ namespace SS
 		Get(table, "vitals", "lostMax", barsLostMax);
 		Get(table, "vitals", "lostFx", barsLostFx);
 		Get(table, "vitals", "combat", combatBars);
+		Get(table, "vitals", "combatWhen", combatBarsWhen);
+		Get(table, "vitals", "numbers", barNumbers);
 		Get(table, "vitals", "combatAll", combatBarsAll);
 		Get(table, "vitals", "combatLinger", combatLinger);
 		Get(table, "vitals", "pushTrueHUD", pushTrueHUDAside);
@@ -926,6 +966,7 @@ namespace SS
 			hideEmptyAsh = true;
 		}
 		Get(table, "categories", "hideDepletedOre", hideDepletedOre);
+		Get(table, "categories", "hideBarrenFlora", hideBarrenFlora);
 		Get(table, "categories", "hideEmptyAsh", hideEmptyAsh);
 		Get(table, "categories", "hideStealing", hideStealing);
 		Get(table, "categories", "actorByDisposition", actorByDisposition);
@@ -946,7 +987,7 @@ namespace SS
 		}
 
 		// sanity clamps - a bad INI should never be able to hang the game
-		radius = std::clamp(radius, 128.0f, 20000.0f);
+		radius = std::clamp(radius, 128.0f, 20480.0f);
 		maxObjects = std::clamp<std::uint32_t>(maxObjects, 1u, 128u);
 		duration = std::clamp(duration, 0.2f, 120.0f);
 		sweepTime = std::clamp(sweepTime, 0.0f, 10.0f);
@@ -1532,6 +1573,13 @@ namespace SS
 		file << "; the fight ends. If you run TrueHUD, leave this off - its\n";
 		file << "; recent-damage bars already cover it.\n";
 		file << "combat = " << boolean(combatBars) << "\n";
+		file << "; What raises one: struck (only after you hit them), fighting\n";
+		file << "; (anyone fighting you), or aimed (that, plus whoever the\n";
+		file << "; crosshair is on).\n";
+		file << "combatWhen = " << kCombatBarsWhenNames[static_cast<std::size_t>(combatBarsWhen)] << "\n";
+		file << "; Numbers beside every vitals bar: off, current, outofmax\n";
+		file << "; (320/450) or percent.\n";
+		file << "numbers = " << kBarNumbersNames[static_cast<std::size_t>(barNumbers)] << "\n";
 		file << "; Magicka and stamina on the combat bars too. Its own switch, not\n";
 		file << "; actorsAll: mid-fight can want different information than a sweep.\n";
 		file << "combatAll = " << boolean(combatBarsAll) << "\n";
@@ -1619,6 +1667,9 @@ namespace SS
 		file << "hideEmpty = " << boolean(hideEmptyContainers) << "\n";
 		file << "; A mined-out ore vein is scenery wearing a resource's face.\n";
 		file << "hideDepletedOre = " << boolean(hideDepletedOre) << "\n";
+		file << "; Plants that produce nothing - scenery shrubs and trees - stay\n";
+		file << "; dark. They are most of what a wide sweep outdoors finds.\n";
+		file << "hideBarrenFlora = " << boolean(hideBarrenFlora) << "\n";
 		file << "; An ash pile somebody has already picked clean.\n";
 		file << "hideEmptyAsh = " << boolean(hideEmptyAsh) << "\n";
 		file << "; Nothing whose taking would be theft lights or gets a tag.\n";

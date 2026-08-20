@@ -75,6 +75,7 @@ namespace SS
 			std::uint32_t placeholder{};
 			std::uint32_t emptyContainer{};
 			std::uint32_t depletedOre{};
+			std::uint32_t barren{};
 			std::uint32_t emptyAsh{};
 			std::uint32_t owned{};
 			std::uint32_t deadActor{};
@@ -146,7 +147,7 @@ namespace SS
 		// Reused every frame by the follow pass, so it never allocates.
 		std::vector<RE::NiPoint3>      _anchorBuffer;
 		std::vector<bool>              _speakingBuffer;
-		std::vector<std::array<float, 7>> _vitalsBuffer;  // three values, when they moved, three caps
+		std::vector<std::array<float, 10>> _vitalsBuffer;  // values, when they moved, caps, peaks
 
 		// People the player has hit this fight. Main thread only: the hit sink
 		// and the poll both run there, so no lock is needed.

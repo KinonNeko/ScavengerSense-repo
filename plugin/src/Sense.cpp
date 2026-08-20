@@ -188,7 +188,8 @@ namespace SS
 		// negative temporary modifier, and that shrinks the available ceiling
 		// (a_cap) without shrinking the bar - so the span the mod has taken
 		// shows as a dead zone instead of the bar quietly rescaling.
-		void ReadVitals(RE::Actor* a_actor, float (&a_out)[3], float (&a_cap)[3])
+		void ReadVitals(RE::Actor* a_actor, float (&a_out)[3], float (&a_cap)[3],
+			float* a_peak = nullptr)
 		{
 			auto* values = a_actor ? a_actor->AsActorValueOwner() : nullptr;
 			if (!values) {
@@ -205,6 +206,9 @@ namespace SS
 				const float ceiling = permanent + temp;
 				a_out[i] = peak > 0.0f ? std::clamp(now / peak, 0.0f, 1.0f) : -1.0f;
 				a_cap[i] = peak > 0.0f ? std::clamp(ceiling / peak, 0.0f, 1.0f) : 1.0f;
+				if (a_peak) {
+					a_peak[i] = peak > 0.0f ? peak : -1.0f;
+				}
 			}
 		}
 
@@ -778,6 +782,24 @@ namespace SS
 			}
 		}
 
+		// A plant with nothing to give. TESFlora and TESObjectTREE both carry a
+		// produce item, and a null one means no activate prompt and nothing to
+		// take - the shrub is set dressing. Judged from the base object, so it
+		// costs nothing per reference.
+		if (a_category == Category::kFlora && settings->hideBarrenFlora) {
+			const auto* base = a_ref->GetBaseObject();
+			const RE::TESProduceForm* produce = nullptr;
+			if (const auto* flora = base ? base->As<RE::TESFlora>() : nullptr) {
+				produce = flora;
+			} else if (const auto* tree = base ? base->As<RE::TESObjectTREE>() : nullptr) {
+				produce = tree;
+			}
+			if (!produce || !produce->produceItem) {
+				++a_stats.barren;
+				return false;
+			}
+		}
+
 		// A spent resource node wears the same face as a full one, and the two
 		// kinds go quiet differently. An ash pile carries its loot as inventory
 		// changes, so it is judged like a chest. A vein keeps its count inside a
@@ -1039,9 +1061,9 @@ namespace SS
 
 		logger::info(
 			"scan @ radius {}: visited={} accepted={} highActors={} | rejected: wrongType={} categoryOff={} "
-			"disabled={} no3D={} harvested={} unnamed={} placeholder={} emptyChest={} ore={} ash={} owned={} | actors seen={} castFailed={} dead={} notEnemy={}",
+			"disabled={} no3D={} harvested={} unnamed={} placeholder={} emptyChest={} ore={} ash={} barren={} owned={} | actors seen={} castFailed={} dead={} notEnemy={}",
 			settings->radius, stats.visited, stats.accepted, stats.highActors, stats.wrongType, stats.categoryOff,
-			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed, stats.placeholder, stats.emptyContainer, stats.depletedOre, stats.emptyAsh,
+			stats.disabled, stats.noThreeD, stats.harvested, stats.unnamed, stats.placeholder, stats.emptyContainer, stats.depletedOre, stats.emptyAsh, stats.barren,
 			stats.owned, stats.actorsSeen, stats.actorCastFailed, stats.deadActor, stats.notEnemy);
 
 		if (hits.empty()) {
@@ -1185,7 +1207,8 @@ namespace SS
 				// polled per frame - a sweep is three seconds and this is a
 				// glance, not a combat readout.
 				if (settings->selfBars) {
-					ReadVitals(player, _labelBuffer.back().vitals, _labelBuffer.back().vitalsCap);
+					ReadVitals(player, _labelBuffer.back().vitals, _labelBuffer.back().vitalsCap,
+					_labelBuffer.back().vitalsPeak);
 					_labelBuffer.back().vitalsSelf = true;
 				}
 				if (settings->weaponIcons) {
@@ -1681,7 +1704,7 @@ namespace SS
 				entry.scale = settings->selfScale * settings->labelActorScale;
 				entry.owner = player->CreateRefHandle();
 				entry.vitalsSelf = true;
-				ReadVitals(player, entry.vitals, entry.vitalsCap);
+				ReadVitals(player, entry.vitals, entry.vitalsCap, entry.vitalsPeak);
 				if (settings->senseLevel) {
 					entry.level = static_cast<std::int16_t>(player->GetLevel());
 				}
@@ -1727,6 +1750,58 @@ namespace SS
 		// tried so far had a corner that either pinned bars up forever or
 		// cleared them mid-fight.
 		const auto playerHandle = player->CreateRefHandle();
+
+		// Seed the tracked set from things other than a hit. Entries land in the
+		// same map the hit event writes to, so the lifetime, the linger and the
+		// cap below all apply unchanged - the only difference is how somebody
+		// got in. lastHitAt is stamped because the engagement test below treats
+		// it as a staleness cap, and these arrived without ever being hit.
+		if (settings->combatBarsWhen != CombatBarsWhen::kStruck) {
+			constexpr std::size_t kMaxTracked = 24;
+			const auto note = [&](RE::Actor* a_actor) {
+				if (!a_actor || a_actor->IsPlayerRef() || !a_actor->Is3DLoaded()) {
+					return;
+				}
+				const auto life = a_actor->AsActorState()->GetLifeState();
+				if (life == RE::ACTOR_LIFE_STATE::kDying || life == RE::ACTOR_LIFE_STATE::kDead) {
+					return;
+				}
+				const auto id = a_actor->GetFormID();
+				auto       it = _combatHits.find(id);
+				if (it == _combatHits.end()) {
+					if (_combatHits.size() >= kMaxTracked) {
+						return;
+					}
+					_combatHits[id] = { a_actor->CreateRefHandle(), real, real };
+				} else {
+					// Hold it up for as long as the reason to show it lasts.
+					it->second.lastEngagedAt = real;
+					it->second.lastHitAt = real;
+				}
+			};
+
+			if (auto* lists = RE::ProcessLists::GetSingleton()) {
+				lists->ForEachHighActor([&](RE::Actor* a_actor) {
+					if (a_actor && a_actor->IsInCombat() &&
+						a_actor->GetActorRuntimeData().currentCombatTarget == playerHandle) {
+						note(a_actor);
+					}
+					return RE::BSContainer::ForEachResult::kContinue;
+				});
+			}
+
+			// Whoever the crosshair rests on, fight or no fight. This one is not
+			// held by the engagement test below - nothing about looking at
+			// somebody makes them a combatant - so it leans on the linger to
+			// fade out once you look away.
+			if (settings->combatBarsWhen == CombatBarsWhen::kAimed) {
+				if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
+					if (auto ref = pick->target.get(); ref) {
+						note(ref->As<RE::Actor>());
+					}
+				}
+			}
+		}
 		for (auto it = _combatHits.begin(); it != _combatHits.end();) {
 			auto  ref = it->second.handle.get();
 			auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
@@ -1766,7 +1841,7 @@ namespace SS
 			entry.diesAt = engaged ? now + 3600.0f : now + left;
 			entry.scale = settings->labelActorScale;
 			entry.owner = actor->CreateRefHandle();
-			ReadVitals(actor, entry.vitals, entry.vitalsCap);
+			ReadVitals(actor, entry.vitals, entry.vitalsCap, entry.vitalsPeak);
 			if (!settings->combatBarsAll) {
 				entry.vitals[1] = -1.0f;
 				entry.vitals[2] = -1.0f;
@@ -2487,7 +2562,9 @@ namespace SS
 					// Leave it where it was rather than dropping it mid-fade.
 					_anchorBuffer.push_back(entry.world);
 					_speakingBuffer.push_back(false);
-					_vitalsBuffer.push_back({ entry.vitals[0], entry.vitals[1], entry.vitals[2], entry.vitalsAt, entry.vitalsCap[0], entry.vitalsCap[1], entry.vitalsCap[2] });
+					_vitalsBuffer.push_back({ entry.vitals[0], entry.vitals[1], entry.vitals[2],
+						entry.vitalsAt, entry.vitalsCap[0], entry.vitalsCap[1], entry.vitalsCap[2],
+						entry.vitalsPeak[0], entry.vitalsPeak[1], entry.vitalsPeak[2] });
 					continue;
 				}
 
@@ -2517,7 +2594,7 @@ namespace SS
 					const bool  wanted = entry.vitalsSelf ? live->selfBars : live->vitalsActors;
 					if (wanted) {
 						float before[3]{ entry.vitals[0], entry.vitals[1], entry.vitals[2] };
-						ReadVitals(actor, entry.vitals, entry.vitalsCap);
+						ReadVitals(actor, entry.vitals, entry.vitalsCap, entry.vitalsPeak);
 						if (!entry.vitalsSelf && !live->vitalsActorsAll) {
 							entry.vitals[1] = -1.0f;
 							entry.vitals[2] = -1.0f;
@@ -2534,7 +2611,9 @@ namespace SS
 
 				_anchorBuffer.push_back(entry.world);
 				_speakingBuffer.push_back(speaking);
-				_vitalsBuffer.push_back({ entry.vitals[0], entry.vitals[1], entry.vitals[2], entry.vitalsAt, entry.vitalsCap[0], entry.vitalsCap[1], entry.vitalsCap[2] });
+				_vitalsBuffer.push_back({ entry.vitals[0], entry.vitals[1], entry.vitals[2],
+						entry.vitalsAt, entry.vitalsCap[0], entry.vitalsCap[1], entry.vitalsCap[2],
+						entry.vitalsPeak[0], entry.vitalsPeak[1], entry.vitalsPeak[2] });
 			}
 
 			Labels::GetSingleton()->MoveTo(_anchorBuffer, _speakingBuffer, _vitalsBuffer);
@@ -2847,7 +2926,7 @@ namespace SS
 							(!settings->vitalsActorsHostileOnly ||
 								disposition == Disposition::kHostile)) {
 							auto& fresh = _labelBuffer.back();
-							ReadVitals(a_ref->As<RE::Actor>(), fresh.vitals, fresh.vitalsCap);
+							ReadVitals(a_ref->As<RE::Actor>(), fresh.vitals, fresh.vitalsCap, fresh.vitalsPeak);
 							if (!settings->vitalsActorsAll) {
 								fresh.vitals[1] = -1.0f;
 								fresh.vitals[2] = -1.0f;

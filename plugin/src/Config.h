@@ -266,6 +266,24 @@ namespace SS
 		kSensing,  // only for the length of a sweep
 	};
 
+	// What is enough to raise a combat bar over somebody. Cumulative: each
+	// level keeps the one before it.
+	enum class CombatBarsWhen
+	{
+		kStruck = 0,  // only once you have hit them
+		kFighting,    // anyone fighting you, hit or not
+		kAimed,       // the above, plus whoever the crosshair rests on
+	};
+
+	// What, if anything, is written next to a vitals bar.
+	enum class BarNumbers
+	{
+		kOff = 0,
+		kCurrent,   // 320
+		kOutOfMax,  // 320/450
+		kPercent,   // 71%
+	};
+
 	// When a bar is worth drawing at all.
 	enum class ShowWhen
 	{
@@ -477,6 +495,11 @@ namespace SS
 		// A mined-out ore vein: scenery wearing a resource's face. Its count
 		// lives inside a Papyrus script we cannot read, but a spent one stops
 		// accepting activation, and that much is visible from here.
+		// A plant that produces nothing is scenery wearing a harvestable's
+		// category: the tundra shrubs, the pine trees, the reeds. They pass every
+		// other filter because they really are flora, and they are most of what a
+		// wide sweep outdoors lights up.
+		bool        hideBarrenFlora{ false };
 		bool        hideDepletedOre{ false };
 		// An ash pile somebody already went through. It carries its loot as
 		// inventory changes, so it is judged the way a chest is.
@@ -699,6 +722,12 @@ namespace SS
 		// bars cover the same ground, so this is for load orders without a
 		// combat HUD.
 		bool     combatBars{ false };
+		// Landing a hit used to be the only way in, which meant no bar on the
+		// archer shooting you from a ridge until you reached them.
+		CombatBarsWhen combatBarsWhen{ CombatBarsWhen::kFighting };
+		// Numbers beside the bars. Off by default: three bars over everyone in a
+		// fight is already a lot to read, and six digits per person is more.
+		BarNumbers barNumbers{ BarNumbers::kOff };
 		// Deliberately its own switch, not vitalsActorsAll: mid-fight you want
 		// different information than mid-sweep. Health-only in combat with all
 		// three on a sweep is a perfectly sensible pairing.

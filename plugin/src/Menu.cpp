@@ -478,7 +478,7 @@ namespace SS::Menu
 				return;
 			}
 
-			igSliderFloat(T("Radius"), &a_settings.radius, 256.0f, 8000.0f, "%.0f units", 0);
+			igSliderFloat(T("Radius"), &a_settings.radius, 256.0f, 20480.0f, "%.0f units", 0);
 			Help(
 				"How far the sweep reaches. 1500 is about 23 metres, 2500 about 38.");
 
@@ -808,6 +808,12 @@ namespace SS::Menu
 				"whether it still lets you mine it, which is the only part of its\n"
 				"state readable from outside its script - so a mod that reworks\n"
 				"mining may not be caught.");
+
+			igCheckbox(T("Skip plants with nothing to pick"), &a_settings.hideBarrenFlora);
+			Help(
+				"Shrubs, pines, reeds - anything that has no harvest prompt stays\n"
+				"dark. They are flora as far as the game is concerned, and they are\n"
+				"most of what a wide sweep finds outdoors.");
 
 			igCheckbox(T("Skip picked-clean ash piles"), &a_settings.hideEmptyAsh);
 			Help(
@@ -1707,6 +1713,28 @@ namespace SS::Menu
 				"\n"
 				"If you run TrueHUD, its recent-damage bars already cover this -\n"
 				"leave it off rather than drawing two.");
+
+			static const char* const kCombatWhen[] = { "Only after I hit them",
+				"Anyone fighting me", "That, plus whoever I look at" };
+			int combatWhen = static_cast<int>(a_settings.combatBarsWhen);
+			if (igCombo_Str_arr(T("Raise a bar"), &combatWhen, Translated(kCombatWhen, 3), 3, -1)) {
+				a_settings.combatBarsWhen = static_cast<CombatBarsWhen>(std::clamp(combatWhen, 0, 2));
+
+				static const char* const kBarNumbers[] = { "No numbers", "Current",
+					"Current / max", "Percent" };
+				int barNums = static_cast<int>(a_settings.barNumbers);
+				if (igCombo_Str_arr(T("Numbers on bars"), &barNums, Translated(kBarNumbers, 4), 4, -1)) {
+					a_settings.barNumbers = static_cast<BarNumbers>(std::clamp(barNums, 0, 3));
+				}
+				Help(
+					"Written past the end of each bar, in that bar's own colour. This\n"
+					"applies to every vitals bar the mod draws - yours and theirs.");
+			}
+			Help(
+				"Landing a hit was once the only way in, which left the archer on\n"
+				"the ridge with no bar until you reached them. Each choice keeps\n"
+				"the one above it. Looking at somebody is not combat, so that bar\n"
+				"fades on the linger below once you look away.");
 
 			if (a_settings.combatBars) {
 				igCheckbox(T("Also their magicka and stamina"), &a_settings.combatBarsAll);

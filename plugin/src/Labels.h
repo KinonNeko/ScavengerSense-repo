@@ -86,6 +86,10 @@ namespace SS
 			// vampires and werewolves. Still the END.
 			std::uint8_t  race{ 0 };
 			std::uint8_t  raceMark{ 0 };
+			// The absolute maximum of each vital, so a number can be printed
+			// rather than a share. Negative where nothing is known. END, as
+			// everything else here has to be.
+			float         vitalsPeak[3]{ -1.0f, -1.0f, -1.0f };
 		};
 
 		// The stats row under the corner readout. Values below zero hide the
@@ -139,9 +143,10 @@ namespace SS
 		// Move tags that are already on screen, without rebuilding them. Called
 		// every frame from the main thread while a wave is in flight; the vector
 		// is positional, matching the order Replace was last given.
-		// Vitals travel as {h, m, s, changedAt, capH, capM, capS} per entry.
+		// Vitals travel as {h, m, s, changedAt, capH, capM, capS, peakH, peakM,
+		// peakS} per entry.
 		void MoveTo(const std::vector<RE::NiPoint3>& a_anchors, const std::vector<bool>& a_speaking,
-			const std::vector<std::array<float, 7>>& a_vitals);
+			const std::vector<std::array<float, 10>>& a_vitals);
 		void Replace(std::vector<Entry> a_entries);
 
 		// The corner readout. Pushed from the main thread every frame while it

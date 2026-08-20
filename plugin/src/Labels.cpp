@@ -1344,7 +1344,7 @@ namespace SS
 	}
 
 	void Labels::MoveTo(const std::vector<RE::NiPoint3>& a_anchors, const std::vector<bool>& a_speaking,
-		const std::vector<std::array<float, 7>>& a_vitals)
+		const std::vector<std::array<float, 10>>& a_vitals)
 	{
 		std::scoped_lock guard{ _lock };
 
@@ -1364,6 +1364,9 @@ namespace SS
 				_entries[i].vitalsCap[0] = a_vitals[i][4];
 				_entries[i].vitalsCap[1] = a_vitals[i][5];
 				_entries[i].vitalsCap[2] = a_vitals[i][6];
+				_entries[i].vitalsPeak[0] = a_vitals[i][7];
+				_entries[i].vitalsPeak[1] = a_vitals[i][8];
+				_entries[i].vitalsPeak[2] = a_vitals[i][9];
 			}
 		}
 	}
@@ -2285,6 +2288,49 @@ namespace SS
 						settings->barsLostFx ? i : -1, now,
 						colours[i], settings->selfBarFrameColour, alpha,
 						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
+
+					// The number rides the far end of its own bar, so a stack of three
+					// reads as a column instead of drifting with each bar's fill.
+					if (settings->barNumbers != BarNumbers::kOff && entry.vitals[i] >= 0.0f) {
+						const float peak = entry.vitalsPeak[i];
+						std::string text;
+						switch (settings->barNumbers) {
+						case BarNumbers::kPercent:
+							text = std::format("{}%", static_cast<int>(entry.vitals[i] * 100.0f + 0.5f));
+							break;
+						case BarNumbers::kOutOfMax:
+							if (peak > 0.0f) {
+								text = std::format("{}/{}", static_cast<int>(entry.vitals[i] * peak + 0.5f),
+									static_cast<int>(peak + 0.5f));
+							}
+							break;
+						case BarNumbers::kCurrent:
+						default:
+							if (peak > 0.0f) {
+								text = std::format("{}", static_cast<int>(entry.vitals[i] * peak + 0.5f));
+							}
+							break;
+						}
+						if (!text.empty()) {
+							if (auto* numFont = igGetFont(); numFont) {
+								const float numSize = std::max(9.0f, thick * 1.8f);
+								ImVec2      numExtent{};
+								ImFont_CalcTextSizeA(&numExtent, numFont, numSize, FLT_MAX, 0.0f,
+									text.c_str(), nullptr, nullptr);
+								// Past the end of the bar on its long axis, centred across it.
+								const ImVec2 numAt = upright
+									? ImVec2{ origin.x + thick * 0.5f - numExtent.x * 0.5f,
+										origin.y - length - numExtent.y }
+									: ImVec2{ origin.x + length + thick * 0.6f,
+										origin.y + thick * 0.5f - numExtent.y * 0.5f };
+								ImDrawList_AddText_FontPtr(draw, numFont, numSize,
+									ImVec2{ numAt.x + 1.0f, numAt.y + 1.0f }, PackColour(0x000000, alpha * 0.7f),
+									text.c_str(), nullptr, 0.0f, nullptr);
+								ImDrawList_AddText_FontPtr(draw, numFont, numSize, numAt,
+									PackColour(colours[i], alpha), text.c_str(), nullptr, 0.0f, nullptr);
+							}
+						}
+					}
 
 					barsBottom = std::max(barsBottom, origin.y + thick);
 				}
