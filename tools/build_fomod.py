@@ -226,8 +226,12 @@ def sync_payload():
         "03 OStim add-on/SKSE/Plugins/ScavengerSense_marks_ostim.ini")
     # The Default preset ships with everybody: it is how the menu gets back
     # to the shipped look after experiments.
-    put(os.path.join(plugins, "ScavengerSense/presets/Default.ini"),
-        "00 Core/SKSE/Plugins/ScavengerSense/presets/Default.ini")
+    # Every preset in the folder, not a hardcoded name: presets get added and
+    # a fixed list quietly ships the tree without them.
+    for name in sorted(os.listdir(os.path.join(plugins, "ScavengerSense/presets"))):
+        if name.endswith(".ini"):
+            put(os.path.join(plugins, "ScavengerSense/presets", name),
+                "00 Core/SKSE/Plugins/ScavengerSense/presets/" + name)
     put(os.path.join(ROOT, "fomod/info.xml"), "fomod/info.xml")
     for img in sorted(os.listdir(os.path.join(ROOT, "fomod/images"))):
         put(os.path.join(ROOT, "fomod/images", img), f"fomod/images/{img}")

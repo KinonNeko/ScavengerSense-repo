@@ -40,12 +40,17 @@ $jobs = @(
     @{ From = "$repo\mod\README.md";                             To = "README.md" }
     @{ From = "$repo\mod\Sound\FX\ScavengerSense\sweep.wav";     To = "Sound\FX\ScavengerSense\sweep.wav" }
     @{ From = "$repo\mod\Sound\FX\ScavengerSense\README-sound.txt"; To = "Sound\FX\ScavengerSense\README-sound.txt" }
-    @{ From = "$repo\mod\SKSE\Plugins\ScavengerSense\presets\Default.ini"; To = "SKSE\Plugins\ScavengerSense\presets\Default.ini" }
 )
 foreach ($f in Get-ChildItem "$repo\mod\SKSE\Plugins" -Filter "ScavengerSense*.ini" -ErrorAction SilentlyContinue) {
     # Never the settings file: that one belongs to the game, not to the repo.
     if ($f.Name -eq "ScavengerSense.ini") { continue }
     $jobs += @{ From = $f.FullName; To = "SKSE\Plugins\$($f.Name)" }
+}
+
+# Every preset, not just the one that shipped first: presets are added over
+# time and a hardcoded name silently leaves the new ones behind.
+foreach ($f in Get-ChildItem "$repo\mod\SKSE\Plugins\ScavengerSense\presets" -Filter "*.ini" -ErrorAction SilentlyContinue) {
+    $jobs += @{ From = $f.FullName; To = "SKSE\Plugins\ScavengerSense\presets\$($f.Name)" }
 }
 
 $copied = 0

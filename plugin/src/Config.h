@@ -456,10 +456,12 @@ namespace SS
 		float         washFlat{ 0.12f };  // share of the strength used flat, 0..1
 
 		// [Sound]
-		// The chime shipped in the esp plays unless a formID override says
-		// otherwise; the override exists for people who want a vanilla sound
-		// (or another mod's) instead of editing the wav on disk.
-		bool          soundEnabled{ true };
+		// Off by default. The chime is one opinionated noise on top of a mod
+		// that already draws over the screen, and sweeping is something you do
+		// constantly - it wears out faster than it earns its place. The formID
+		// override exists for people who would rather point it at a vanilla
+		// sound, or another mod's, than replace the wav on disk.
+		bool          soundEnabled{ false };
 		// Full by default: the engine only attenuates, so anything below 1.0
 		// is loudness the player cannot get back from the slider.
 		float         soundVolume{ 1.0f };
@@ -661,14 +663,14 @@ namespace SS
 		// [Ammo] - how many arrows are left, put where you are already looking
 		// instead of in a corner. Off by default, like every always-on readout
 		// in this mod.
-		bool          ammoCounter{ false };
+		bool          ammoCounter{ true };
 		AmmoAnchor    ammoAnchor{ AmmoAnchor::kBow };
 		// Applied after the anchor is projected, in screen pixels.
 		float         ammoOffsetX{ 50.0f };
 		float         ammoOffsetY{ 0.0f };
 		float         ammoScale{ 1.5f };
 		std::uint32_t ammoColour{ 0xF4F3F0 };
-		AmmoWhen      ammoWhen{ AmmoWhen::kAlways };
+		AmmoWhen      ammoWhen{ AmmoWhen::kDrawn };
 		// Its own fade, in seconds, so it can come and go at a different pace
 		// from everything else. Zero on either side snaps instead.
 		float         ammoFadeIn{ 0.20f };
