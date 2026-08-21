@@ -1896,8 +1896,20 @@ namespace SS
 		std::vector<Placement> wanted;
 		wanted.reserve(snapshot.size());
 
+		// A tag can be dropped at four different points and the player sees the
+		// same nothing each time. Say which one, at most once every two seconds
+		// so a held sweep does not fill the log.
+		static float lastProbe = -1000.0f;
+		const bool   probe = settings->debug && (now - lastProbe) > 2.0f;
+		if (probe) {
+			lastProbe = now;
+		}
+
 		for (const auto& entry : snapshot) {
 			if (now < entry.bornAt || now > entry.diesAt) {
+				if (probe) {
+					logger::info("TAG '{}' dropped: outside its life", entry.text);
+				}
 				continue;
 			}
 
@@ -1907,6 +1919,9 @@ namespace SS
 			const auto until = entry.diesAt - now;
 			const auto alpha = std::min({ since / fadeIn, until / fadeOut, 1.0f });
 			if (alpha <= 0.02f) {
+				if (probe) {
+					logger::info("TAG '{}' dropped: alpha {:.2f}", entry.text, alpha);
+				}
 				continue;
 			}
 
@@ -1922,13 +1937,26 @@ namespace SS
 			ImVec2 at{};
 			float  depth = 0.0f;
 			if (!Project(world, width, height, at, &depth)) {
+				if (probe) {
+					logger::info("TAG '{}' dropped: behind the camera, world z {:.0f}",
+						entry.text, world.z);
+				}
 				continue;
 			}
 			if (at.x < 0.0f || at.y < 0.0f || at.x > width || at.y > height) {
+				if (probe) {
+					logger::info("TAG '{}' dropped: off screen at {:.0f},{:.0f}",
+						entry.text, at.x, at.y);
+				}
 				continue;
 			}
 
 			wanted.push_back({ std::addressof(entry), at, depth, alpha });
+		}
+
+		if (probe) {
+			logger::info("TAGS: {} of {} placed, screen {:.0f}x{:.0f}",
+				wanted.size(), snapshot.size(), width, height);
 		}
 
 		std::sort(wanted.begin(), wanted.end(), [](const Placement& a_lhs, const Placement& a_rhs) {

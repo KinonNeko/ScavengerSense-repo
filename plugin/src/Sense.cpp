@@ -19,6 +19,17 @@ namespace SS
 {
 	namespace
 	{
+		// Set on an ore vein's reference when it has been mined out.
+		//
+		// Measured, not documented: CommonLibSSE names nothing between bits 21
+		// and 24, and the vein's real count lives in a Papyrus script we cannot
+		// read. Three sweeps over one vein - before the pick and after it, with
+		// three untouched veins alongside as a control - moved exactly this bit
+		// and nothing else. Being undocumented, it may well mean something
+		// broader than "mined"; it is only ever consulted for activators, which
+		// keeps the blast radius to the thing it was measured on.
+		constexpr std::uint32_t kMinedOut = 0x00800000;
+
 		constexpr auto  kPluginFile = "ScavengerSense.esp"sv;
 		constexpr auto  kShaderBase = static_cast<RE::FormID>(0x000800);
 		constexpr auto  kShaderCount = std::size_t{ 128 };
@@ -473,14 +484,32 @@ namespace SS
 				return base + RE::NiPoint3{ 0.0f, 0.0f, 128.0f };
 			}
 
+			float lift = 24.0f;
+
 			if (auto* three = a_ref->Get3D(); three) {
-				const auto& bound = three->worldBound;
-				if (bound.radius > 0.0f && std::isfinite(bound.radius)) {
-					return RE::NiPoint3{ base.x, base.y, bound.center.z + bound.radius * 0.6f + 8.0f };
+				const auto& sphere = three->worldBound;
+				if (sphere.radius > 0.0f && std::isfinite(sphere.radius)) {
+					lift = (sphere.center.z - base.z) + sphere.radius * 0.6f + 8.0f;
 				}
 			}
 
-			return base + RE::NiPoint3{ 0.0f, 0.0f, 24.0f };
+			// That sphere is drawn around the widest part of the mesh, so its
+			// radius says how broad a thing is, not how tall. An iron vein
+			// measured 278 units across and barely rises off the rock, and the
+			// sphere hung its name 175 units up - a storey above the ore. The
+			// editor bound is a box and knows the difference, so where a
+			// sensible one exists it caps the lift. Rotated meshes make the
+			// box's own height a guess too, which is why it only ever lowers
+			// the tag and never raises it.
+			if (const auto* obj = a_ref->GetBaseObject()) {
+				const float top =
+					static_cast<float>(obj->boundData.boundMax.z) * a_ref->GetScale();
+				if (top > 1.0f && std::isfinite(top)) {
+					lift = std::min(lift, top + 12.0f);
+				}
+			}
+
+			return base + RE::NiPoint3{ 0.0f, 0.0f, std::max(lift, 20.0f) };
 		}
 	}
 
@@ -811,32 +840,41 @@ namespace SS
 		}
 
 		// A spent resource node wears the same face as a full one, and the two
-		// kinds go quiet differently. An ash pile carries its loot as inventory
-		// changes, so it is judged like a chest. A vein keeps its count inside a
-		// Papyrus script we cannot read from here, but a spent one stops
-		// accepting activation. Separate switches: wanting the veins gone is not
-		// the same as wanting the ash gone.
+		// kinds go quiet differently.
 		if (a_category == Category::kActivator) {
-			// Two reports say these switches do not do what they claim: the vein
-			// one hides every vein, mined or not, and the ash one does nothing at
-			// all. Rather than guess at a third signal, say what each activator
-			// actually looks like and let one mined vein settle it.
-			if (settings->debug) {
-				const auto* base = a_ref->GetBaseObject();
-				logger::info("ORE_ASH: {:08X} edid='{}' base={} blocked={} inv={} flags={:08X}",
-					a_ref->GetFormID(),
-					base && base->GetFormEditorID() ? base->GetFormEditorID() : "",
-					base ? static_cast<int>(base->GetFormType()) : -1,
-					a_ref->IsActivationBlocked(),
-					a_ref->GetInventoryChanges(true) != nullptr,
-					a_ref->GetFormFlags());
-			}
-			if (a_ref->GetInventoryChanges(true)) {
-				if (settings->hideEmptyAsh && !HoldsAnything(a_ref)) {
+			if (settings->hideEmptyAsh) {
+				// The pile keeps none of the loot. Whoever burned is still
+				// there, holding everything they owned, and the two carry each
+				// other's handle - so ask the body, not the ash. Measured on
+				// one bandit either side of being looted:
+				//
+				//   0008132D '强盗'   -> pile FF000F31, holds=true
+				//   FF000F31 '灰烬堆' -> pile 0008132D, holds=false
+				//   0008132D '强盗'   -> pile FF000F31, holds=false
+				//
+				// The pile's own reading never moved: no inventory, no
+				// container, nothing held, before and after alike - which is
+				// exactly what a lever reads, and why the old test could not
+				// tell the two apart and never fired.
+				if (const auto body = a_ref->extraList.GetAshPileRef(); body) {
+					const auto held = body.get();
+					if (held && !HoldsAnything(held.get())) {
+						++a_stats.emptyAsh;
+						return false;
+					}
+				} else if (a_ref->GetInventoryChanges(false) && !HoldsAnything(a_ref)) {
+					// A pile that does keep its own loot - some mods make them
+					// that way - is judged like a chest. An activator that never
+					// had an inventory is a lever, and is left alone.
 					++a_stats.emptyAsh;
 					return false;
 				}
-			} else if (settings->hideDepletedOre && a_ref->IsActivationBlocked()) {
+			}
+
+			// Separate switch, separate question: wanting the spent veins
+			// gone is not the same as wanting the ash gone.
+			if (settings->hideDepletedOre &&
+				(a_ref->GetFormFlags() & kMinedOut) != 0) {
 				++a_stats.depletedOre;
 				return false;
 			}

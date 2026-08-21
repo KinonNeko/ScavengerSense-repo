@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Validate the FOMOD tree before packaging."""
-import os, sys, re
+import io, os, sys, re
 import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -241,6 +241,41 @@ for need in ("ScavengerSense.esp", "SKSE/Plugins/ScavengerSense.dll",
         err(f"core install is missing {need}")
 if os.path.isfile(os.path.join(core, "SKSE/Plugins/ScavengerSense.ini")):
     err("core ships a ScavengerSense.ini - it must not, defaults are built in")
+
+# --- 8. the author's preset exists twice; the two must agree -----------
+# It ships as an installer answer and again as a preset the menu can load,
+# and the two were hand-maintained separately until they drifted: eight
+# keys and four values apart, the loadable copy still switching the chime
+# on at full volume long after the chime was made off by default.
+def settings(path):
+    out, sec = {}, ''
+    raw = io.open(path, encoding='utf-8-sig', newline='').read()
+    for line in raw.replace('\r\n', '\n').split('\n'):
+        t = line.strip()
+        if not t or t.startswith((';', '#')):
+            continue
+        if t.startswith('['):
+            sec = t
+        elif '=' in t:
+            k, v = t.split('=', 1)
+            out[sec + '/' + k.strip()] = v.strip()
+    return out
+
+pair = [os.path.join(ROOT, 'fomod/kshakes-preset.ini'),
+        os.path.join(BUILD,
+                     '00 Core/SKSE/Plugins/ScavengerSense/presets/KShakes Choice.ini')]
+if all(os.path.isfile(q) for q in pair):
+    src, loadable = (settings(q) for q in pair)
+    for key in sorted(set(src) | set(loadable)):
+        if key not in loadable:
+            err(f'KShakes preset: the loadable copy is missing {key}')
+        elif key not in src:
+            err(f'KShakes preset: the loadable copy has an extra {key}')
+        elif src[key] != loadable[key]:
+            err(f'KShakes preset: {key} is {src[key]!r} for the installer '
+                f'but {loadable[key]!r} in the menu')
+else:
+    warn('KShakes preset: could not compare the installer and menu copies')
 
 # --- report ------------------------------------------------------------
 print(f"payload folders : {len(payload)}  ({', '.join(payload)})")
