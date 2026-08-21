@@ -689,7 +689,7 @@ namespace SS
 		// [Ammo] - how many arrows are left, put where you are already looking
 		// instead of in a corner. Off by default, like every always-on readout
 		// in this mod.
-		bool          ammoCounter{ true };
+		bool          ammoCounter{ false };
 		AmmoAnchor    ammoAnchor{ AmmoAnchor::kBow };
 		// Applied after the anchor is projected, in screen pixels.
 		float         ammoOffsetX{ 50.0f };

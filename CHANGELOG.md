@@ -8,6 +8,16 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+## 0.8.8 beta
+
+- The ammunition readout ships off. It was the one always-on readout in
+  the mod that defaulted to on, against the comment sitting directly
+  above it, and against the installer's own preset - so a new player saw
+  a count floating by their bow that choosing the author's answer then
+  took away. Turn it on from the Ammo page.
+- 0.8.7 was cut and tagged but never published; it is this build without
+  the line above.
+
 ## 0.8.7 beta
 
 Spent ore veins and emptied ash piles, properly this time. Both switches had
