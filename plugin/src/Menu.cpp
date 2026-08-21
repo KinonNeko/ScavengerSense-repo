@@ -435,6 +435,7 @@ namespace SS::Menu
 				"The button keeps doing its normal job as well, so pick a spare one.");
 
 			if (sharesOneKey) {
+				igPushID_Str("onekey");
 				igTextDisabled("%s",
 					T("Double tap to sweep. A lone press marks what you are aiming at, once the gap above has ruled a second tap out. Hold to wipe every trail."));
 				Help(
@@ -445,7 +446,10 @@ namespace SS::Menu
 					"and stray presses outside the hunt are quietly ignored.");
 				igSliderFloat(T("Max gap between taps"), &a_settings.doubleTapWindow, 0.05f, 1.0f, "%.2f s", 0);
 				igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
+				igPopID();
 			} else {
+				igPushID_Str("sweep");
+				igPopID();
 				int trigger = static_cast<int>(a_settings.trigger);
 				if (igCombo_Str_arr(T("Activate on"), &trigger,
 						Translated(kTriggerLabels, static_cast<int>(std::size(kTriggerLabels))),
@@ -483,6 +487,9 @@ namespace SS::Menu
 
 			igSpacing();
 			igSeparatorText(T("Tracking"));
+			// Its own ID scope. The sweep above has a "Hold for" too, bound to a
+			// different setting, and ImGui would make the two share one widget.
+			igPushID_Str("tracking");
 
 			// A tracking key that collides with the sweep key starves the sweep: the
 			// tracking handler reads the event first and eats it.
@@ -512,6 +519,7 @@ namespace SS::Menu
 			};
 
 			if (a_settings.trailMode == TrailKeyMode::kSingle) {
+				igPushID_Str("single");
 				igTextDisabled("%s",
 					T("Aim at someone - or their footprints - and press to track them. Hold to wipe everything."));
 				BindingControls(1, a_settings.trailKey, a_settings.trailGamepad);
@@ -534,7 +542,9 @@ namespace SS::Menu
 					a_settings.trailMarkGesture == Trigger::kHold) {
 					igSliderFloat(T("Hold for"), &a_settings.trailHoldTime, 0.2f, 2.0f, "%.1f s", 0);
 				}
+				igPopID();
 			} else {
+				igPushID_Str("multi");
 				igPushID_Int(1);
 				igSeparatorText(T("Mark what I aim at"));
 				BindingControls(2, a_settings.trailMarkKey, a_settings.trailMarkGamepad);
@@ -557,8 +567,10 @@ namespace SS::Menu
 				Help(
 					"Shared by every action whose gesture is a hold; the double\n"
 					"tap shares the sweep key's window.");
+				igPopID();
 			}
 
+			igPopID();
 			igSpacing();
 		}
 
@@ -1660,7 +1672,10 @@ namespace SS::Menu
 					static const char* const kAmmoCorners[] = { "Off", "Top left", "Top right",
 						"Bottom left", "Bottom right" };
 					int ammoCorner = static_cast<int>(a_settings.ammoCorner);
-					if (igCombo_Str_arr(T("Corner"), &ammoCorner, Translated(kAmmoCorners, 5), 5, -1)) {
+					// Not just "Corner": the corner readout above owns that label in this
+					// same window, and ImGui keys a widget by its label - two of them and
+					// the second cannot be clicked at all.
+					if (igCombo_Str_arr(T("Screen corner"), &ammoCorner, Translated(kAmmoCorners, 5), 5, -1)) {
 						a_settings.ammoCorner = static_cast<Corner>(std::clamp(ammoCorner, 0, 4));
 					}
 					Help(
