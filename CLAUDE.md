@@ -12,10 +12,16 @@ too: relationships, titles, and vitals bars.
 Nexus:  https://www.nexusmods.com/skyrimspecialedition/mods/188380
 Source: https://github.com/KinonNeko/ScavengerSense-repo
 
-**0.8 beta is what is published**, on Nexus and as tag `v0.8-beta`. The repo
-and the published build are the same code; the version lives in three places
-that must agree — `REL::Version` in `Main.cpp`, `MachineVersion` in
-`fomod/info.xml`, and `project(... VERSION)` in `plugin/CMakeLists.txt`.
+**0.8 beta is what is published on Nexus**; the repo is ahead of it, at tag
+`v0.9-beta`. The version lives in three places that must agree —
+`kVersion` in `Main.cpp`, `MachineVersion` in `fomod/info.xml`, and
+`project(... VERSION)` in `plugin/CMakeLists.txt` — and every release since
+0.5 is in `CHANGELOG.md`.
+
+It was four places until 0.9: the loading banner carried its own copy of the
+number and had gone a whole release stale, saying 0.8 while the plugin
+declared 0.9. It reads `kVersion` now. If you add a fourth reader, derive it
+the same way rather than adding a line here.
 
 ## Build
 

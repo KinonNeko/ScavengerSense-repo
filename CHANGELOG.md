@@ -34,6 +34,21 @@ backwards.
   dropped before the availability check ever saw it - which is why the OStim
   add-on could be installed and absent from the Add-ons page at the same time.
 
+- **The mod now says when the menu framework cannot draw your language.**
+  A font can hold every character a script needs and still draw none of
+  them: SKSE Menu Framework builds its atlas from switches in its own INI,
+  and the non-Latin ones are off out of the box. The result is mojibake
+  everywhere, which looks like a text-encoding fault - the hunt for it went
+  through code pages, fonts and an input method before reaching one line in
+  somebody else's config. It is read at startup now, checked against both
+  the menu language and the game's own, and named on screen and in the log.
+  Nothing is written to that file: it also holds the player's menu key and
+  theme, and none of that is ours.
+- The loading banner carried its own copy of the version number and had
+  gone a whole release stale, saying 0.8 while the plugin declared 0.9. It
+  was a fourth version site nobody had counted; it reads the declared one
+  now.
+
 The menu was rearranged around what went wrong above. Ten pages became nine,
 each named in one word, and none can scroll off the edge behind an arrow.
 Options no longer disappear when the switch above them is off - they grey out,

@@ -3,6 +3,7 @@
 #include "GameMenus.h"
 #include "Locale.h"
 #include "Marks.h"
+#include "FontCheck.h"
 #include "Perks.h"
 #include "Titles.h"
 #include "Menu.h"
@@ -251,6 +252,7 @@ namespace SS
 			Marks::GetSingleton()->Load();
 			Titles::GetSingleton()->Load();
 			Perks::GetSingleton()->Resolve();
+			CheckMenuFont();
 
 			// Cancelling clears the effect shaders off every lit object as well
 			// as everything we draw. That matters for menus that build their own
@@ -305,15 +307,25 @@ namespace SS
 			break;
 
 		case SKSE::MessagingInterface::kPreLoadGame:
-		case SKSE::MessagingInterface::kNewGame:
 			// Effect shaders and image space modifiers are transient; make sure a
 			// wave that was in flight cannot leak across a load.
 			Sense::GetSingleton()->Cancel();
 			break;
 
+		case SKSE::MessagingInterface::kNewGame:
+			Sense::GetSingleton()->Cancel();
+			// Split from kPreLoadGame, which shares the cancel but happens
+			// before the world exists - the warning would be spent on a frame
+			// with nothing on it and never seen.
+			SayMenuFontWarning();
+			break;
+
 		case SKSE::MessagingInterface::kPostLoadGame:
 			Settings::GetSingleton()->Load();
 			Locale::Load(Settings::GetSingleton()->language);
+			// Said here rather than at data load: nothing is drawn that early,
+			// so a message about text you cannot read would itself go unread.
+			SayMenuFontWarning();
 			break;
 
 		default:
@@ -354,8 +366,16 @@ namespace SS
 	}
 }
 
+// One version, two readers. The banner below used to carry its own copy
+// and had gone stale by a whole release - a fourth version site nobody
+// had counted, saying 0.8 while the plugin declared 0.9.
+namespace
+{
+	constexpr REL::Version kVersion{ 0, 9, 0, 0 };
+}
+
 SKSEPluginInfo(
-	.Version = REL::Version{ 0, 9, 0, 0 },
+	.Version = kVersion,
 	.Name = "ScavengerSense"sv,
 	.Author = "KShakes"sv)
 
@@ -368,7 +388,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	SKSE::Init(a_skse, false);
 	SS::InitLogging();
 
-	logger::info("Scavenger Sense 0.8 beta loading");
+	logger::info("Scavenger Sense {}.{} beta loading", kVersion.major(), kVersion.minor());
 
 	if (auto* messaging = SKSE::GetMessagingInterface()) {
 		messaging->RegisterListener(SS::OnMessage);

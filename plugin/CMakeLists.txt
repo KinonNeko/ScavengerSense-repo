@@ -44,6 +44,7 @@ add_library(${PROJECT_NAME} SHARED
     src/Timing.cpp
     src/Timing.h
     src/Marks.cpp
+    src/FontCheck.cpp
     src/Perks.cpp
     src/Marks.h
     src/Menu.cpp
