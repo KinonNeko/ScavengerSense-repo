@@ -128,8 +128,18 @@ namespace SS
 			if (mine != kScripts[i].menu && (game.empty() || game != kScripts[i].game)) {
 				continue;
 			}
-			if (!seen[i] || enabled[i]) {
+			if (enabled[i]) {
 				logger::info("font check: {} is on, names should draw", kScripts[i].display);
+				continue;
+			}
+			if (!seen[i]) {
+				// Absent is not the same as on, and saying so would be a lie of
+				// exactly the kind that costs an afternoon later. Stay quiet on
+				// screen though: a key this build has never seen may be one a
+				// newer framework no longer needs, and a warning that turns out
+				// to be wrong is worse than none.
+				logger::info("font check: {} is not in {} at all - assuming the "
+					"framework does not need it", kScripts[i].display, kPath);
 				continue;
 			}
 
