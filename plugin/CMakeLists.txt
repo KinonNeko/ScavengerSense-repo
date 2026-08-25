@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(ScavengerSense VERSION 0.8.8 LANGUAGES CXX)
+project(ScavengerSense VERSION 0.9.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -44,6 +44,7 @@ add_library(${PROJECT_NAME} SHARED
     src/Timing.cpp
     src/Timing.h
     src/Marks.cpp
+    src/Perks.cpp
     src/Marks.h
     src/Menu.cpp
     src/Menu.h

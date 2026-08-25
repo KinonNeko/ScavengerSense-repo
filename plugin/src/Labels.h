@@ -158,7 +158,8 @@ namespace SS
 		// The corner readout. Pushed from the main thread every frame while it
 		// is switched on; a_changedAt is when any of the three last moved, which
 		// is what the "only when it changes" rule is judged against.
-		void SetSelfHud(const float (&a_vitals)[3], const float (&a_caps)[3], float a_changedAt);
+		void SetSelfHud(const float (&a_vitals)[3], const float (&a_caps)[3],
+			const float (&a_peaks)[3], float a_changedAt);
 
 		// Bars over people the player has hit, for as long as the fight lasts.
 		// Pushed whole every frame from the main thread, like MoveTo; only the
@@ -259,6 +260,8 @@ namespace SS
 		Ring               _ring;
 		float              _selfHud[3]{ -1.0f, -1.0f, -1.0f };
 		float              _selfHudCap[3]{ 1.0f, 1.0f, 1.0f };
+		// The real values behind the fractions, so the bars can be numbered.
+		float              _selfHudPeak[3]{ -1.0f, -1.0f, -1.0f };
 		float              _selfHudAt{ -1000.0f };
 		SelfStats          _selfStats;
 		Ammo               _ammo;

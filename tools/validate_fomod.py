@@ -118,9 +118,13 @@ if os.path.isfile(CONFIG):
                 "book", "valuable", "activator", "furniture", "actor"]:
         for suffix in ("", "color", "outlineonly"):
             known.add(("categories", cat + suffix))
-    # read through Lookup directly, not Get: the string Get lower-cases its
-    # value and Scaleform menu names are case sensitive
-    known.add(("general", "hidemenus"))
+    # Some settings are read through Lookup rather than Get, because the
+    # string Get lower-cases what it reads and not every value survives
+    # that - a Scaleform menu name, a plugin filename in a perk spec.
+    # Collected the same way rather than listed by hand, which is how
+    # [Perks] came to be reported as a setting the plugin does not read.
+    for sec, key in re.findall(r'Lookup\(\s*table,\s*"([^"]+)"\s*,\s*"([^"]+)"', src):
+        known.add((sec.lower(), key.lower()))
     frag_files = [os.path.join(r, f)
                   for d in payload
                   for r, _, fs in os.walk(os.path.join(BUILD, d))

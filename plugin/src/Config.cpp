@@ -810,6 +810,7 @@ namespace SS
 		Get(table, "self", "barPerspective", selfBarPerspective);
 		Get(table, "self", "barGlow", selfBarGlow);
 		Get(table, "self", "frameColor", selfBarFrameColour);
+		Get(table, "self", "numbers", selfBarNumbers);
 		Get(table, "self", "overhead", selfBarsOverhead);
 		Get(table, "self", "overheadWhen", selfBarsOverheadWhen);
 		Get(table, "player", "level", senseLevel);
@@ -817,6 +818,21 @@ namespace SS
 		Get(table, "player", "weight", senseWeight);
 		Get(table, "player", "cold", senseCold);
 		Get(table, "player", "coldGlobal", coldGlobal);
+
+		// Read through Lookup, not Get: the string overload lower-cases, and
+		// a perk is named either by a plugin file - whose name is not ours
+		// to flatten - or by a display name the menu has to echo back the
+		// way it was typed. Matching is case-insensitive where it happens.
+		{
+			std::string raw;
+			if (Lookup(table, "perks", "sense", raw)) {
+				perkSense = raw;
+			}
+			if (Lookup(table, "perks", "tracking", raw)) {
+				perkTracking = raw;
+			}
+		}
+		Get(table, "perks", "notify", perkNotify);
 		Get(table, "player", "coldMax", coldMax);
 		Get(table, "player", "levelOthers", levelOthers);
 		Get(table, "player", "weaponIcons", weaponIcons);
@@ -1426,6 +1442,9 @@ namespace SS
 
 		file << "; The same stack over your own head with no sweep running, third\n";
 		file << "; person only - the player's answer to the combat bars.\n";
+		file << "; Numbers beside your own bars, the same four choices the\n";
+		file << "; other-people bars offer: off, current, outofmax, percent.\n";
+		file << "numbers = " << kBarNumbersNames[static_cast<std::size_t>(selfBarNumbers)] << "\n";
 		file << "overhead = " << boolean(selfBarsOverhead) << "\n";
 		file << "; always, change (a few seconds after a value moves) or notfull.\n";
 		file << "overheadWhen = " << kShowWhenNames[static_cast<std::size_t>(selfBarsOverheadWhen)] << "\n";
@@ -1476,7 +1495,25 @@ namespace SS
 		file << "; Editor ID of the global variable that says how cold you are, and\n";
 		file << "; the value that counts as fully frozen. Survival Mode's global is\n";
 		file << "; the default; the row hides itself when it does not exist.\n";
-		file << "coldGlobal = " << coldGlobal << "\n";
+		file << "coldGlobal = " << coldGlobal << "\n\n\n";
+
+		file << "[Perks]\n\n";
+		file << "; Make the sense and the hunt things you learn rather than\n";
+		file << "; things you always had. Name a perk from any mod you already\n";
+		file << "; run and the key does nothing until your character has it.\n";
+		file << ";\n";
+		file << "; Two ways to name one, and both work:\n";
+		file << ";   Ordinator - Perks of the Nord.esp|0x1234   exact, always\n";
+		file << ";   Treasure Hunter                            the name in game\n";
+		file << ";\n";
+		file << "; Empty means no requirement. A name that matches no perk also\n";
+		file << "; leaves the gate open rather than shut - a typo must not lock\n";
+		file << "; you out of your own mod. The log says which it was.\n";
+		file << "sense = " << perkSense << "\n";
+		file << "tracking = " << perkTracking << "\n\n";
+		file << "; Say so on screen when a key is refused. Off leaves it\n";
+		file << "; silent, which reads as a broken hotkey.\n";
+		file << "notify = " << boolean(perkNotify) << "\n";
 		file << "coldMax = " << coldMax << "\n";
 		file << "; Their level in parentheses after the name, enemies included.\n";
 		file << "levelOthers = " << boolean(levelOthers) << "\n";

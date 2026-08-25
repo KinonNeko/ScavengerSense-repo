@@ -201,10 +201,16 @@ namespace SS
 			const bool matchesSomething = !current.keywords.empty() || !current.factions.empty() ||
 			                              !current.lists.empty() || !current.bases.empty() ||
 			                              !current.nameContains.empty();
-			if (matchesSomething) {
+			// A rule that names a plugin nobody has installed resolves none of
+			// its forms and so matches nothing - but dropping it here is what
+			// made the OStim add-on disappear from the Add-ons page entirely,
+			// rather than appear there saying OStim is not installed. Keep it:
+			// the availability pass marks it inert and Match() skips it.
+			if (matchesSomething || !current.requiresFile.empty()) {
 				_rules.push_back(current);
 			} else {
-				logger::warn("marks: rule [{}] matches nothing, skipped", current.name);
+				logger::warn("marks: rule [{}] matches nothing and requires nothing, "
+					"skipped", current.name);
 			}
 			current = Rule{};
 		};
@@ -351,6 +357,16 @@ namespace SS
 		_fullTextures.assign(_rules.size(), nullptr);
 		_status = std::format("{} rules, {} form references did not resolve", _rules.size(), unresolved);
 		logger::info("marks: {}", _status);
+
+		// Twice now somebody has reported an add-on missing from the menu
+		// with nothing in the log to say why. Name every one and whether it
+		// counts as present, since that is exactly what the page filters on.
+		for (const auto& name : _integrations) {
+			logger::info("  add-on '{}': presence {} ({})", name,
+				IntegrationPresence(name),
+				IntegrationPresence(name) == 0 ? "hidden unless you untick 'hide missing'"
+				                               : "should be listed");
+		}
 		for (const auto& rule : _rules) {
 			logger::info("  [{}] priority {} icon '{}' - {} keywords, {} factions, {} lists, {} forms, {} names, counter {}",
 				rule.name, rule.priority, rule.icon, rule.keywords.size(), rule.factions.size(),

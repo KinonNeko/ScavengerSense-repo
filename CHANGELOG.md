@@ -8,6 +8,42 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+## 0.9 beta
+
+Four things people asked for, one of them a bug that had the feature exactly
+backwards.
+
+- **"Living only" and "dead only" were reversed, wholesale.** `Actor::IsDead()`
+  reports every living NPC as a corpse - a defect found and written down here
+  once before, when the tag colour was moved off it and onto the life state.
+  The filter was left behind on the old call, so "living only" hid the living
+  and "dead only" showed them. Both now ask one shared question.
+- **A perk can gate the sense and the hunt.** Name one in `[Perks]` - by the
+  name the game shows, or as `Plugin.esp|0x1234` - and the key does nothing
+  until your character has it, with an optional line on screen saying why.
+  The perk comes from whatever mod you already run: nothing is added to the
+  save, no script, no record, and no conflict with a perk overhaul. Empty is
+  no requirement, and a name that matches nothing leaves the gate open rather
+  than shut - a typo must not lock you out of your own mod.
+- **Numbers on your own bars**, the same four choices the bars over other
+  people have had. Yours and theirs are separate settings under their own
+  headings, and yours reaches all three places your bars appear: under your
+  name, over your head, and pinned to a corner.
+- **An add-on whose mod is missing no longer vanishes.** A rule that names a
+  plugin nobody has resolves none of its forms, so it matched nothing and was
+  dropped before the availability check ever saw it - which is why the OStim
+  add-on could be installed and absent from the Add-ons page at the same time.
+
+The menu was rearranged around what went wrong above. Ten pages became nine,
+each named in one word, and none can scroll off the edge behind an arrow.
+Options no longer disappear when the switch above them is off - they grey out,
+because an option you have never switched on was otherwise an option you had
+never seen. The perk boxes sit at the top of the Keys page in a section of
+their own: a perk requirement is not a control, it is the reason a control
+does nothing. And the first page is named for what the mod calls the feature
+everywhere else - the sense, not the sweep, which was only ever the
+implementation's word for one firing of it.
+
 ## 0.8.8 beta
 
 - The ammunition readout ships off. It was the one always-on readout in

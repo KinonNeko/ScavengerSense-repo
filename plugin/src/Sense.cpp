@@ -7,6 +7,7 @@
 #include "GameMenus.h"
 #include "Locale.h"
 #include "Marks.h"
+#include "Perks.h"
 #include "PostFX.h"
 #include "Timing.h"
 #include "Vision.h"
@@ -403,6 +404,23 @@ namespace SS
 			}
 		}
 
+		// Is this a body? One definition, because there are two callers and
+		// they used to disagree: the living/dead filter asked IsDead() while
+		// the colour asked GetLifeState(). Those part company for the length
+		// of a death animation, and over an essential NPC down in bleedout -
+		// long enough to show somebody the filter calls living wearing the
+		// dead colour, or the reverse.
+		[[nodiscard]] bool IsCorpse(RE::Actor* a_actor)
+		{
+			switch (a_actor->AsActorState()->GetLifeState()) {
+			case RE::ACTOR_LIFE_STATE::kDying:
+			case RE::ACTOR_LIFE_STATE::kDead:
+				return true;
+			default:
+				return false;
+			}
+		}
+
 		[[nodiscard]] Reading Judge(RE::TESObjectREFR* a_ref, const Settings& a_settings)
 		{
 			const auto fallback = a_settings.categories[static_cast<std::size_t>(Category::kActor)].colour;
@@ -412,12 +430,8 @@ namespace SS
 				return { Disposition::kNone, fallback };
 			}
 
-			switch (actor->AsActorState()->GetLifeState()) {
-			case RE::ACTOR_LIFE_STATE::kDying:
-			case RE::ACTOR_LIFE_STATE::kDead:
+			if (IsCorpse(actor)) {
 				return { Disposition::kDead, a_settings.deadColour };
-			default:
-				break;
 			}
 
 			auto* player = RE::PlayerCharacter::GetSingleton();
@@ -907,7 +921,7 @@ namespace SS
 				++a_stats.actorCastFailed;
 				return false;
 			}
-			const bool dead = actor->IsDead();
+			const bool dead = IsCorpse(const_cast<RE::Actor*>(actor));
 			if ((settings->actorFilter == ActorFilter::kLivingOnly && dead) ||
 				(settings->actorFilter == ActorFilter::kDeadOnly && !dead)) {
 				++a_stats.deadActor;
@@ -981,6 +995,12 @@ namespace SS
 
 	void Sense::OnHotkey()
 	{
+		if (auto* perks = Perks::GetSingleton(); !perks->AllowsSense()) {
+			perks->ExplainSense();
+			logger::info("sweep: key refused, the required perk is not held");
+			return;
+		}
+
 		if (!_ready) {
 			// Say something rather than swallowing the press - a silent hotkey is
 			// impossible to tell apart from a broken binding.
@@ -1512,7 +1532,8 @@ namespace SS
 
 		float now[3]{ -1.0f, -1.0f, -1.0f };
 		float caps[3]{ 1.0f, 1.0f, 1.0f };
-		ReadVitals(player, now, caps);
+		float peaks[3]{ -1.0f, -1.0f, -1.0f };
+		ReadVitals(player, now, caps, peaks);
 
 		// A hair of slack, so floating point noise in regeneration does not
 		// count as a change and hold the readout up forever.
@@ -1529,7 +1550,7 @@ namespace SS
 			_selfChangedAt = SS::RealNow();
 		}
 
-		Labels::GetSingleton()->SetSelfHud(now, caps, _selfChangedAt);
+		Labels::GetSingleton()->SetSelfHud(now, caps, peaks, _selfChangedAt);
 
 		// The stats row: level, septims, weight, cold, and what is in hand.
 		// All cheap main-thread reads except gold, which walks the inventory
@@ -2124,6 +2145,16 @@ namespace SS
 	// The gate every tracking action passes; explains itself when it says no.
 	bool Sense::TrailGateOpen()
 	{
+		// Asked before the ground is: not knowing how to read tracks is a
+		// different refusal from standing up straight, and saying the wrong
+		// one would send somebody hunting for a crouch key that was never
+		// the problem.
+		if (auto* perks = Perks::GetSingleton(); !perks->AllowsTracking()) {
+			perks->ExplainTracking();
+			logger::info("trails: key refused, the required perk is not held");
+			return false;
+		}
+
 		if (TrailsRevealed()) {
 			return true;
 		}

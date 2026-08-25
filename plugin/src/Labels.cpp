@@ -210,6 +210,63 @@ namespace SS
 				ImDrawFlags_Closed, std::max(1.0f, a_thick * 0.16f));
 		}
 
+		// The number that rides the far end of a bar, past its end on the long
+		// axis and centred across it, so a stack of three reads as a column
+		// instead of drifting with each bar's fill.
+		//
+		// Shared by your own bars and everyone else's. It was written inline
+		// for other people first, and pulling it out here is what let your own
+		// bars have it without the two drifting apart later.
+		void DrawBarNumber(ImDrawList* a_draw, ImVec2 a_origin, float a_length,
+			float a_thick, bool a_upright, float a_value, float a_peak,
+			BarNumbers a_style, std::uint32_t a_colour, float a_alpha)
+		{
+			if (a_style == BarNumbers::kOff || a_value < 0.0f) {
+				return;
+			}
+
+			std::string text;
+			switch (a_style) {
+			case BarNumbers::kPercent:
+				text = std::format("{}%", static_cast<int>(a_value * 100.0f + 0.5f));
+				break;
+			case BarNumbers::kOutOfMax:
+				if (a_peak > 0.0f) {
+					text = std::format("{}/{}", static_cast<int>(a_value * a_peak + 0.5f),
+						static_cast<int>(a_peak + 0.5f));
+				}
+				break;
+			case BarNumbers::kCurrent:
+			default:
+				if (a_peak > 0.0f) {
+					text = std::format("{}", static_cast<int>(a_value * a_peak + 0.5f));
+				}
+				break;
+			}
+			if (text.empty()) {
+				return;
+			}
+
+			auto* font = igGetFont();
+			if (!font) {
+				return;
+			}
+			const float size = std::max(9.0f, a_thick * 1.8f);
+			ImVec2      extent{};
+			ImFont_CalcTextSizeA(&extent, font, size, FLT_MAX, 0.0f,
+				text.c_str(), nullptr, nullptr);
+			const ImVec2 at = a_upright
+				? ImVec2{ a_origin.x + a_thick * 0.5f - extent.x * 0.5f,
+						a_origin.y - a_length - extent.y }
+				: ImVec2{ a_origin.x + a_length + a_thick * 0.6f,
+						a_origin.y + a_thick * 0.5f - extent.y * 0.5f };
+			ImDrawList_AddText_FontPtr(a_draw, font, size,
+				ImVec2{ at.x + 1.0f, at.y + 1.0f }, PackColour(0x000000, a_alpha * 0.7f),
+				text.c_str(), nullptr, 0.0f, nullptr);
+			ImDrawList_AddText_FontPtr(a_draw, font, size, at,
+				PackColour(a_colour, a_alpha), text.c_str(), nullptr, 0.0f, nullptr);
+		}
+
 		// What is in someone's hands, as geometry - same reasoning as the
 		// disposition shapes: a font can be missing a glyph, a few lines
 		// cannot.
@@ -722,12 +779,14 @@ namespace SS
 		_washDies = 0.0f;
 	}
 
-	void Labels::SetSelfHud(const float (&a_vitals)[3], const float (&a_caps)[3], float a_changedAt)
+	void Labels::SetSelfHud(const float (&a_vitals)[3], const float (&a_caps)[3],
+		const float (&a_peaks)[3], float a_changedAt)
 	{
 		std::scoped_lock guard{ _lock };
 		for (int i = 0; i < 3; ++i) {
 			_selfHud[i] = a_vitals[i];
 			_selfHudCap[i] = a_caps[i];
+			_selfHudPeak[i] = a_peaks[i];
 		}
 		_selfHudAt = a_changedAt;
 	}
@@ -937,6 +996,9 @@ namespace SS
 				settings->barsLostFx ? i : -1, a_now,
 				colours[i], settings->selfBarFrameColour, alpha,
 				static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
+
+			DrawBarNumber(draw, ImVec2{ x, y }, length, thick, false, _selfHud[i],
+				_selfHudPeak[i], settings->selfBarNumbers, colours[i], alpha);
 		}
 
 		// The stats row: what is in hand, the level, the purse, the pack and
@@ -1779,6 +1841,8 @@ namespace SS
 				const float span = settings->selfBarWidth * c.scale;
 				const float shear = settings->selfBarShear * thick;
 				const float step = thick + thick * 0.75f;
+				const BarNumbers numbers =
+					c.vitalsSelf ? settings->selfBarNumbers : settings->barNumbers;
 
 				// A small chip above the stack: race, level, and what they hold.
 				// Reads as a nameplate for a stack that has no name.
@@ -1852,6 +1916,8 @@ namespace SS
 						settings->barsLostFx ? i : -1, now,
 						colours[i], settings->selfBarFrameColour, alpha,
 						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
+					DrawBarNumber(draw, origin, length, thick, false, c.vitals[i],
+						c.vitalsPeak[i], numbers, colours[i], alpha);
 				}
 
 				// The full-glance HUD: your stats ride directly under your own
@@ -2348,48 +2414,12 @@ namespace SS
 						colours[i], settings->selfBarFrameColour, alpha,
 						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
 
-					// The number rides the far end of its own bar, so a stack of three
-					// reads as a column instead of drifting with each bar's fill.
-					if (settings->barNumbers != BarNumbers::kOff && entry.vitals[i] >= 0.0f) {
-						const float peak = entry.vitalsPeak[i];
-						std::string text;
-						switch (settings->barNumbers) {
-						case BarNumbers::kPercent:
-							text = std::format("{}%", static_cast<int>(entry.vitals[i] * 100.0f + 0.5f));
-							break;
-						case BarNumbers::kOutOfMax:
-							if (peak > 0.0f) {
-								text = std::format("{}/{}", static_cast<int>(entry.vitals[i] * peak + 0.5f),
-									static_cast<int>(peak + 0.5f));
-							}
-							break;
-						case BarNumbers::kCurrent:
-						default:
-							if (peak > 0.0f) {
-								text = std::format("{}", static_cast<int>(entry.vitals[i] * peak + 0.5f));
-							}
-							break;
-						}
-						if (!text.empty()) {
-							if (auto* numFont = igGetFont(); numFont) {
-								const float numSize = std::max(9.0f, thick * 1.8f);
-								ImVec2      numExtent{};
-								ImFont_CalcTextSizeA(&numExtent, numFont, numSize, FLT_MAX, 0.0f,
-									text.c_str(), nullptr, nullptr);
-								// Past the end of the bar on its long axis, centred across it.
-								const ImVec2 numAt = upright
-									? ImVec2{ origin.x + thick * 0.5f - numExtent.x * 0.5f,
-										origin.y - length - numExtent.y }
-									: ImVec2{ origin.x + length + thick * 0.6f,
-										origin.y + thick * 0.5f - numExtent.y * 0.5f };
-								ImDrawList_AddText_FontPtr(draw, numFont, numSize,
-									ImVec2{ numAt.x + 1.0f, numAt.y + 1.0f }, PackColour(0x000000, alpha * 0.7f),
-									text.c_str(), nullptr, 0.0f, nullptr);
-								ImDrawList_AddText_FontPtr(draw, numFont, numSize, numAt,
-									PackColour(colours[i], alpha), text.c_str(), nullptr, 0.0f, nullptr);
-							}
-						}
-					}
+					// Your own bars answer to your own setting, wherever they are
+					// drawn - the entry already knows which it is.
+					DrawBarNumber(draw, origin, length, thick, upright, entry.vitals[i],
+						entry.vitalsPeak[i],
+						entry.vitalsSelf ? settings->selfBarNumbers : settings->barNumbers,
+						colours[i], alpha);
 
 					barsBottom = std::max(barsBottom, origin.y + thick);
 				}

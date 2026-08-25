@@ -575,6 +575,10 @@ namespace SS
 		// own ShowWhen, so "always over the enemy, only-on-change over me" is
 		// expressible. First person has no head to hang them over; that is
 		// what the corner readout is for.
+		// The same numbers the other-people bars can carry, on your own.
+		// Shares BarNumbers so both readouts look alike.
+		BarNumbers selfBarNumbers{ BarNumbers::kOff };
+
 		bool     selfBarsOverhead{ false };
 		ShowWhen selfBarsOverheadWhen{ ShowWhen::kOnChange };
 
@@ -590,6 +594,20 @@ namespace SS
 		// any survival mod can be pointed at. Survival Mode's is the default;
 		// the row hides itself when the global does not exist.
 		std::string coldGlobal{ "Survival_ColdLevel" };
+
+		// [Perks] - the sense and the hunt can be things you learn rather
+		// than things you always had. Name a perk from any mod you already
+		// run and the key does nothing until you have it.
+		//
+		// Either form: "Ordinator.esp|0x1234", or the perk's name as the
+		// game shows it. Empty is no requirement, which is how this ships,
+		// and a name that resolves to nothing leaves the gate open - a typo
+		// must not lock somebody out of their own mod.
+		std::string perkSense{};
+		std::string perkTracking{};
+		// Say so when a key is refused. Off leaves it silent, which reads
+		// as a broken hotkey unless you already know why.
+		bool        perkNotify{ true };
 		float       coldMax{ 100.0f };
 		// [Tracks] - breadcrumbs behind anyone the sense has touched. Honest
 		// limits: recording starts when we first see somebody and stops when

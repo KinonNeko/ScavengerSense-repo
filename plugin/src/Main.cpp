@@ -3,6 +3,7 @@
 #include "GameMenus.h"
 #include "Locale.h"
 #include "Marks.h"
+#include "Perks.h"
 #include "Titles.h"
 #include "Menu.h"
 #include "PostFX.h"
@@ -249,6 +250,7 @@ namespace SS
 			Sense::GetSingleton()->OnDataLoaded();
 			Marks::GetSingleton()->Load();
 			Titles::GetSingleton()->Load();
+			Perks::GetSingleton()->Resolve();
 
 			// Cancelling clears the effect shaders off every lit object as well
 			// as everything we draw. That matters for menus that build their own
@@ -353,7 +355,7 @@ namespace SS
 }
 
 SKSEPluginInfo(
-	.Version = REL::Version{ 0, 8, 8, 0 },
+	.Version = REL::Version{ 0, 9, 0, 0 },
 	.Name = "ScavengerSense"sv,
 	.Author = "KShakes"sv)
 

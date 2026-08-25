@@ -1,5 +1,7 @@
 #include "Menu.h"
 
+#include "Perks.h"
+
 #include "Arousal.h"
 #include "Config.h"
 #include "Labels.h"
@@ -401,6 +403,60 @@ namespace SS::Menu
 
 		// ------------------------------------------------------------ sections
 
+		// Why a key might do nothing at all. Kept above the bindings and in
+		// its own section: it was written at the foot of the page to begin
+		// with, where it needed a scroll to reach and read as one more line
+		// of the key list. A perk requirement is not a control.
+		void DrawPerkGate(Settings& a_settings)
+		{
+			if (!Header(T("Perks"))) {
+				return;
+			}
+			igTextDisabled("%s", T("leave both empty and the keys always work"));
+			igSpacing();
+
+			// Primed once from the settings and owned by the widgets after that,
+			// so typing is not fought over by a reload every frame.
+			static char senseBuf[128]{};
+			static char trackBuf[128]{};
+			static bool primed = false;
+			if (!primed) {
+				std::snprintf(senseBuf, sizeof(senseBuf), "%s", a_settings.perkSense.c_str());
+				std::snprintf(trackBuf, sizeof(trackBuf), "%s", a_settings.perkTracking.c_str());
+				primed = true;
+			}
+
+			if (igInputText(T("Perk needed to sense"), senseBuf, sizeof(senseBuf), 0, nullptr, nullptr)) {
+				a_settings.perkSense = senseBuf;
+				Perks::GetSingleton()->Resolve();
+			}
+			Help(
+				"The perk's name as the game shows it - \"Treasure Hunter\" - or\n"
+				"Plugin.esp|0x1234 if two perks share a name. It can come from any\n"
+				"mod you already run; nothing is added to your save.");
+			if (const auto& note = Perks::GetSingleton()->SenseStatus(); !note.empty()) {
+				igTextDisabled("%s", note.c_str());
+			}
+
+			if (igInputText(T("Perk needed to track"), trackBuf, sizeof(trackBuf), 0, nullptr, nullptr)) {
+				a_settings.perkTracking = trackBuf;
+				Perks::GetSingleton()->Resolve();
+			}
+			Help(
+				"The same, for the hunt: marking, following and wiping trails.\n"
+				"Naming one perk for both is fine.");
+			if (const auto& note = Perks::GetSingleton()->TrackingStatus(); !note.empty()) {
+				igTextDisabled("%s", note.c_str());
+			}
+
+			igCheckbox(T("Say why the key did nothing"), &a_settings.perkNotify);
+			Help(
+				"A line in the corner when a key is refused. Off is silent, which\n"
+				"is hard to tell from a hotkey that has stopped working.");
+			igSpacing();
+		}
+
+
 		// The Keys page, in the order the decisions actually happen.
 		//
 		// The control layout comes first because it decides what the rest of the
@@ -410,6 +466,8 @@ namespace SS::Menu
 		// the layout that disabled it - is how it came to be reported as broken.
 		void DrawKeys(Settings& a_settings)
 		{
+			DrawPerkGate(a_settings);
+
 			if (!Header(T("Controls"))) {
 				return;
 			}
@@ -1565,13 +1623,26 @@ namespace SS::Menu
 			static const char* const kWhen[] = { "Always", "When something changes",
 				"Only what is not full" };
 
+			static const char* const kMyNumbers[] = { "No numbers", "Current",
+				"Current out of max", "Percent" };
+			int myNums = static_cast<int>(a_settings.selfBarNumbers);
+			if (igCombo_Str_arr(T("Numbers on my bars"), &myNums, Translated(kMyNumbers, 4), 4, -1)) {
+				a_settings.selfBarNumbers = static_cast<BarNumbers>(std::clamp(myNums, 0, 3));
+			}
+			Help(
+				"Yours only - the bars over other people have their own setting\n"
+				"further down. Applies to all three places yours appear: under\n"
+				"your name, over your head, and pinned to a corner.");
+			igSpacing();
+
 			igSeparatorText(T("On my name tag"));
 			igCheckbox(T("Show them during a sweep"), &a_settings.selfBars);
 			Help(
 				"Three bars under your name for as long as a sweep lasts. Needs\n"
 				"\"Tag me too\" on the What shows page, since they hang off the tag.");
 
-			if (a_settings.selfBars) {
+			igBeginDisabled(!a_settings.selfBars);
+			{
 				int when = static_cast<int>(a_settings.selfBarsWhen);
 				if (igCombo_Str_arr(T("Show them"), &when, Translated(kWhen, 3), 3, -1)) {
 					a_settings.selfBarsWhen = static_cast<ShowWhen>(std::clamp(when, 0, 2));
@@ -1587,6 +1658,7 @@ namespace SS::Menu
 					"Left and right stand the bars upright beside you and fill them from\n"
 					"the bottom. Above and below lay them flat.");
 			}
+			igEndDisabled();
 
 			igSpacing();
 			igSeparatorText(T("Over my head"));
@@ -1595,7 +1667,8 @@ namespace SS::Menu
 				"The same stack the combat bars use, following you in third\n"
 				"person. In first person there is no head to hang them over -\n"
 				"that is what the corner readout below is for.");
-			if (a_settings.selfBarsOverhead) {
+			igBeginDisabled(!a_settings.selfBarsOverhead);
+			{
 				int overheadWhen = static_cast<int>(a_settings.selfBarsOverheadWhen);
 				if (igCombo_Str_arr(T("Show these"), &overheadWhen, Translated(kWhen, 3), 3, -1)) {
 					a_settings.selfBarsOverheadWhen = static_cast<ShowWhen>(std::clamp(overheadWhen, 0, 2));
@@ -1604,6 +1677,7 @@ namespace SS::Menu
 					"\"When something changes\" uses the same linger and fade the other\n"
 					"bars do, set under Bar style.");
 			}
+			igEndDisabled();
 
 			igSpacing();
 			igSeparatorText(T("Pinned to the screen"));
@@ -1619,7 +1693,8 @@ namespace SS::Menu
 				"that works in first person. Pair it with hiding the game's own\n"
 				"HUD on the Setup page.");
 
-			if (a_settings.selfHudCorner != Corner::kOff) {
+			igBeginDisabled(a_settings.selfHudCorner == Corner::kOff);
+			{
 				int when = static_cast<int>(a_settings.selfHudShow);
 				if (igCombo_Str_arr(T("Show it"), &when, Translated(kWhen, 3), 3, -1)) {
 					a_settings.selfHudShow = static_cast<ShowWhen>(std::clamp(when, 0, 2));
@@ -1634,6 +1709,7 @@ namespace SS::Menu
 				igDragFloat(T("Margin down"), &a_settings.selfHudY, 1.0f, 0.0f, 600.0f, "%.0f px", 0);
 				Help("Drag for single pixels, Ctrl+click to type a number.");
 			}
+			igEndDisabled();
 
 			igSpacing();
 			igSeparatorText(T("Ammunition"));
@@ -1644,7 +1720,8 @@ namespace SS::Menu
 				"the world or sit in a corner of the screen. Only appears with a\n"
 				"bow or a crossbow actually out.");
 
-			if (a_settings.ammoCounter) {
+			igBeginDisabled(!a_settings.ammoCounter);
+			{
 				static const char* const kAmmoWhen[] = { "Always", "Only while drawing",
 					"Only while sensing" };
 				int ammoWhen = static_cast<int>(a_settings.ammoWhen);
@@ -1701,6 +1778,7 @@ namespace SS::Menu
 					"glance and much shorter.");
 				ColourPicker(T("Ammo colour"), a_settings.ammoColour);
 			}
+			igEndDisabled();
 
 			igSpacing();
 		}
@@ -1757,15 +1835,16 @@ namespace SS::Menu
 			if (igCombo_Str_arr(T("Raise a bar"), &combatWhen, Translated(kCombatWhen, 3), 3, -1)) {
 				a_settings.combatBarsWhen = static_cast<CombatBarsWhen>(std::clamp(combatWhen, 0, 2));
 
-				static const char* const kBarNumbers[] = { "No numbers", "Current",
+				static const char* const kBarNumbersHere[] = { "No numbers", "Current",
 					"Current / max", "Percent" };
 				int barNums = static_cast<int>(a_settings.barNumbers);
-				if (igCombo_Str_arr(T("Numbers on bars"), &barNums, Translated(kBarNumbers, 4), 4, -1)) {
+				if (igCombo_Str_arr(T("Numbers on their bars"), &barNums, Translated(kBarNumbersHere, 4), 4, -1)) {
 					a_settings.barNumbers = static_cast<BarNumbers>(std::clamp(barNums, 0, 3));
 				}
 				Help(
-					"Written past the end of each bar, in that bar's own colour. This\n"
-					"applies to every vitals bar the mod draws - yours and theirs.");
+					"Written past the end of each bar, in that bar's own colour.\n"
+					"Other people only - your own bars have the same choice on the\n"
+					"My vitals page.");
 			}
 			Help(
 				"Landing a hit was once the only way in, which left the archer on\n"
@@ -2384,7 +2463,7 @@ namespace SS::Menu
 
 			igSpacing();
 
-			if (!igBeginTabBar("survivor-sense", ImGuiTabBarFlags_None)) {
+			if (!igBeginTabBar("survivor-sense", ImGuiTabBarFlags_FittingPolicyResizeDown)) {
 				return;
 			}
 
@@ -2393,7 +2472,17 @@ namespace SS::Menu
 			// languages.
 			igPushItemWidth(-260.0f);
 
-			if (igBeginTabItem(T("Sweep"), nullptr, 0)) {
+			// Keys first: it is the only page everybody has to visit, and it is
+			// where the answer lives when nothing happens at all.
+			if (igBeginTabItem(T("Keys"), nullptr, 0)) {
+				igSpacing();
+				DrawKeys(settings);
+				igTextDisabled("%s",
+					T("The settings menu itself opens on SKSE Menu Framework's key - F1 out of the box, set in its own INI."));
+				igEndTabItem();
+			}
+
+			if (igBeginTabItem(T("Sense"), nullptr, 0)) {
 				igSpacing();
 				DrawScan(settings);
 				DrawPulse(settings);
@@ -2401,6 +2490,12 @@ namespace SS::Menu
 				igEndTabItem();
 			}
 
+			if (igBeginTabItem(T("Targets"), nullptr, 0)) {
+				igSpacing();
+				DrawCategories(settings);
+				DrawSelf(settings);
+				igEndTabItem();
+			}
 
 			if (igBeginTabItem(T("Look"), nullptr, 0)) {
 				igSpacing();
@@ -2410,28 +2505,19 @@ namespace SS::Menu
 				igEndTabItem();
 			}
 
-			if (igBeginTabItem(T("Tags"), nullptr, 0)) {
+			// Names, titles and markers are all writing over somebody's head;
+			// keeping them on one page is why Titles is no longer its own.
+			if (igBeginTabItem(T("Names"), nullptr, 0)) {
 				igSpacing();
 				DrawLabels(settings);
 				DrawPeopleReading(settings);
 				DrawMarkers(settings);
-				igEndTabItem();
-			}
-
-			if (igBeginTabItem(T("What shows"), nullptr, 0)) {
 				igSpacing();
-				DrawCategories(settings);
-				DrawSelf(settings);
+				DrawTitles(settings);
 				igEndTabItem();
 			}
 
-			if (igBeginTabItem(T("Tracks"), nullptr, 0)) {
-				igSpacing();
-				DrawTracks(settings);
-				igEndTabItem();
-			}
-
-			if (igBeginTabItem(T("Vitals"), nullptr, 0)) {
+			if (igBeginTabItem(T("Bars"), nullptr, 0)) {
 				igSpacing();
 				DrawBarStyle(settings);
 				DrawMyVitals(settings);
@@ -2440,9 +2526,9 @@ namespace SS::Menu
 				igEndTabItem();
 			}
 
-			if (igBeginTabItem(T("Titles"), nullptr, 0)) {
+			if (igBeginTabItem(T("Tracks"), nullptr, 0)) {
 				igSpacing();
-				DrawTitles(settings);
+				DrawTracks(settings);
 				igEndTabItem();
 			}
 
@@ -2454,17 +2540,9 @@ namespace SS::Menu
 
 			if (igBeginTabItem(T("Setup"), nullptr, 0)) {
 				igSpacing();
-				DrawInterface(settings);
 				DrawPresets(settings);
+				DrawInterface(settings);
 				DrawActions(settings);
-				igEndTabItem();
-			}
-
-			if (igBeginTabItem(T("Keys"), nullptr, 0)) {
-				igSpacing();
-				DrawKeys(settings);
-				igTextDisabled("%s",
-					T("The settings menu itself opens on SKSE Menu Framework's key - F1 out of the box, set in its own INI."));
 				igEndTabItem();
 			}
 
