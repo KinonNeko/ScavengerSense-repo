@@ -21,8 +21,10 @@ the bars over somebody else's head.
   let go of a combat flag that never clears - never got a say, and a stuck
   flag was a bar for the rest of the session. That is the "every hostile
   creature, permanently" some people saw, vampires included. The seed now
-  asks the engine's own per-actor combat state: not fleeing, target not
-  lost. The same question holds a bar up for anyone who arrived that way;
+  asks the engine's own combat state: not fleeing, target not lost, and
+  the combat group's entry for you marked known - a cave that heard
+  something and went looking is in combat with you on every other count,
+  and nobody in it has seen you. The same question holds a bar up for anyone who arrived that way;
   somebody you have actually hit keeps theirs on the plain "in combat with
   you", fleeing included, because a wounded deer running is the hunt and
   not the end of it. "Only enemies" on the sense asks the stricter question

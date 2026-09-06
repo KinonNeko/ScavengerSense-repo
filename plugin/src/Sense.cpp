@@ -360,10 +360,25 @@ namespace SS
 			}
 			// In combat with nothing running the combat: the stuck kind.
 			const auto* controller = data.combatController;
-			if (!controller || !controller->state) {
+			if (!controller || !controller->state || !controller->combatGroup) {
 				return false;
 			}
-			return !controller->state->isFleeing && !controller->state->targetLost;
+			if (controller->state->isFleeing || controller->state->targetLost) {
+				return false;
+			}
+			// The group's own entry for the player says whether they have
+			// actually found you. A cave that heard something and went
+			// looking is in combat, with you as the target, on every count
+			// above - and nobody in it has seen you. Known and not lost is
+			// what a fight looks like; anything else is a search.
+			const auto playerHandle = a_player->CreateRefHandle();
+			for (const auto& target : controller->combatGroup->targets) {
+				if (target.targetHandle == playerHandle) {
+					return target.flags.all(RE::CombatTarget::Flags::kTargetKnown) &&
+					       target.flags.none(RE::CombatTarget::Flags::kTargetLost);
+				}
+			}
+			return false;
 		}
 
 		// What the player currently is. Three states, in the order that matters:
