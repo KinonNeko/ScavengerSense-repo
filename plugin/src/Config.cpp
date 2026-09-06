@@ -731,6 +731,7 @@ namespace SS
 				hideMenus = raw;
 			}
 		}
+		Get(table, "general", "activateTextShift", activateTextShift);
 
 		Get(table, "hotkey", "keyboard", keyboard);
 		Get(table, "hotkey", "gamepad", gamepad);
@@ -1047,6 +1048,7 @@ namespace SS
 		ringLead = std::clamp(ringLead, 0.5f, 4.0f);
 		doubleTapWindow = std::clamp(doubleTapWindow, 0.05f, 2.0f);
 		holdTime = std::clamp(holdTime, 0.05f, 5.0f);
+		activateTextShift = std::clamp(activateTextShift, -400.0f, 400.0f);
 
 		favouriteScale = std::clamp(favouriteScale, 0.5f, 3.0f);
 		selfScale = std::clamp(selfScale, 0.5f, 3.0f);
@@ -1193,7 +1195,12 @@ namespace SS
 		file << "; separated, and they go too. A mod drawing through ImGui rather than\n";
 		file << "; Scaleform cannot be reached this way at all.\n";
 		file << "hideGameHud = " << boolean(hideGameHud) << "\n";
-		file << "hideMenus = " << hideMenus << "\n\n\n";
+		file << "hideMenus = " << hideMenus << "\n\n";
+		file << "; Move the game's activation prompt - the \"Talk  Lydia\" line on the\n";
+		file << "; crosshair, over the face of whoever you are about to talk to - up\n";
+		file << "; (negative) or down (positive), in the HUD's own units: the screen\n";
+		file << "; is 720 tall. 0 leaves it where the game put it.\n";
+		file << "activateTextShift = " << activateTextShift << "\n\n\n";
 
 		file << "[Hotkey]\n\n";
 		file << "; DirectX scan code of the key that triggers a sweep. Mouse buttons are\n";

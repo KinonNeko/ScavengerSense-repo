@@ -2,6 +2,8 @@
 
 #include "Config.h"
 
+#include <cmath>
+
 namespace SS
 {
 	namespace
@@ -36,6 +38,41 @@ namespace SS
 		// at a face, and a sonar ring going off across the room during it is
 		// exactly the wrong thing.
 		constexpr std::string_view kDialogue = "Dialogue Menu";
+
+		// The vanilla HUD's main clip. Hiding the HUD Menu's movie is what the
+		// setting asks for, and it is also what the game undoes: a menu that
+		// pauses the game hides the HUD on the way in and shows it again on
+		// the way out, at the movie level. Every element the HUD draws hangs
+		// off this clip, its script never writes the clip's own _visible,
+		// and so the clip stays hidden across that hand-back where the movie
+		// did not. The movie is still hidden as well, for anything a mod has
+		// attached to the movie beside the clip.
+		constexpr auto kHudBase = "_root.HUDMovieBaseInstance";
+
+		// The activation prompt, in pieces: the name line, the key glyph, the
+		// value/weight line and the bar drawn behind that line. Moved
+		// together so their layout relative to each other survives.
+		constexpr const char* kRolloverParts[] = {
+			"_root.HUDMovieBaseInstance.RolloverNameInstance",
+			"_root.HUDMovieBaseInstance.ActivateButton_tf",
+			"_root.HUDMovieBaseInstance.RolloverInfoInstance",
+			"_root.HUDMovieBaseInstance.GrayBarInstance",
+		};
+
+		[[nodiscard]] RE::GFxMovie* HudMovie()
+		{
+			auto* ui = RE::UI::GetSingleton();
+			auto  menu = ui ? ui->GetMenu(RE::HUDMenu::MENU_NAME) : nullptr;
+			return menu && menu->uiMovie ? menu->uiMovie.get() : nullptr;
+		}
+
+		void SetBaseVisible(bool a_visible)
+		{
+			if (auto* movie = HudMovie()) {
+				movie->SetVariable((std::string{ kHudBase } + "._visible").c_str(),
+					RE::GFxValue{ a_visible });
+			}
+		}
 	}
 
 	GameMenus* GameMenus::GetSingleton()
@@ -149,6 +186,17 @@ namespace SS
 			_onBlockingOpen(name);
 		}
 
+		// Re-assert on the spot, before this frame draws. A menu closing is
+		// when the game shows its HUD again and TrueHUD shows its own, and
+		// the tick that would take them away again runs a frame later at
+		// best - which is the flash people saw on leaving a container. All
+		// three calls are idempotent and cheap, so opening gets them too.
+		ApplyHudVisibility();
+		ApplyHudLayout();
+		if (_onAnyChange) {
+			_onAnyChange();
+		}
+
 		return RE::BSEventNotifyControl::kContinue;
 	}
 
@@ -220,6 +268,9 @@ namespace SS
 			if (std::find(wanted.begin(), wanted.end(), name) == wanted.end()) {
 				if (auto menu = ui->GetMenu(name); menu && menu->uiMovie) {
 					menu->uiMovie->SetVisible(true);
+					if (name == RE::HUDMenu::MENU_NAME) {
+						SetBaseVisible(true);
+					}
 				}
 			}
 		}
@@ -231,8 +282,65 @@ namespace SS
 				continue;  // not open right now - retried next time this runs
 			}
 			menu->uiMovie->SetVisible(false);
+			if (name == RE::HUDMenu::MENU_NAME) {
+				// The clip as well as the movie: see kHudBase.
+				SetBaseVisible(false);
+			}
 			_hidden.push_back(name);
 		}
+	}
+
+	void GameMenus::ApplyHudLayout()
+	{
+		const float shift = Settings::GetSingleton()->activateTextShift;
+		if (shift == 0.0f && !_shifted) {
+			return;  // never touched, nothing to do - the common case
+		}
+
+		auto* movie = HudMovie();
+		if (!movie) {
+			return;  // no HUD right now (main menu, loading) - retried next tick
+		}
+
+		bool anyMoved = false;
+		for (std::size_t i = 0; i < kRolloverCount; ++i) {
+			const auto   path = std::string{ kRolloverParts[i] } + "._y";
+			RE::GFxValue y;
+			if (!movie->GetVariable(&y, path.c_str()) || !y.IsNumber()) {
+				// A HUD replacer that renamed or dropped the piece. Said once,
+				// and the other pieces still move.
+				if (!_saidNoRollover) {
+					_saidNoRollover = true;
+					logger::warn("activation prompt: {} not found - cannot move it",
+						kRolloverParts[i]);
+				}
+				continue;
+			}
+			const auto current = static_cast<float>(y.GetNumber());
+
+			// The first sighting is the HUD file's own placement: nothing but
+			// this code ever writes these, so before we have, what is read is
+			// home. Kept for the life of the process - a reload rebuilds the
+			// element at the same place, and reading it again while shifted
+			// would capture our own offset as home.
+			if (!_rolloverKnown[i]) {
+				_rolloverHome[i] = current;
+				_rolloverKnown[i] = true;
+			}
+
+			const float target = _rolloverHome[i] + shift;
+			if (std::abs(current - target) > 0.01f) {
+				movie->SetVariable(path.c_str(), RE::GFxValue{ static_cast<double>(target) });
+			}
+			anyMoved = anyMoved || shift != 0.0f;
+		}
+
+		if (anyMoved && !_shifted) {
+			logger::info("activation prompt moved {:+.0f}", shift);
+		} else if (!anyMoved && _shifted) {
+			logger::info("activation prompt put back");
+		}
+		_shifted = anyMoved;
 	}
 
 	void GameMenus::RestoreHud()
@@ -245,11 +353,27 @@ namespace SS
 		for (const auto& name : _hidden) {
 			if (auto menu = ui->GetMenu(name); menu && menu->uiMovie) {
 				menu->uiMovie->SetVisible(true);
+				if (name == RE::HUDMenu::MENU_NAME) {
+					SetBaseVisible(true);
+				}
 			}
 		}
 		if (!_hidden.empty()) {
 			logger::info("menus: restored {} hidden menu(s)", _hidden.size());
 		}
 		_hidden.clear();
+
+		if (_shifted) {
+			if (auto* movie = HudMovie()) {
+				for (std::size_t i = 0; i < kRolloverCount; ++i) {
+					if (_rolloverKnown[i]) {
+						movie->SetVariable((std::string{ kRolloverParts[i] } + "._y").c_str(),
+							RE::GFxValue{ static_cast<double>(_rolloverHome[i]) });
+					}
+				}
+			}
+			_shifted = false;
+			logger::info("activation prompt put back");
+		}
 	}
 }

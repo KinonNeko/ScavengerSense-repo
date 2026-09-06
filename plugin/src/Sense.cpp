@@ -42,6 +42,14 @@ namespace SS
 		// to ask it to dismiss its own bar over somebody ours is covering.
 		TRUEHUD_API::IVTrueHUD1* g_trueHud = nullptr;
 
+		// The vanilla enemy health element, and where it goes when it is ours
+		// to keep down: off screen by POSITION, not visibility, because the
+		// HUD's own ActionScript re-drives _visible on every target update
+		// and wins that fight. Nothing in that script ever writes _y.
+		constexpr auto  kEnemyHealth = "_root.HUDMovieBaseInstance.EnemyHealth_mc";
+		constexpr float kHomeUnset = -100000.0f;
+		constexpr float kParkedY = -4000.0f;
+
 		[[nodiscard]] RE::Color ToColor(std::uint32_t a_rgb, float a_scale)
 		{
 			const auto channel = [a_scale](std::uint32_t a_value) {
@@ -329,6 +337,33 @@ namespace SS
 			}
 
 			return { kind, mark };
+		}
+
+		// Whether somebody is fighting the player right now, as opposed to
+		// merely carrying the combat flag with the player as its target. The
+		// flag alone over-reports in exactly the ways that put a bar over the
+		// wrong head: a deer running from you is "in combat" with you as its
+		// target, and a wolf that lost you three rooms ago stays in combat,
+		// searching, for as long as the engine's search timer runs - and a
+		// flag that never clears at all, which some states leave behind, is
+		// a bar that never comes down. Fleeing and target-lost are bytes the
+		// engine keeps for its own combat AI, per actor, so they are read
+		// rather than guessed at from distance or line of sight.
+		[[nodiscard]] bool FightingPlayer(RE::Actor* a_actor, RE::Actor* a_player)
+		{
+			if (!a_actor || !a_player || !a_actor->IsInCombat()) {
+				return false;
+			}
+			const auto& data = a_actor->GetActorRuntimeData();
+			if (data.currentCombatTarget != a_player->CreateRefHandle()) {
+				return false;
+			}
+			// In combat with nothing running the combat: the stuck kind.
+			const auto* controller = data.combatController;
+			if (!controller || !controller->state) {
+				return false;
+			}
+			return !controller->state->isFleeing && !controller->state->targetLost;
 		}
 
 		// What the player currently is. Three states, in the order that matters:
@@ -710,6 +745,7 @@ namespace SS
 					// player is left with no HUD.
 					const bool  idleWork = settings->selfHudCorner != Corner::kOff ||
 					                      settings->hideGameHud ||
+					                      settings->activateTextShift != 0.0f ||
 					                      settings->combatBars ||
 					                      settings->selfBarsOverhead ||
 					                      settings->ammoCounter ||
@@ -725,6 +761,7 @@ namespace SS
 							PollCombat();
 							PollTrails();
 							GameMenus::GetSingleton()->ApplyHudVisibility();
+							GameMenus::GetSingleton()->ApplyHudLayout();
 							Tick();
 						});
 					}
@@ -942,8 +979,7 @@ namespace SS
 					enemy = _struckEver.contains(whom->GetFormID()) ||
 					        whom->IsHostileToActor(player);
 					if (!enemy && !dead) {
-						enemy = whom->GetActorRuntimeData().currentCombatTarget ==
-						        player->CreateRefHandle();
+						enemy = FightingPlayer(whom, player);
 					}
 				}
 				if (!enemy) {
@@ -1634,6 +1670,63 @@ namespace SS
 		return RE::BSEventNotifyControl::kContinue;
 	}
 
+	void Sense::HoldEnemyHud()
+	{
+		if (!_enemyHudOwned.load()) {
+			return;
+		}
+		auto* ui = RE::UI::GetSingleton();
+		if (!ui) {
+			return;
+		}
+
+		// The decisive stroke against TrueHUD: it draws everything in its own
+		// menu movie, so hiding the movie silences the target widget even
+		// when another mod - TDM's target lock, typically - owns target
+		// control and keeps feeding it. Two handles on the same thing: the
+		// movie's own visibility, which TrueHUD hands back when a menu
+		// closes, and the root clip's, which nothing else drives. Either one
+		// held is enough; both are set because they are one flag each.
+		if (auto menu = ui->GetMenu("TrueHUD"); menu && menu->uiMovie) {
+			menu->uiMovie->SetVisible(false);
+			menu->uiMovie->SetVariable("_root._visible", RE::GFxValue{ false });
+		}
+
+		// The vanilla element is checked rather than blindly written: a HUD
+		// reload rebuilds it at its home position, and reading first is what
+		// lets the home Y be captured once, from a sane-looking value, so we
+		// can never capture our own -4000 and hand that back later.
+		auto menu = ui->GetMenu(RE::HUDMenu::MENU_NAME);
+		if (!menu || !menu->uiMovie) {
+			return;
+		}
+		auto*        movie = menu->uiMovie.get();
+		RE::GFxValue y;
+		const auto   yPath = std::string{ kEnemyHealth } + "._y";
+		if (!movie->GetVariable(&y, yPath.c_str()) || !y.IsNumber()) {
+			static bool saidMissing = false;
+			if (!saidMissing) {
+				saidMissing = true;
+				logger::warn("vanilla enemy health element not found at {} - "
+							 "cannot hide it", kEnemyHealth);
+			}
+			return;
+		}
+		const auto current = static_cast<float>(y.GetNumber());
+		if (current > kParkedY + 1.0f) {
+			if (_enemyHealthHomeY < kHomeUnset + 1.0f) {
+				_enemyHealthHomeY = current;
+				logger::info("vanilla enemy health parked (home y={:.0f})", current);
+			}
+			movie->SetVariable(yPath.c_str(), RE::GFxValue{ static_cast<double>(kParkedY) });
+		}
+	}
+
+	void Sense::OnMenuChanged()
+	{
+		HoldEnemyHud();
+	}
+
 	void Sense::PollCombat()
 	{
 		const auto* settings = Settings::GetSingleton();
@@ -1645,33 +1738,25 @@ namespace SS
 
 		// Owning the enemy bars outright: TrueHUD's target widget is claimed
 		// through its API so it never appears, its per-actor widgets are
-		// dismissed on a half-second pulse, and the vanilla enemy health
-		// element is parked off screen - by POSITION, not visibility, because
-		// the HUD's own ActionScript re-drives _visible on every target update
-		// and wins that fight. Before the early returns below, so everything
-		// is handed back the moment the feature turns off.
-		constexpr auto  kEnemyHealth = "_root.HUDMovieBaseInstance.EnemyHealth_mc";
-		constexpr float kUnset = -100000.0f;
-		constexpr float kParkedY = -4000.0f;
-		const bool      wantOwn = wantCombat && settings->pushTrueHUDAside;
-
-		const auto hudMovie = [&]() -> RE::GFxMovie* {
-			auto* ui = RE::UI::GetSingleton();
-			auto  menu = ui ? ui->GetMenu(RE::HUDMenu::MENU_NAME) : nullptr;
-			return menu && menu->uiMovie ? menu->uiMovie.get() : nullptr;
-		};
+		// dismissed on a half-second pulse, and its movie and the vanilla
+		// enemy health element are held down every tick (HoldEnemyHud).
+		// Before the early returns below, so everything is handed back the
+		// moment the feature turns off.
+		const bool wantOwn = wantCombat && settings->pushTrueHUDAside;
 
 		if (!wantOwn && _enemyHudOwned.load()) {
-			if (auto* movie = hudMovie(); movie && _enemyHealthHomeY > kUnset + 1.0f) {
-				movie->SetVariable((std::string{ kEnemyHealth } + "._y").c_str(),
-					RE::GFxValue{ static_cast<double>(_enemyHealthHomeY) });
-			}
-			_enemyHealthHomeY = kUnset;
 			if (auto* ui = RE::UI::GetSingleton()) {
+				if (auto menu = ui->GetMenu(RE::HUDMenu::MENU_NAME);
+					menu && menu->uiMovie && _enemyHealthHomeY > kHomeUnset + 1.0f) {
+					menu->uiMovie->SetVariable((std::string{ kEnemyHealth } + "._y").c_str(),
+						RE::GFxValue{ static_cast<double>(_enemyHealthHomeY) });
+				}
 				if (auto menu = ui->GetMenu("TrueHUD"); menu && menu->uiMovie) {
+					menu->uiMovie->SetVariable("_root._visible", RE::GFxValue{ true });
 					menu->uiMovie->SetVisible(true);
 				}
 			}
+			_enemyHealthHomeY = kHomeUnset;
 			if (g_trueHud && _targetControlHeld) {
 				g_trueHud->ReleaseTargetControl(SKSE::GetPluginHandle());
 				_targetControlHeld = false;
@@ -1679,9 +1764,17 @@ namespace SS
 			_enemyHudOwned.store(false);
 			logger::info("enemy bars: handed back to the game and TrueHUD");
 		}
+		if (wantOwn) {
+			_enemyHudOwned.store(true);
+			// Every tick, not on the pulse. What this holds down is handed
+			// back visible by the game and by TrueHUD whenever a menu closes,
+			// and the half second until the next pulse was the flash people
+			// saw on leaving a container. The menu sink calls it on the spot
+			// as well; this is the every-frame backstop.
+			HoldEnemyHud();
+		}
 		if (wantOwn && real - _lastHudPush > 0.5f) {
 			_lastHudPush = real;
-			_enemyHudOwned.store(true);
 
 			if (g_trueHud && !_targetControlHeld) {
 				const auto result = g_trueHud->RequestTargetControl(SKSE::GetPluginHandle());
@@ -1694,40 +1787,6 @@ namespace SS
 					logger::info(
 						"TrueHUD target control refused - another mod owns it (TDM's "
 						"target lock does this); hiding TrueHUD's overlay instead");
-				}
-			}
-
-			// The decisive stroke: TrueHUD draws everything in its own menu
-			// movie, and nothing re-drives a movie's visibility. Hiding it
-			// silences the target widget even when another mod - TDM's target
-			// lock, typically - owns target control and keeps feeding it.
-			if (auto* ui = RE::UI::GetSingleton()) {
-				if (auto menu = ui->GetMenu("TrueHUD"); menu && menu->uiMovie) {
-					menu->uiMovie->SetVisible(false);
-				}
-			}
-
-			// Re-applied on a pulse because a HUD reload rebuilds the element
-			// at its home position. The home Y is captured once, before the
-			// first parking, and only from a sane-looking value so a pulse can
-			// never capture our own -4000.
-			if (auto* movie = hudMovie()) {
-				RE::GFxValue y;
-				const auto   yPath = std::string{ kEnemyHealth } + "._y";
-				if (!movie->GetVariable(&y, yPath.c_str()) || !y.IsNumber()) {
-					static bool saidMissing = false;
-					if (!saidMissing) {
-						saidMissing = true;
-						logger::warn("vanilla enemy health element not found at {} - "
-									 "cannot hide it", kEnemyHealth);
-					}
-				} else {
-					const auto current = static_cast<float>(y.GetNumber());
-					if (current > kParkedY + 1.0f && _enemyHealthHomeY < kUnset + 1.0f) {
-						_enemyHealthHomeY = current;
-						logger::info("vanilla enemy health parked (home y={:.0f})", current);
-					}
-					movie->SetVariable(yPath.c_str(), RE::GFxValue{ static_cast<double>(kParkedY) });
 				}
 			}
 
@@ -1835,7 +1894,6 @@ namespace SS
 		// later. Deliberately no global "is the fight on": every global gate
 		// tried so far had a corner that either pinned bars up forever or
 		// cleared them mid-fight.
-		const auto playerHandle = player->CreateRefHandle();
 
 		// Seed the tracked set from things other than a hit. Entries land in the
 		// same map the hit event writes to, so the lifetime, the linger and the
@@ -1844,7 +1902,7 @@ namespace SS
 		// it as a staleness cap, and these arrived without ever being hit.
 		if (settings->combatBarsWhen != CombatBarsWhen::kStruck) {
 			constexpr std::size_t kMaxTracked = 24;
-			const auto note = [&](RE::Actor* a_actor) {
+			const auto note = [&](RE::Actor* a_actor, const char* a_why) {
 				if (!a_actor || a_actor->IsPlayerRef() || !a_actor->Is3DLoaded()) {
 					return;
 				}
@@ -1859,6 +1917,15 @@ namespace SS
 						return;
 					}
 					_combatHits[id] = { a_actor->CreateRefHandle(), real, real };
+					// Who got a bar without being hit, and why. This is the
+					// line to look for when a bar is over a head it should
+					// not be: the entry either says fighting or aimed, or
+					// it is not here and the bar came from a hit.
+					if (settings->debug) {
+						const auto* name = a_actor->GetDisplayFullName();
+						logger::info("combat bars: {} ({:08X}) added, {}",
+							name && name[0] ? name : "?", id, a_why);
+					}
 				} else {
 					// Hold it up for as long as the reason to show it lasts.
 					it->second.lastEngagedAt = real;
@@ -1866,11 +1933,17 @@ namespace SS
 				}
 			};
 
+			// Fighting, in the engine's own terms - not fleeing from you, and
+			// not searching for you. The bare combat flag is what used to be
+			// read here, and it is true of a deer running away and of a
+			// wolf that lost you a while ago, so both wore a bar. It is also
+			// what a flag that never clears looks like, and with this seed
+			// refreshing the entry every tick the staleness cap below never
+			// got a say: the bar was permanent.
 			if (auto* lists = RE::ProcessLists::GetSingleton()) {
 				lists->ForEachHighActor([&](RE::Actor* a_actor) {
-					if (a_actor && a_actor->IsInCombat() &&
-						a_actor->GetActorRuntimeData().currentCombatTarget == playerHandle) {
-						note(a_actor);
+					if (FightingPlayer(a_actor, player)) {
+						note(a_actor, "fighting me");
 					}
 					return RE::BSContainer::ForEachResult::kContinue;
 				});
@@ -1883,7 +1956,7 @@ namespace SS
 			if (settings->combatBarsWhen == CombatBarsWhen::kAimed) {
 				if (auto* pick = RE::CrosshairPickData::GetSingleton()) {
 					if (auto ref = pick->target.get(); ref) {
-						note(ref->As<RE::Actor>());
+						note(ref->As<RE::Actor>(), "under the crosshair");
 					}
 				}
 			}
@@ -1902,10 +1975,17 @@ namespace SS
 
 			// Fighting the player, specifically: a bandit who has turned on
 			// somebody else does not hold our bars up. The hard cap keeps a
-			// stuck combat flag from pinning an entry forever.
-			const bool engaged = !dead && actor->IsInCombat() &&
-			                     actor->GetActorRuntimeData().currentCombatTarget == playerHandle &&
-			                     real - it->second.lastHitAt < 120.0f;
+			// stuck combat flag from pinning an entry forever. Somebody you
+			// have hit is held by the engine's plain "in combat with you",
+			// fleeing included - a wounded deer running is the hunt, not the
+			// end of it. Somebody who arrived without a hit is held only by
+			// the stricter question that let them in.
+			const bool struck = _struckEver.contains(it->first);
+			const bool engaged = !dead && real - it->second.lastHitAt < 120.0f &&
+			                     (struck ? (actor->IsInCombat() &&
+			                                   actor->GetActorRuntimeData().currentCombatTarget ==
+			                                       player->CreateRefHandle()) :
+			                               FightingPlayer(actor, player));
 			if (engaged) {
 				it->second.lastEngagedAt = real;
 			}

@@ -2306,6 +2306,19 @@ namespace SS::Menu
 			}
 
 			igSpacing();
+			igDragFloat(T("Move the activation prompt"), &a_settings.activateTextShift, 1.0f, -400.0f, 400.0f, "%.0f", 0);
+			Help(
+				"The game's own \"Talk  Lydia\" line sits on the crosshair - which is\n"
+				"to say on the face of whoever you are about to talk to. Negative\n"
+				"moves it up, positive down, in the HUD's own units: the screen is\n"
+				"720 tall, so 200 is a bit over a quarter of it. 0 leaves it where\n"
+				"the game put it and touches nothing.\n"
+				"\n"
+				"Only the vanilla HUD's pieces are known by name. A HUD replacer\n"
+				"that renames them is left alone, and the log says so once.");
+			if (a_settings.hideGameHud) {
+				igTextDisabled("%s", T("Hidden with the rest of the HUD while the switch above is on"));
+			}
 
 			igSpacing();
 		}

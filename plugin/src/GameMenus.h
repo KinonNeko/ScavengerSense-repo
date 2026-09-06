@@ -22,6 +22,15 @@ namespace SS
 			_onBlockingOpen = std::move(a_callback);
 		}
 
+		// Called on the main thread on every menu open or close, blocking or
+		// not, after this class has re-applied its own hiding. For whatever
+		// else keeps a piece of somebody's interface down and needs to put
+		// it back down the moment a closing menu hands it back visible.
+		void OnAnyChange(std::function<void()> a_callback)
+		{
+			_onAnyChange = std::move(a_callback);
+		}
+
 		// Cheap enough to read from the render thread every frame.
 		[[nodiscard]] bool Blocking() const { return _blocking.load(std::memory_order_relaxed); }
 
@@ -38,13 +47,22 @@ namespace SS
 		// whatever other Scaleform menus are named, and nothing more.
 		void ApplyHudVisibility();
 
-		// Puts back anything we hid. Called on unload so a crash or a disabled
-		// setting never leaves somebody with no interface.
+		// Moves the game's activation prompt - the "Talk  Lydia" that sits
+		// on the crosshair, over the face of whoever you are about to talk
+		// to - up or down by the configured amount. The vanilla HUD script
+		// never writes that element's _y, so the offset holds; it is
+		// re-checked every tick because a HUD reload rebuilds the element
+		// where the file put it. Zero puts it back and touches nothing after.
+		void ApplyHudLayout();
+
+		// Puts back anything we hid or moved. Called on unload so a crash or
+		// a disabled setting never leaves somebody with no interface.
 		void RestoreHud();
 
-		// True while anything is still hidden, so the tick keeps running long
-		// enough to put it back after the setting is switched off.
-		[[nodiscard]] bool HasHidden() const { return !_hidden.empty(); }
+		// True while anything is still hidden or moved, so the tick keeps
+		// running long enough to put it back after the setting is switched
+		// off.
+		[[nodiscard]] bool HasHidden() const { return !_hidden.empty() || _shifted; }
 
 		RE::BSEventNotifyControl ProcessEvent(
 			const RE::MenuOpenCloseEvent*             a_event,
@@ -56,11 +74,21 @@ namespace SS
 		// Menus we actually hid, so only those get put back.
 		std::vector<std::string> _hidden;
 
+		// Where the activation prompt's pieces sit in the HUD file, captured
+		// the first time we move them, so they can be put back exactly. One
+		// per element in kRolloverParts; unset until seen.
+		static constexpr std::size_t kRolloverCount = 4;
+		float                        _rolloverHome[kRolloverCount]{};
+		bool                         _rolloverKnown[kRolloverCount]{};
+		bool                         _shifted{ false };
+		bool                         _saidNoRollover{ false };
+
 		// Returns whether the menu takes over the screen, and fills a_why with
 		// what it was judged on so the log can explain itself.
 		[[nodiscard]] bool Classify(std::string_view a_name, std::string& a_why) const;
 
 		std::function<void(const std::string&)> _onBlockingOpen;
+		std::function<void()>                   _onAnyChange;
 		std::atomic_bool                        _blocking{ false };
 		mutable std::mutex                      _lock;
 		std::set<std::string>                   _open;

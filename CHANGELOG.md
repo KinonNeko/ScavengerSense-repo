@@ -8,6 +8,44 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+## 0.9.1 beta
+
+Three from the feedback, all of them about somebody else's interface or
+the bars over somebody else's head.
+
+- **Bars over people who were not fighting you.** "Anyone fighting me" read
+  the engine's combat flag with the player as target, and that flag is true
+  of more than fighting: a deer running from you carries it, and so does a
+  wolf that lost you a while ago and is searching. Worse, the seed refreshed
+  the entry every tick, so the two-minute staleness cap - which existed to
+  let go of a combat flag that never clears - never got a say, and a stuck
+  flag was a bar for the rest of the session. That is the "every hostile
+  creature, permanently" some people saw, vampires included. The seed now
+  asks the engine's own per-actor combat state: not fleeing, target not
+  lost. The same question holds a bar up for anyone who arrived that way;
+  somebody you have actually hit keeps theirs on the plain "in combat with
+  you", fleeing included, because a wounded deer running is the hunt and
+  not the end of it. "Only enemies" on the sense asks the stricter question
+  too, so a fleeing deer no longer counts as an enemy there either. With `debug` on, the log names everyone who gets a
+  bar without a hit and says why.
+- **The game's HUD and TrueHUD's flashed on leaving a container.** Both are
+  handed back visible by their owners when a menu closes, and this mod took
+  them away again on its next pass - a frame later for the vanilla HUD, and
+  up to half a second later for TrueHUD's movie and the vanilla enemy
+  health element, which were only re-asserted on a pulse. Three changes:
+  the enemy-bar hold runs every tick and not on the pulse; the menu
+  open/close sink re-asserts everything on the spot, before the frame
+  draws; and the vanilla HUD is hidden at its main clip as well as its
+  movie, because the clip is not what the game hands back.
+- **The activation prompt can be moved.** The "Talk  Lydia" line is the
+  game's, not this mod's, and it sits on the crosshair - which is to say
+  on the face of whoever you are about to talk to. `activateTextShift`
+  under `[General]`, and a slider on the Interface page, move it up or
+  down. Nothing in the HUD's own script writes that element's position,
+  so the offset holds; it is re-checked every tick because a HUD reload
+  rebuilds the element where the file put it. 0, the default, touches
+  nothing.
+
 ## 0.9 beta
 
 Four things people asked for, one of them a bug that had the feature exactly

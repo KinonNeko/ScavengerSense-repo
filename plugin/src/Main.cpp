@@ -285,6 +285,11 @@ namespace SS
 					logger::warn("no task interface - sweep ended inside the menu event");
 				}
 			});
+			// Whatever Sense keeps down of other HUDs goes back down the
+			// moment any menu opens or closes - see GameMenus::OnAnyChange.
+			GameMenus::GetSingleton()->OnAnyChange([]() {
+				Sense::GetSingleton()->OnMenuChanged();
+			});
 			GameMenus::GetSingleton()->Install();
 			// Compile the post-process shaders now rather than on the first
 			// sweep. Doing it lazily means a LoadLibrary and two shader compiles
@@ -371,7 +376,7 @@ namespace SS
 // had counted, saying 0.8 while the plugin declared 0.9.
 namespace
 {
-	constexpr REL::Version kVersion{ 0, 9, 0, 0 };
+	constexpr REL::Version kVersion{ 0, 9, 1, 0 };
 }
 
 SKSEPluginInfo(

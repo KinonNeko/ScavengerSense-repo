@@ -49,6 +49,13 @@ namespace SS
 		// Cancel everything immediately (used on load/exit and the menu button).
 		void Cancel();
 
+		// A menu opened or closed. Re-asserts, on the spot, whatever part of
+		// somebody else's interface this mod is keeping down: a closing menu
+		// is exactly when the game and TrueHUD hand their elements back
+		// visible, and waiting for the next tick to take them away again is
+		// a visible flash. Main thread, from the menu sink.
+		void OnMenuChanged();
+
 		// The hotkey's way out: everything fades over the sweep's own fade-out
 		// instead of vanishing on a frame.
 		void FadeOut();
@@ -103,6 +110,11 @@ namespace SS
 		static bool AmmoAnchorPoint(RE::Actor* a_actor, AmmoAnchor a_anchor, RE::NiPoint3& a_out);
 		// Keeps bars over people the player has hit while a fight is on.
 		void PollCombat();
+		// The every-frame half of owning the enemy bars: TrueHUD's movie kept
+		// invisible and the vanilla enemy health element kept parked. Cheap -
+		// two flags and one variable read - and a no-op unless we own them.
+		// Main thread only, like the poll.
+		void HoldEnemyHud();
 		// Records breadcrumbs behind anyone the sense has touched, and hands
 		// the drawable trails to Labels.
 		void PollTrails();

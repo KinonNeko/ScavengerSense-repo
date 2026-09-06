@@ -331,6 +331,12 @@ namespace SS
 		// cannot be reached this way at all.
 		bool        hideGameHud{ false };
 		std::string hideMenus{ "HUD Menu" };
+		// Move the game's activation prompt - the "Talk  Lydia" line that
+		// sits on the crosshair, which is to say on the face of whoever you
+		// are about to talk to - up (negative) or down (positive), in the
+		// HUD file's own units (the screen is 720 tall). Zero leaves it
+		// where the game put it and touches nothing.
+		float       activateTextShift{ 0.0f };
 
 		// [Hotkey]
 		std::int32_t keyboard{ 21 };  // DX scan code, 21 = Y
