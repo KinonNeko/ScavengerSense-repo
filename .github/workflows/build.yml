@@ -1,0 +1,85 @@
+# Builds the plugin on a Windows runner and hands back the installer zip.
+#
+# The DLL needs MSVC, and the only machine most sessions have is not one -
+# so the build runs here, on every push, and the FOMOD tree that
+# tools/build_fomod.py assembles is zipped and attached to the run. The
+# first CommonLibSSE-NG build is the slow part; a source change on top of
+# a cached build tree is seconds, so the build tree is cached by the
+# CommonLib submodule's commit.
+name: build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Read the version
+        id: version
+        shell: pwsh
+        run: |
+          $line = Select-String -Path plugin/CMakeLists.txt -Pattern 'VERSION\s+([0-9.]+)' | Select-Object -First 1
+          $v = $line.Matches[0].Groups[1].Value
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "ScavengerSense $v"
+
+      - name: Cache the build tree
+        uses: actions/cache@v4
+        with:
+          path: plugin/build
+          key: msvc-build-${{ hashFiles('.gitmodules') }}-${{ hashFiles('CommonLibSSE-NG/CMakeLists.txt') }}-${{ hashFiles('plugin/CMakeLists.txt') }}
+          restore-keys: |
+            msvc-build-${{ hashFiles('.gitmodules') }}-
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S plugin -B plugin/build -G "Visual Studio 17 2022" -A x64 `
+                -Ddirectxtk_DIR="${{ github.workspace }}/cmake-pkgs/directxtk"
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build plugin/build --config Release --parallel
+
+      - name: Assemble the installer
+        shell: pwsh
+        run: |
+          python tools/make_esp.py
+          python tools/build_fomod.py
+
+      - name: Validate the installer
+        shell: pwsh
+        continue-on-error: true
+        run: python tools/validate_fomod.py
+
+      - name: Zip
+        shell: pwsh
+        run: |
+          $name = "ScavengerSense-${{ steps.version.outputs.version }}-beta"
+          Compress-Archive -Path fomod-build\* -DestinationPath "$name.zip"
+          Get-Item "$name.zip" | Format-List Name, Length
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScavengerSense-${{ steps.version.outputs.version }}-beta-fomod
+          path: ScavengerSense-${{ steps.version.outputs.version }}-beta.zip
+          if-no-files-found: error
+
+      - name: Upload the bare DLL and esp
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScavengerSense-${{ steps.version.outputs.version }}-beta-dll
+          path: |
+            plugin/build/Release/ScavengerSense.dll
+            plugin/build/Release/ScavengerSense.pdb
+            ScavengerSense.esp
+          if-no-files-found: error
