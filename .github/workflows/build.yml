@@ -26,7 +26,9 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $line = Select-String -Path plugin/CMakeLists.txt -Pattern 'VERSION\s+([0-9.]+)' | Select-Object -First 1
+          # The project() line, not cmake_minimum_required - that one carries
+          # a VERSION too, and it is CMake's.
+          $line = Select-String -Path plugin/CMakeLists.txt -Pattern 'project\(.*VERSION\s+([0-9.]+)' | Select-Object -First 1
           $v = $line.Matches[0].Groups[1].Value
           "version=$v" >> $env:GITHUB_OUTPUT
           "ScavengerSense $v"
@@ -60,18 +62,14 @@ jobs:
         continue-on-error: true
         run: python tools/validate_fomod.py
 
-      - name: Zip
-        shell: pwsh
-        run: |
-          $name = "ScavengerSense-${{ steps.version.outputs.version }}-beta"
-          Compress-Archive -Path fomod-build\* -DestinationPath "$name.zip"
-          Get-Item "$name.zip" | Format-List Name, Length
-
+      # The tree itself, not a zip of it: GitHub hands an artifact back as a
+      # zip already, so this way the download IS the installer - drop it on
+      # Mod Organizer as it comes. Zipping first would wrap a zip in a zip.
       - name: Upload the installer
         uses: actions/upload-artifact@v4
         with:
-          name: ScavengerSense-${{ steps.version.outputs.version }}-beta-fomod
-          path: ScavengerSense-${{ steps.version.outputs.version }}-beta.zip
+          name: ScavengerSense-${{ steps.version.outputs.version }}-beta
+          path: fomod-build
           if-no-files-found: error
 
       - name: Upload the bare DLL and esp
