@@ -731,7 +731,12 @@ namespace SS
 				hideMenus = raw;
 			}
 		}
-		Get(table, "general", "activateTextShift", activateTextShift);
+		Get(table, "general", "activateShiftX", activateShiftX);
+		Get(table, "general", "activateShiftY", activateShiftY);
+		Get(table, "general", "activateNameX", activateNameX);
+		Get(table, "general", "activateNameY", activateNameY);
+		Get(table, "general", "activateButtonY", activateButtonY);
+		Get(table, "general", "activateInfoY", activateInfoY);
 
 		Get(table, "hotkey", "keyboard", keyboard);
 		Get(table, "hotkey", "gamepad", gamepad);
@@ -1048,7 +1053,12 @@ namespace SS
 		ringLead = std::clamp(ringLead, 0.5f, 4.0f);
 		doubleTapWindow = std::clamp(doubleTapWindow, 0.05f, 2.0f);
 		holdTime = std::clamp(holdTime, 0.05f, 5.0f);
-		activateTextShift = std::clamp(activateTextShift, -400.0f, 400.0f);
+		activateShiftX = std::clamp(activateShiftX, -640.0f, 640.0f);
+		activateShiftY = std::clamp(activateShiftY, -400.0f, 400.0f);
+		activateNameX = std::clamp(activateNameX, -640.0f, 640.0f);
+		activateNameY = std::clamp(activateNameY, -400.0f, 400.0f);
+		activateButtonY = std::clamp(activateButtonY, -400.0f, 400.0f);
+		activateInfoY = std::clamp(activateInfoY, -400.0f, 400.0f);
 
 		favouriteScale = std::clamp(favouriteScale, 0.5f, 3.0f);
 		selfScale = std::clamp(selfScale, 0.5f, 3.0f);
@@ -1197,10 +1207,18 @@ namespace SS
 		file << "hideGameHud = " << boolean(hideGameHud) << "\n";
 		file << "hideMenus = " << hideMenus << "\n\n";
 		file << "; Move the game's activation prompt - the \"Talk  Lydia\" line on the\n";
-		file << "; crosshair, over the face of whoever you are about to talk to - up\n";
-		file << "; (negative) or down (positive), in the HUD's own units: the screen\n";
-		file << "; is 720 tall. 0 leaves it where the game put it.\n";
-		file << "activateTextShift = " << activateTextShift << "\n\n\n";
+		file << "; crosshair, over the face of whoever you are about to talk to. In\n";
+		file << "; the HUD's own units: the screen is 1280 across and 720 tall, and\n";
+		file << "; negative is left or up. The whole prompt first, then each piece\n";
+		file << "; on top of that: the name line, the key glyph before it, and the\n";
+		file << "; value/weight line with its bar. The glyph has no across of its\n";
+		file << "; own - the HUD pins it beside the name. All 0 touches nothing.\n";
+		file << "activateShiftX = " << activateShiftX << "\n";
+		file << "activateShiftY = " << activateShiftY << "\n";
+		file << "activateNameX = " << activateNameX << "\n";
+		file << "activateNameY = " << activateNameY << "\n";
+		file << "activateButtonY = " << activateButtonY << "\n";
+		file << "activateInfoY = " << activateInfoY << "\n\n\n";
 
 		file << "[Hotkey]\n\n";
 		file << "; DirectX scan code of the key that triggers a sweep. Mouse buttons are\n";

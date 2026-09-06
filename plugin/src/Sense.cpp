@@ -760,7 +760,7 @@ namespace SS
 					// player is left with no HUD.
 					const bool  idleWork = settings->selfHudCorner != Corner::kOff ||
 					                      settings->hideGameHud ||
-					                      settings->activateTextShift != 0.0f ||
+					                      settings->ActivatePromptMoved() ||
 					                      settings->combatBars ||
 					                      settings->selfBarsOverhead ||
 					                      settings->ammoCounter ||

@@ -49,10 +49,12 @@ namespace SS
 
 		// Moves the game's activation prompt - the "Talk  Lydia" that sits
 		// on the crosshair, over the face of whoever you are about to talk
-		// to - up or down by the configured amount. The vanilla HUD script
-		// never writes that element's _y, so the offset holds; it is
-		// re-checked every tick because a HUD reload rebuilds the element
-		// where the file put it. Zero puts it back and touches nothing after.
+		// to - by the configured amounts, as a whole and then piece by
+		// piece. The vanilla HUD script never writes those positions (bar
+		// the glyph's across, which is left alone), so the offsets hold; they
+		// are re-checked every tick because a HUD reload rebuilds the
+		// elements where the file put them. All zero puts them back and
+		// touches nothing after.
 		void ApplyHudLayout();
 
 		// Puts back anything we hid or moved. Called on unload so a crash or
@@ -76,9 +78,9 @@ namespace SS
 
 		// Where the activation prompt's pieces sit in the HUD file, captured
 		// the first time we move them, so they can be put back exactly. One
-		// per element in kRolloverParts; unset until seen.
+		// (x, y) per element in kRolloverParts; unset until seen.
 		static constexpr std::size_t kRolloverCount = 4;
-		float                        _rolloverHome[kRolloverCount]{};
+		float                        _rolloverHome[kRolloverCount][2]{};
 		bool                         _rolloverKnown[kRolloverCount]{};
 		bool                         _shifted{ false };
 		bool                         _saidNoRollover{ false };

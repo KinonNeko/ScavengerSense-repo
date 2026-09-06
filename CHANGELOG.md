@@ -41,12 +41,15 @@ the bars over somebody else's head.
   movie, because the clip is not what the game hands back.
 - **The activation prompt can be moved.** The "Talk  Lydia" line is the
   game's, not this mod's, and it sits on the crosshair - which is to say
-  on the face of whoever you are about to talk to. `activateTextShift`
-  under `[General]`, and a slider on the Interface page, move it up or
-  down. Nothing in the HUD's own script writes that element's position,
-  so the offset holds; it is re-checked every tick because a HUD reload
-  rebuilds the element where the file put it. 0, the default, touches
-  nothing.
+  on the face of whoever you are about to talk to. Six offsets under
+  `[General]`, and the same six on the Interface page: the whole prompt
+  across and down, then on top of that the name line across and down, the
+  key glyph down, and the value/weight line down. The glyph gets no across
+  of its own because the HUD's script pins it beside the name on every
+  update. Nothing in that script writes the other positions, so the
+  offsets hold; they are re-checked every tick because a HUD reload
+  rebuilds the elements where the file put them. All zero, the default,
+  touches nothing.
 
 ## 0.9 beta
 

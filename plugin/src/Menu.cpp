@@ -2306,16 +2306,28 @@ namespace SS::Menu
 			}
 
 			igSpacing();
-			igDragFloat(T("Move the activation prompt"), &a_settings.activateTextShift, 1.0f, -400.0f, 400.0f, "%.0f", 0);
+			igSeparatorText(T("Move the activation prompt"));
 			Help(
 				"The game's own \"Talk  Lydia\" line sits on the crosshair - which is\n"
-				"to say on the face of whoever you are about to talk to. Negative\n"
-				"moves it up, positive down, in the HUD's own units: the screen is\n"
-				"720 tall, so 200 is a bit over a quarter of it. 0 leaves it where\n"
-				"the game put it and touches nothing.\n"
+				"to say on the face of whoever you are about to talk to. These move\n"
+				"it, in the HUD's own units: the screen is 1280 across and 720\n"
+				"tall, and negative is left or up. All at 0 touches nothing.\n"
 				"\n"
 				"Only the vanilla HUD's pieces are known by name. A HUD replacer\n"
 				"that renames them is left alone, and the log says so once.");
+			igDragFloat(T("Whole prompt across"), &a_settings.activateShiftX, 1.0f, -640.0f, 640.0f, "%.0f", 0);
+			igDragFloat(T("Whole prompt down"), &a_settings.activateShiftY, 1.0f, -400.0f, 400.0f, "%.0f", 0);
+			Help(
+				"Every piece together, keeping their layout. The pieces below add\n"
+				"to this.");
+			igDragFloat(T("Name across"), &a_settings.activateNameX, 1.0f, -640.0f, 640.0f, "%.0f", 0);
+			igDragFloat(T("Name down"), &a_settings.activateNameY, 1.0f, -400.0f, 400.0f, "%.0f", 0);
+			igDragFloat(T("Key glyph down"), &a_settings.activateButtonY, 1.0f, -400.0f, 400.0f, "%.0f", 0);
+			Help(
+				"Only down: the HUD pins the glyph beside the name on every update,\n"
+				"so across it follows the name.");
+			igDragFloat(T("Value line down"), &a_settings.activateInfoY, 1.0f, -400.0f, 400.0f, "%.0f", 0);
+			Help("The weight and value line, and the bar drawn behind it.");
 			if (a_settings.hideGameHud) {
 				igTextDisabled("%s", T("Hidden with the rest of the HUD while the switch above is on"));
 			}
