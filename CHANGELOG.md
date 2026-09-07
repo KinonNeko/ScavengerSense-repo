@@ -57,6 +57,13 @@ the bars over somebody else's head.
   two minutes of the staleness cap. It now has to still know where you are
   - fleeing still counts, searching does not. Every change of verdict is
   logged with the engine's answers as they were.
+- **TrueHUD had the last word on a menu change.** Sinks run in the order they
+  were registered, SKSE loads plugins alphabetically, and S comes before T:
+  on every menu open or close TrueHUD showed its movie again one step after
+  this mod hid it, and the next tick took it away - a frame or two of bar.
+  The sink now moves itself behind everyone else once the game is running,
+  and with `debug` on the log counts how often the movie was found visible
+  again, and whether the sink or the tick caught it.
 - **The activation prompt can be moved.** The "Talk  Lydia" line is the
   game's, not this mod's, and it sits on the crosshair - which is to say
   on the face of whoever you are about to talk to. Six offsets under

@@ -16,6 +16,13 @@ namespace SS
 
 		void Install();
 
+		// Moves this sink behind everyone who registered at data load. Sinks
+		// run in registration order, SKSE loads plugins alphabetically, and
+		// S comes before T: TrueHUD's sink ran after ours on every menu
+		// change and showed its movie again a step after we hid it. Called
+		// once the game is running, when every plugin's sink is in place.
+		void LastWord();
+
 		// Called on the main thread the moment a blocking menu opens.
 		void OnBlockingOpen(std::function<void(const std::string&)> a_callback)
 		{
@@ -96,5 +103,6 @@ namespace SS
 		std::set<std::string>                   _open;
 		std::uint32_t                           _logged{ 0 };
 		bool                                    _installed{ false };
+		bool                                    _lastWord{ false };
 	};
 }

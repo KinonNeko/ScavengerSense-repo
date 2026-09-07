@@ -42,6 +42,45 @@ namespace SS
 		// to ask it to dismiss its own bar over somebody ours is covering.
 		TRUEHUD_API::IVTrueHUD1* g_trueHud = nullptr;
 
+		// The movie we are holding down, if any, and the door it comes back
+		// through. Every menu movie in the game shares one vtable, and its
+		// SetVisible is the only way anyone - TrueHUD's own menu sink, the
+		// game handing menus back after a load, whatever else - turns a
+		// movie back on. Hooking that slot and answering "no" for this one
+		// movie while it is ours ends the race the tick was losing by a
+		// frame: nothing can show it, so nothing has to be caught. The hook
+		// is installed the first time we hold a TrueHUD movie and stays;
+		// with nothing held it passes everything through untouched.
+		std::atomic<RE::GFxMovieView*> g_heldMovie{ nullptr };
+		std::atomic<std::uint32_t>     g_showsRefused{ 0 };
+		using SetVisibleFn = void(RE::GFxMovieView*, bool);
+		SetVisibleFn* g_setVisibleOriginal = nullptr;
+
+		void SetVisibleHook(RE::GFxMovieView* a_this, bool a_visible)
+		{
+			if (a_visible && a_this && a_this == g_heldMovie.load(std::memory_order_relaxed)) {
+				++g_showsRefused;
+				a_visible = false;
+			}
+			g_setVisibleOriginal(a_this, a_visible);
+		}
+
+		void InstallSetVisibleHook(RE::GFxMovieView* a_movie)
+		{
+			static bool installed = false;
+			if (installed || !a_movie) {
+				return;
+			}
+			installed = true;
+			// Slot 8 of GFxMovie: SetVisible, with GetVisible in 9 - both are
+			// what this file has always called through, so the layout is a
+			// known quantity, not a guess.
+			REL::Relocation<std::uintptr_t> vtable{ *reinterpret_cast<std::uintptr_t*>(a_movie) };
+			g_setVisibleOriginal = reinterpret_cast<SetVisibleFn*>(
+				vtable.write_vfunc(0x8, reinterpret_cast<std::uintptr_t>(&SetVisibleHook)));
+			logger::info("enemy bars: SetVisible hooked on the menu movie vtable - TrueHUD's movie cannot be shown while held");
+		}
+
 		// The vanilla enemy health element, and where it goes when it is ours
 		// to keep down: off screen by POSITION, not visibility, because the
 		// HUD's own ActionScript re-drives _visible on every target update
@@ -1759,7 +1798,7 @@ namespace SS
 		return RE::BSEventNotifyControl::kContinue;
 	}
 
-	void Sense::HoldEnemyHud()
+	void Sense::HoldEnemyHud(const char* a_when)
 	{
 		if (!_enemyHudOwned.load()) {
 			return;
@@ -1768,7 +1807,6 @@ namespace SS
 		if (!ui) {
 			return;
 		}
-
 		// The decisive stroke against TrueHUD: it draws everything in its own
 		// menu movie, so hiding the movie silences the target widget even
 		// when another mod - TDM's target lock, typically - owns target
@@ -1777,8 +1815,40 @@ namespace SS
 		// closes, and the root clip's, which nothing else drives. Either one
 		// held is enough; both are set because they are one flag each.
 		if (auto menu = ui->GetMenu("TrueHUD"); menu && menu->uiMovie) {
-			menu->uiMovie->SetVisible(false);
-			menu->uiMovie->SetVariable("_root._visible", RE::GFxValue{ false });
+			auto* movie = menu->uiMovie.get();
+			InstallSetVisibleHook(movie);
+			// Measured, not assumed: every time the movie is found visible
+			// while it is ours to hold, somebody showed it again since the
+			// last pass. "menu" means our sink caught it in the same event
+			// that showed it; "tick" means it was on screen for a frame or
+			// two first - that is the flash, counted. With the hook holding
+			// the door this should only ever fire for a freshly made movie.
+			if (movie->GetVisible()) {
+				++_trueHudReshown;
+				if (_trueHudReshown <= 10 || _trueHudReshown % 50 == 0) {
+					logger::info("enemy bars: TrueHUD's movie was visible again, hidden on {} ({} so far, {} shows refused by the hook)",
+						a_when, _trueHudReshown, g_showsRefused.load());
+				}
+			}
+			// A new movie - a HUD reload makes one - is a new pointer, and
+			// the hook holds whichever one is current.
+			g_heldMovie.store(movie, std::memory_order_relaxed);
+			movie->SetVisible(false);
+			// Belt and braces inside the movie as well: the root clip, and
+			// TrueHUD's own main clip under it, which its script never
+			// writes. Read back once so the log says whether the movie
+			// honours them at all.
+			movie->SetVariable("_root._visible", RE::GFxValue{ false });
+			movie->SetVariable("_root.TrueHUD._visible", RE::GFxValue{ false });
+			if (!_saidRootRead) {
+				_saidRootRead = true;
+				RE::GFxValue root, clip;
+				const bool   gotRoot = movie->GetVariable(&root, "_root._visible");
+				const bool   gotClip = movie->GetVariable(&clip, "_root.TrueHUD._visible");
+				logger::info("enemy bars: after hiding, _root._visible reads {} and _root.TrueHUD._visible reads {}",
+					gotRoot ? (root.IsBool() ? (root.GetBool() ? "true" : "false") : "not a bool") : "unreadable",
+					gotClip ? (clip.IsBool() ? (clip.GetBool() ? "true" : "false") : "not a bool") : "unreadable");
+			}
 		}
 
 		// The vanilla element is checked rather than blindly written: a HUD
@@ -1806,14 +1876,40 @@ namespace SS
 			if (_enemyHealthHomeY < kHomeUnset + 1.0f) {
 				_enemyHealthHomeY = current;
 				logger::info("vanilla enemy health parked (home y={:.0f})", current);
+			} else {
+				// Parked before and back at some other Y now: a HUD reload,
+				// or a HUD script that lays its elements out again. Counted,
+				// because a frame of it is the flash people see.
+				++_vanillaMovedBack;
+				if (_vanillaMovedBack <= 10 || _vanillaMovedBack % 50 == 0) {
+					logger::info("enemy bars: vanilla enemy health found back at y={:.0f}, parked again on {} ({} so far)",
+						current, a_when, _vanillaMovedBack);
+				}
 			}
 			movie->SetVariable(yPath.c_str(), RE::GFxValue{ static_cast<double>(kParkedY) });
+		}
+		// The second strap: alpha. Position can be laid out again by a HUD
+		// framework; a HUD script only ever writes this element's _visible,
+		// and TrueHUD itself hides the vanilla bar this way, so it is the
+		// one property nothing fights over. Read first so a change of it
+		// is counted, like the position.
+		RE::GFxValue alpha;
+		const auto   alphaPath = std::string{ kEnemyHealth } + "._alpha";
+		if (movie->GetVariable(&alpha, alphaPath.c_str()) && alpha.IsNumber() && alpha.GetNumber() > 0.5) {
+			if (_enemyHealthHomeY > kHomeUnset + 1.0f) {
+				++_vanillaAlphaBack;
+				if (_vanillaAlphaBack <= 10 || _vanillaAlphaBack % 50 == 0) {
+					logger::info("enemy bars: vanilla enemy health alpha found at {:.0f}, zeroed again on {} ({} so far)",
+						alpha.GetNumber(), a_when, _vanillaAlphaBack);
+				}
+			}
+			movie->SetVariable(alphaPath.c_str(), RE::GFxValue{ 0.0 });
 		}
 	}
 
 	void Sense::OnMenuChanged()
 	{
-		HoldEnemyHud();
+		HoldEnemyHud("menu");
 	}
 
 	void Sense::PollCombat()
@@ -1839,9 +1935,13 @@ namespace SS
 					menu && menu->uiMovie && _enemyHealthHomeY > kHomeUnset + 1.0f) {
 					menu->uiMovie->SetVariable((std::string{ kEnemyHealth } + "._y").c_str(),
 						RE::GFxValue{ static_cast<double>(_enemyHealthHomeY) });
+					menu->uiMovie->SetVariable((std::string{ kEnemyHealth } + "._alpha").c_str(),
+						RE::GFxValue{ 100.0 });
 				}
+				g_heldMovie.store(nullptr, std::memory_order_relaxed);
 				if (auto menu = ui->GetMenu("TrueHUD"); menu && menu->uiMovie) {
 					menu->uiMovie->SetVariable("_root._visible", RE::GFxValue{ true });
+					menu->uiMovie->SetVariable("_root.TrueHUD._visible", RE::GFxValue{ true });
 					menu->uiMovie->SetVisible(true);
 				}
 			}
@@ -1860,7 +1960,7 @@ namespace SS
 			// and the half second until the next pulse was the flash people
 			// saw on leaving a container. The menu sink calls it on the spot
 			// as well; this is the every-frame backstop.
-			HoldEnemyHud();
+			HoldEnemyHud("tick");
 		}
 		if (wantOwn && real - _lastHudPush > 0.5f) {
 			_lastHudPush = real;

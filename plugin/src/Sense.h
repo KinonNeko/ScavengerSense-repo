@@ -114,8 +114,14 @@ namespace SS
 		// invisible and the vanilla enemy health element kept parked. Cheap -
 		// two flags and one variable read - and a no-op unless we own them.
 		// Main thread only, like the poll.
-		void HoldEnemyHud();
+		void HoldEnemyHud(const char* a_when);
+		// How often TrueHUD's movie has been found visible while ours to
+		// hold down: the flash, as a number.
+		std::uint32_t _trueHudReshown{ 0 };
+		bool          _saidRootRead{ false };
 		std::uint32_t _hitsLogged{ 0 };
+		std::uint32_t _vanillaMovedBack{ 0 };
+		std::uint32_t _vanillaAlphaBack{ 0 };
 		// Records breadcrumbs behind anyone the sense has touched, and hands
 		// the drawable trails to Labels.
 		void PollTrails();

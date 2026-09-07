@@ -319,6 +319,7 @@ namespace SS
 
 		case SKSE::MessagingInterface::kNewGame:
 			Sense::GetSingleton()->Cancel();
+			GameMenus::GetSingleton()->LastWord();
 			// Split from kPreLoadGame, which shares the cancel but happens
 			// before the world exists - the warning would be spent on a frame
 			// with nothing on it and never seen.
@@ -328,6 +329,7 @@ namespace SS
 		case SKSE::MessagingInterface::kPostLoadGame:
 			Settings::GetSingleton()->Load();
 			Locale::Load(Settings::GetSingleton()->language);
+			GameMenus::GetSingleton()->LastWord();
 			// Said here rather than at data load: nothing is drawn that early,
 			// so a message about text you cannot read would itself go unread.
 			SayMenuFontWarning();

@@ -105,6 +105,22 @@ namespace SS
 		logger::info("menus: watching menu open/close");
 	}
 
+	void GameMenus::LastWord()
+	{
+		if (!_installed || _lastWord) {
+			return;
+		}
+		auto* ui = RE::UI::GetSingleton();
+		if (!ui) {
+			return;
+		}
+		// Remove and add again: the source appends, so this lands last.
+		ui->RemoveEventSink<RE::MenuOpenCloseEvent>(this);
+		ui->AddEventSink<RE::MenuOpenCloseEvent>(this);
+		_lastWord = true;
+		logger::info("menus: sink moved to the end of the list - the hide is the last word on a menu change");
+	}
+
 	bool GameMenus::Classify(std::string_view a_name, std::string& a_why) const
 	{
 		if (NeverBlocking(a_name)) {
@@ -183,7 +199,7 @@ namespace SS
 		// in unconditionally: a misjudged menu disables the whole mod, and it is
 		// no use if the evidence only exists once someone thinks to turn on
 		// debug logging and reproduce it.
-		if (settings->debug || _logged < 60) {
+		if (settings->debug || _logged < 120) {
 			++_logged;
 			logger::info("menus: {} {} [{}] -> blocking {} ({} open)",
 				name, a_event->opening ? "opened" : "closed", why, nowBlocking, OpenCount());

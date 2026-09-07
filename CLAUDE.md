@@ -85,6 +85,11 @@ what the submodules give you.
 - **Two threads.** The main thread owns game data; the render thread only reads
   what was handed to it under `Labels::_lock`. Never touch a `TESForm` from
   `Render()`.
+- **Event sinks fire in registration order, and SKSE loads plugins A to Z.**
+  Our menu sink registers at data load, TrueHUD's does too, and S < T, so
+  TrueHUD used to re-show its movie right after we hid it. `GameMenus::LastWord`
+  re-registers ours at new game / post load so it runs last. Anything else
+  that must win a same-event fight with another plugin needs the same trick.
 - **Scaleform menu names are case sensitive**, and the string `Get` overload
   lower-cases. `hideMenus` is read through `Lookup` directly for that reason.
 
