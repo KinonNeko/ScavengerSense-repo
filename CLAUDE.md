@@ -13,7 +13,7 @@ Nexus:  https://www.nexusmods.com/skyrimspecialedition/mods/188380
 Source: https://github.com/KinonNeko/ScavengerSense-repo
 
 **0.8 beta is what is published on Nexus**; the repo is ahead of it, at tag
-`v0.9-beta` plus the 0.9.1 fixes on top of it. The version lives in three places that must agree —
+`v0.9-beta` plus the 0.9.5 work on top of it. The version lives in three places that must agree —
 `kVersion` in `Main.cpp`, `MachineVersion` in `fomod/info.xml`, and
 `project(... VERSION)` in `plugin/CMakeLists.txt` — and every release since
 0.5 is in `CHANGELOG.md`.

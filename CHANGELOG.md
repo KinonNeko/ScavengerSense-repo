@@ -8,7 +8,7 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
-## 0.9.1 beta
+## 0.9.5 beta
 
 Three from the feedback, all of them about somebody else's interface or
 the bars over somebody else's head.
