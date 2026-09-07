@@ -96,6 +96,10 @@ namespace SS
 			// interlocked refcount on the engine's global handle table, and
 			// Render copies every entry, every frame. END, like the rest.
 			std::uint32_t ownerId{ 0 };
+			// The menu's picture for this marker: empty for the rule file's,
+			// "heart" for the built-in shape, else a file. Read on the main
+			// thread and carried here so the render side never asks Settings.
+			std::string   markIcon;
 		};
 
 		// The stats row under the corner readout. Values below zero hide the

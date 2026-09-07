@@ -126,7 +126,14 @@ namespace SS
 
 		// The loaded texture for a rule, or nullptr if it has none or the file
 		// would not load. Render thread only - it creates D3D resources.
-		[[nodiscard]] void* Texture(int a_rule, bool a_full = false);
+		// The picture for a rule: a_icon is the menu's choice for it - empty
+		// for the rule file's own, "heart" for none (the built-in shape is
+		// drawn instead), anything else a file in the icons folder. Render
+		// thread; the rules are static after Load and the cache is only ever
+		// touched here.
+		[[nodiscard]] void* Texture(int a_rule, bool a_full = false, const std::string& a_icon = {});
+		// Every PNG in the icons folder, for the menu to offer.
+		[[nodiscard]] static std::vector<std::string> IconFiles();
 
 		// Register a bridge that lives in code rather than in the rule file, so
 		// it appears on the Add-ons page beside the ones the rules declare.
@@ -158,6 +165,10 @@ namespace SS
 
 		void MergeDeclared();
 		std::vector<void*> _textures;  // ID3D11ShaderResourceView*, parallel to _rules
+		// One texture per file name, loaded on first use; nullptr remembered
+		// for a file that failed, so a missing picture is not retried a frame.
+		std::map<std::string, void*> _byFile;
+		[[nodiscard]] void* TextureFile(const std::string& a_file, const std::string& a_rule);
 		std::string        _status{ "not loaded" };
 	};
 }

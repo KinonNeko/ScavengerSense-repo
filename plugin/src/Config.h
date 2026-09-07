@@ -211,6 +211,10 @@ namespace SS
 		CountStyle    countStyle{ CountStyle::kFill };
 		std::uint32_t countFull{ 8 };  // tally that fills the icon completely
 		bool          overrideColour{ false };
+		// Which picture: empty is whatever the rule file named, "heart" is the
+		// built-in shape and needs no file, anything else is a PNG in the
+		// icons folder. The menu offers all three.
+		std::string   icon;
 	};
 
 	// One switch per mod that a rule file reads.

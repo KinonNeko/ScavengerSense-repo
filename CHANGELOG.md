@@ -39,6 +39,12 @@ the bars over somebody else's head.
   open/close sink re-asserts everything on the spot, before the frame
   draws; and the vanilla HUD is hidden at its main clip as well as its
   movie, because the clip is not what the game hands back.
+- **The Dibella marker is a lily now, and every marker's picture is yours
+  to pick.** The file called dibella.png had been a heart all along. The
+  heart is still shipped, as heart.png, and each marker has a "Symbol" box
+  on the Custom markers page: the marker file's own picture, the built-in
+  heart, or any PNG in the icons folder - your own included. Saved with
+  the marker's other styling, so it travels with a preset.
 - **An aura was a hit, and every hostile in reach wore a bar.** Measured
   rather than reasoned this time: with "only once you have hit them" on,
   the log showed a spell ability pulsing a hit event, player as cause, on

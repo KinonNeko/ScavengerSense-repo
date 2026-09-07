@@ -1114,6 +1114,8 @@ namespace SS
 				style.overrideColour = true;
 			} else if (field == "full") {
 				style.countFull = static_cast<std::uint32_t>(std::strtoul(value.c_str(), nullptr, 0));
+			} else if (field == "icon") {
+				style.icon = value;
 			} else if (field == "style") {
 				const auto lowered = Lower(value);
 				for (std::size_t i = 0; i < std::size(kCountStyleNames); ++i) {
@@ -1781,7 +1783,9 @@ namespace SS
 			file << "; what it looks like, so the menu can edit one without rewriting\n";
 			file << "; the other - and so a preset carries your marker styling with it.\n";
 			file << ";   style = number | fill | hidden\n";
-			file << ";   full  = the tally at which a filling icon is completely full\n\n";
+			file << ";   full  = the tally at which a filling icon is completely full\n";
+			file << ";   icon  = heart, or a PNG in SKSE/Plugins/ScavengerSense/icons;\n";
+			file << ";           left out, the marker file's own picture is used\n\n";
 			for (const auto& style : markStyles) {
 				file << style.name << ".enabled = " << boolean(style.enabled) << "\n";
 				if (style.overrideColour) {
@@ -1790,7 +1794,11 @@ namespace SS
 						 << std::dec << std::nouppercase << std::setfill(' ') << "\n";
 				}
 				file << style.name << ".style = " << CountStyleName(style.countStyle) << "\n";
-				file << style.name << ".full = " << style.countFull << "\n\n";
+				file << style.name << ".full = " << style.countFull << "\n";
+				if (!style.icon.empty()) {
+					file << style.name << ".icon = " << style.icon << "\n";
+				}
+				file << "\n";
 			}
 		}
 

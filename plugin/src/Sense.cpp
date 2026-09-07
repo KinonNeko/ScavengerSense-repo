@@ -3297,6 +3297,12 @@ namespace SS
 							titleColour,
 							a_ref->CreateRefHandle() });
 
+						if (effectiveMark >= 0) {
+							_labelBuffer.back().markIcon =
+								Settings::GetSingleton()->StyleFor(
+									Marks::GetSingleton()->Rules()[static_cast<std::size_t>(effectiveMark)].name,
+									markColour).icon;
+						}
 						if (isActor && settings->weaponIcons) {
 							_labelBuffer.back().weapon = static_cast<std::uint8_t>(
 								ClassifyWeapon(a_ref->As<RE::Actor>()));

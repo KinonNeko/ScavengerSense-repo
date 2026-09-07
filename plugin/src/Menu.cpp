@@ -1191,9 +1191,41 @@ namespace SS::Menu
 			igSameLine(0.0f, -1.0f);
 
 			if (igTreeNodeEx_Str(rule.name.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
-				igTextColored(swatch, "%s", rule.icon.empty()
-												? T("built-in heart shape (no icon file)")
-												: rule.icon.c_str());
+				// Which picture. The rule file names one; the built-in heart
+				// needs none; and every PNG in the icons folder is on offer,
+				// listed fresh each time the box opens so a file dropped in
+				// while the game runs shows up.
+				{
+					std::string current;
+					if (style.icon.empty()) {
+						current = rule.icon.empty() ? T("heart shape") :
+												  std::string{ T("as the marker file says") } + " (" + rule.icon + ")";
+					} else if (style.icon == "heart") {
+						current = T("heart shape");
+					} else {
+						current = style.icon;
+					}
+					if (igBeginCombo(T("Symbol"), current.c_str(), 0)) {
+						const auto fileSays = rule.icon.empty() ? std::string{ T("heart shape") } :
+																  std::string{ T("as the marker file says") } + " (" + rule.icon + ")";
+						if (igSelectable_Bool(fileSays.c_str(), style.icon.empty(), 0, ImVec2{ 0.0f, 0.0f })) {
+							style.icon.clear();
+						}
+						if (igSelectable_Bool(T("heart shape"), style.icon == "heart", 0, ImVec2{ 0.0f, 0.0f })) {
+							style.icon = "heart";
+						}
+						for (const auto& file : Marks::IconFiles()) {
+							if (igSelectable_Bool(file.c_str(), style.icon == file, 0, ImVec2{ 0.0f, 0.0f })) {
+								style.icon = file;
+							}
+						}
+						igEndCombo();
+					}
+					Help(
+						"The picture drawn for this marker. The marker file names one; the heart\n"
+						"is built in and needs no file; the rest are the PNGs in\n"
+						"SKSE/Plugins/ScavengerSense/icons - drop your own in there and it is listed.");
+				}
 
 				if (ColourPicker(T("Colour"), style.colour)) {
 					style.overrideColour = true;

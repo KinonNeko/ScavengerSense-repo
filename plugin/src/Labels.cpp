@@ -2231,7 +2231,7 @@ namespace SS
 				// tinted by the rule's colour, so a white glyph comes out in
 				// whatever colour the rule asked for.
 				void* texture = entry.mark >= 0
-									? Marks::GetSingleton()->Texture(entry.mark, entry.markAtFull)
+									? Marks::GetSingleton()->Texture(entry.mark, entry.markAtFull, entry.markIcon)
 									: nullptr;
 				if (texture) {
 					const auto half = iconSize * 0.62f;
@@ -2279,6 +2279,13 @@ namespace SS
 							PackColour(entry.markColour, alpha));
 						ImDrawList_PopClipRect(draw);
 					}
+				} else if (entry.mark >= 0) {
+					// A marker with no picture and no tally to fill: the plain
+					// heart, drawn the way the other shapes are.
+					DrawIcon(draw, Disposition::kLover, ImVec2{ centre.x + 1.0f, centre.y + 1.0f },
+						iconSize, PackColour(0x000000, alpha * 0.7f));
+					DrawIcon(draw, Disposition::kLover, centre, iconSize,
+						PackColour(entry.markColour, alpha));
 				} else if (entry.weapon != 0) {
 					// The drawn weapon wins the slot: what they can do to you
 					// beats what they think of you. The colour still carries

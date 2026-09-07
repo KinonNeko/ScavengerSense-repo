@@ -354,6 +354,7 @@ namespace SS
 		MergeDeclared();
 
 		_textures.assign(_rules.size(), nullptr);
+		_byFile.clear();
 		_fullTextures.assign(_rules.size(), nullptr);
 		_status = std::format("{} rules, {} form references did not resolve", _rules.size(), unresolved);
 		logger::info("marks: {}", _status);
@@ -686,41 +687,71 @@ namespace SS
 		return out;
 	}
 
-	void* Marks::Texture(int a_rule, bool a_full)
+	void* Marks::TextureFile(const std::string& a_file, const std::string& a_rule)
+	{
+		if (a_file.empty()) {
+			return nullptr;
+		}
+		if (const auto it = _byFile.find(a_file); it != _byFile.end()) {
+			return it->second;
+		}
+		// First time this picture is drawn. Load once and remember the answer
+		// either way - a missing file must not retry every frame.
+		auto* srv = LoadTexture(kIconDir + a_file);
+		if (srv) {
+			logger::info("marks: loaded icon '{}' for [{}]", a_file, a_rule);
+		} else {
+			logger::warn("marks: could not load {}{} for [{}] - falling back",
+				kIconDir, a_file, a_rule);
+		}
+		_byFile[a_file] = srv;
+		return srv;
+	}
+
+	void* Marks::Texture(int a_rule, bool a_full, const std::string& a_icon)
 	{
 		if (a_rule < 0 || static_cast<std::size_t>(a_rule) >= _rules.size()) {
 			return nullptr;
 		}
+		const auto& rule = _rules[static_cast<std::size_t>(a_rule)];
 
-		const auto index = static_cast<std::size_t>(a_rule);
-		auto&      rule = _rules[index];
-
-		auto&       state = a_full ? rule.fullTexture : rule.texture;
-		auto&       slot = a_full ? _fullTextures[index] : _textures[index];
-		const auto& file = a_full ? rule.fullIcon : rule.icon;
+		// The menu's choice beats the file's. "heart" means no picture at all:
+		// the caller draws the built-in shape when this returns nothing.
+		std::string chosen = a_icon;
+		for (auto& ch : chosen) {
+			ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+		}
+		if (chosen == "heart") {
+			return nullptr;
+		}
 
 		// A rule with no second picture keeps drawing its first one, which is
 		// the right answer for "full" when nobody supplied an alternative.
-		if (file.empty() || state == -2) {
-			return a_full ? Texture(a_rule, false) : nullptr;
-		}
-
-		if (state == -1) {
-			// First time this picture is drawn. Load once and remember the
-			// answer either way - a missing file must not retry every frame.
-			auto* srv = LoadTexture(kIconDir + file);
-			if (srv) {
-				slot = srv;
-				state = a_rule;
-				logger::info("marks: loaded icon '{}' for [{}]", file, rule.name);
-			} else {
-				state = -2;
-				logger::warn("marks: could not load {}{} for [{}] - falling back",
-					kIconDir, file, rule.name);
-				return a_full ? Texture(a_rule, false) : nullptr;
+		if (a_full && !rule.fullIcon.empty()) {
+			if (auto* full = TextureFile(rule.fullIcon, rule.name)) {
+				return full;
 			}
 		}
+		return TextureFile(a_icon.empty() ? rule.icon : a_icon, rule.name);
+	}
 
-		return slot;
+	std::vector<std::string> Marks::IconFiles()
+	{
+		std::vector<std::string> files;
+		std::error_code          ec;
+		for (const auto& entry : std::filesystem::directory_iterator{ kIconDir, ec }) {
+			if (!entry.is_regular_file(ec)) {
+				continue;
+			}
+			auto ext = entry.path().extension().string();
+			for (auto& ch : ext) {
+				ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+			}
+			if (ext == ".png") {
+				files.push_back(entry.path().filename().string());
+			}
+		}
+		std::sort(files.begin(), files.end());
+		return files;
 	}
 }

@@ -47,6 +47,11 @@ foreach ($f in Get-ChildItem "$repo\mod\SKSE\Plugins" -Filter "ScavengerSense*.i
     $jobs += @{ From = $f.FullName; To = "SKSE\Plugins\$($f.Name)" }
 }
 
+# The marker pictures, every one of them: a new icon is a new file.
+foreach ($f in Get-ChildItem "$repo\mod\SKSE\Plugins\ScavengerSense\icons" -Filter "*.png" -ErrorAction SilentlyContinue) {
+    $jobs += @{ From = $f.FullName; To = "SKSE\Plugins\ScavengerSense\icons\$($f.Name)" }
+}
+
 # Every preset, not just the one that shipped first: presets are added over
 # time and a hardcoded name silently leaves the new ones behind.
 foreach ($f in Get-ChildItem "$repo\mod\SKSE\Plugins\ScavengerSense\presets" -Filter "*.ini" -ErrorAction SilentlyContinue) {
