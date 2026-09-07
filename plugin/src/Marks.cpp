@@ -623,6 +623,69 @@ namespace SS
 		return _rules[a_rule].colour;
 	}
 
+	std::string Marks::Snapshot() const
+	{
+		std::string out;
+		for (const auto& rule : _rules) {
+			if (rule.lists.empty()) {
+				continue;
+			}
+			out += std::format("[{}] live={} available={}", rule.name, Live(rule), rule.available);
+			for (auto* list : rule.lists) {
+				if (!list) {
+					out += " (unresolved list)";
+					continue;
+				}
+				const auto added = list->scriptAddedTempForms ? list->scriptAddedTempForms->size() : 0u;
+				out += std::format(" | list {:08X}: {} static, {} added", list->GetFormID(),
+					list->forms.size(), added);
+				if (list->scriptAddedTempForms) {
+					int shown = 0;
+					for (const auto id : *list->scriptAddedTempForms) {
+						if (shown++ >= 12) {
+							out += " ...";
+							break;
+						}
+						auto*       form = RE::TESForm::LookupByID(id);
+						const char* name = form ? form->GetName() : nullptr;
+						out += std::format(" {}({:08X})", name && name[0] ? name : "?", id);
+					}
+				}
+			}
+			out += "; ";
+		}
+		return out.empty() ? "no list rules" : out;
+	}
+
+	std::string Marks::Why(RE::Actor* a_actor) const
+	{
+		if (!a_actor) {
+			return "nobody";
+		}
+		auto*       base = a_actor->GetActorBase();
+		std::string out = std::format("base {:08X} unique={}", base ? base->GetFormID() : 0u,
+			base && base->IsUnique());
+		for (const auto& rule : _rules) {
+			out += std::format(" | [{}] live={}", rule.name, Live(rule));
+			for (auto* list : rule.lists) {
+				out += std::format(" list={}", !list ? "null" :
+					((base && list->HasForm(base)) || list->HasForm(a_actor)) ? "in" : "out");
+			}
+			for (auto* faction : rule.factions) {
+				std::int8_t rank = -3;
+				a_actor->VisitFactions([&](RE::TESFaction* a_it, std::int8_t a_rank) {
+					if (a_it == faction) {
+						rank = a_rank;
+						return true;
+					}
+					return false;
+				});
+				out += std::format(" faction={}", rank == -3 ? "absent" : std::to_string(rank));
+			}
+		}
+		return out;
+	}
+
 	void* Marks::Texture(int a_rule, bool a_full)
 	{
 		if (a_rule < 0 || static_cast<std::size_t>(a_rule) >= _rules.size()) {

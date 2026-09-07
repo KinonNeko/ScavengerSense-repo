@@ -107,6 +107,14 @@ namespace SS
 		// the useful question is which of the two is not recording - and that
 		// cannot be answered without seeing the parts.
 		[[nodiscard]] std::string Explain(int a_rule, RE::Actor* a_actor) const;
+		// One line per list rule: what each list holds at runtime, by name.
+		// Logged at load, so a marker that never shows can be told apart from
+		// a list that was never written.
+		[[nodiscard]] std::string Snapshot() const;
+		// One line for one person: their base, and every rule's verdict on
+		// them, criterion by criterion. Logged for the first people a sweep
+		// tags, so a missing marker explains itself without the menu.
+		[[nodiscard]] std::string Why(RE::Actor* a_actor) const;
 
 		// Names of every integration mentioned by the rule file, in load order.
 		[[nodiscard]] const std::vector<std::string>& Integrations() const { return _integrations; }

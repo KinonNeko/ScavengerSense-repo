@@ -330,6 +330,7 @@ namespace SS
 			Settings::GetSingleton()->Load();
 			Locale::Load(Settings::GetSingleton()->language);
 			GameMenus::GetSingleton()->LastWord();
+			logger::info("marks at load: {}", Marks::GetSingleton()->Snapshot());
 			// Said here rather than at data load: nothing is drawn that early,
 			// so a message about text you cannot read would itself go unread.
 			SayMenuFontWarning();

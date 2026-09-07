@@ -122,6 +122,7 @@ namespace SS
 		std::uint32_t _hitsLogged{ 0 };
 		std::uint32_t _vanillaMovedBack{ 0 };
 		std::uint32_t _vanillaAlphaBack{ 0 };
+		std::uint32_t _markWhyLogged{ 0 };
 		// Records breadcrumbs behind anyone the sense has touched, and hands
 		// the drawable trails to Labels.
 		void PollTrails();

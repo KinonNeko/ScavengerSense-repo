@@ -3084,6 +3084,17 @@ namespace SS
 		// factions, relationship lists, names - is a property of a person.
 		const auto mark = isActor ? Marks::GetSingleton()->Match(a_ref->As<RE::Actor>()) : -1;
 		auto       markCount = mark >= 0 ? Marks::GetSingleton()->Count(mark, a_ref->As<RE::Actor>()) : -1;
+		// The first people a session tags, with every rule's verdict on them:
+		// a marker that should be there and is not gets explained here
+		// without anyone having to open the menu.
+		if (isActor && _markWhyLogged < 30) {
+			++_markWhyLogged;
+			const auto* name = a_ref->GetDisplayFullName();
+			const auto& rules = Marks::GetSingleton()->Rules();
+			logger::info("marks: {} -> {}; {}", name && name[0] ? name : "?",
+				mark >= 0 ? rules[static_cast<std::size_t>(mark)].name : "no marker",
+				Marks::GetSingleton()->Why(a_ref->As<RE::Actor>()));
+		}
 
 		// Marker appearance is a setting, not a rule - so the menu can restyle a
 		// marker without rewriting the hand-annotated rule file.
