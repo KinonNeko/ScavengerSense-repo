@@ -339,46 +339,87 @@ namespace SS
 			return { kind, mark };
 		}
 
-		// Whether somebody is fighting the player right now, as opposed to
-		// merely carrying the combat flag with the player as its target. The
-		// flag alone over-reports in exactly the ways that put a bar over the
-		// wrong head: a deer running from you is "in combat" with you as its
-		// target, and a wolf that lost you three rooms ago stays in combat,
-		// searching, for as long as the engine's search timer runs - and a
-		// flag that never clears at all, which some states leave behind, is
-		// a bar that never comes down. Fleeing and target-lost are bytes the
-		// engine keeps for its own combat AI, per actor, so they are read
-		// rather than guessed at from distance or line of sight.
-		[[nodiscard]] bool FightingPlayer(RE::Actor* a_actor, RE::Actor* a_player)
+		// What the engine says about somebody's fight with the player, read
+		// once and kept as separate answers, because the bare combat flag
+		// over-reports in exactly the ways that put a bar over the wrong head:
+		// a deer running from you is "in combat" with you as its target, and a
+		// wolf that lost you three rooms ago stays in combat, searching, for as
+		// long as the engine's search timer runs - and a flag that never clears
+		// at all, which some states leave behind, is a bar that never comes
+		// down. Fleeing and target-lost are bytes the engine keeps for its own
+		// combat AI, per actor, so they are read rather than guessed at from
+		// distance or line of sight. Kept apart so the log can say which one
+		// held a bar up or took it down.
+		struct CombatRead
 		{
-			if (!a_actor || !a_player || !a_actor->IsInCombat()) {
-				return false;
+			bool        inCombat{ false };   // the engine's combat flag
+			bool        targetsMe{ false };  // its current target is the player
+			bool        running{ false };    // a controller, a state and a group behind the flag
+			bool        fleeing{ false };
+			bool        lost{ false };       // the actor's own state: target lost
+			// The combat group's entry for the player: 1 found and not lost,
+			// 0 an entry that says otherwise - a search - and -1 no entry at
+			// all, which is not evidence of anything and is not held against
+			// them.
+			std::int8_t known{ -1 };
+
+			// Every count says fight. A cave that heard something and went
+			// looking is in combat, with you as the target, on the first three
+			// and nobody in it has seen you.
+			[[nodiscard]] bool Fighting() const
+			{
+				return inCombat && targetsMe && running && !fleeing && !lost && known != 0;
+			}
+			// The same with running away allowed: a wounded deer running is
+			// the hunt and not the end of it, for somebody you have hit.
+			[[nodiscard]] bool Hunted() const
+			{
+				return inCombat && targetsMe && running && !lost && known != 0;
+			}
+		};
+
+		[[nodiscard]] CombatRead ReadCombat(RE::Actor* a_actor, RE::Actor* a_player)
+		{
+			CombatRead read{};
+			if (!a_actor || !a_player) {
+				return read;
+			}
+			read.inCombat = a_actor->IsInCombat();
+			if (!read.inCombat) {
+				return read;
 			}
 			const auto& data = a_actor->GetActorRuntimeData();
-			if (data.currentCombatTarget != a_player->CreateRefHandle()) {
-				return false;
-			}
+			const auto  playerHandle = a_player->CreateRefHandle();
+			read.targetsMe = data.currentCombatTarget == playerHandle;
 			// In combat with nothing running the combat: the stuck kind.
 			const auto* controller = data.combatController;
-			if (!controller || !controller->state || !controller->combatGroup) {
-				return false;
+			read.running = controller && controller->state && controller->combatGroup;
+			if (!read.running) {
+				return read;
 			}
-			if (controller->state->isFleeing || controller->state->targetLost) {
-				return false;
-			}
-			// The group's own entry for the player says whether they have
-			// actually found you. A cave that heard something and went
-			// looking is in combat, with you as the target, on every count
-			// above - and nobody in it has seen you. Known and not lost is
-			// what a fight looks like; anything else is a search.
-			const auto playerHandle = a_player->CreateRefHandle();
+			read.fleeing = controller->state->isFleeing;
+			read.lost = controller->state->targetLost;
 			for (const auto& target : controller->combatGroup->targets) {
 				if (target.targetHandle == playerHandle) {
-					return target.flags.all(RE::CombatTarget::Flags::kTargetKnown) &&
-					       target.flags.none(RE::CombatTarget::Flags::kTargetLost);
+					read.known = target.flags.all(RE::CombatTarget::Flags::kTargetKnown) &&
+					             target.flags.none(RE::CombatTarget::Flags::kTargetLost);
+					break;
 				}
 			}
-			return false;
+			return read;
+		}
+
+		// One line of it, for the log.
+		[[nodiscard]] std::string DescribeCombat(const CombatRead& a_read)
+		{
+			return std::format("inCombat={} targetsMe={} running={} fleeing={} lost={} known={}",
+				a_read.inCombat, a_read.targetsMe, a_read.running, a_read.fleeing, a_read.lost,
+				a_read.known < 0 ? "none" : a_read.known ? "yes" : "no");
+		}
+
+		[[nodiscard]] bool FightingPlayer(RE::Actor* a_actor, RE::Actor* a_player)
+		{
+			return ReadCombat(a_actor, a_player).Fighting();
 		}
 
 		// What the player currently is. Three states, in the order that matters:
@@ -1663,6 +1704,39 @@ namespace SS
 			return RE::BSEventNotifyControl::kContinue;
 		}
 
+		// Not every hit is a blow. A cloak, an aura, a lingering poison - any
+		// spell that touches people without being aimed at them - lands as a
+		// hit with the player as its cause, on everyone in reach, every pulse,
+		// and that includes the draugr four thousand units down the corridor
+		// who has no idea you exist. In the struck mode that was a bar over
+		// every hostile in range, refreshed faster than the linger could take
+		// it down: the "every hostile creature, permanently" some people saw.
+		// Measured on one such aura, the pulse came every half second with a
+		// projectile form attached, so a projectile proves nothing. What does:
+		// a hit on somebody who is not fighting anybody counts only from a
+		// weapon or bare hands (no source form). A spell earns its bar the
+		// moment its target is in a fight - which a real spell hit makes
+		// happen by the next pulse, and an aura on the unaware never does.
+		const auto* source = a_event->source ? RE::TESForm::LookupByID(a_event->source) : nullptr;
+		const bool  aimed = !source || source->Is(RE::FormType::Weapon);
+		const bool  fighting = target->IsInCombat();
+		const bool  counts = aimed || fighting;
+		if (_hitsLogged < 40) {
+			++_hitsLogged;
+			const auto* name = target->GetDisplayFullName();
+			const auto* sourceName = source ? source->GetName() : nullptr;
+			auto*       player = RE::PlayerCharacter::GetSingleton();
+			const float distance = player ? player->GetPosition().GetDistance(target->GetPosition()) : -1.0f;
+			logger::info("combat bars: hit on {} ({:08X}) {} - source {} ({:08X}, {}), projectile {:08X}, flags {}, {:.0f} units away, inCombat={}",
+				name && name[0] ? name : "?", target->GetFormID(), counts ? "counts" : "ignored",
+				sourceName && sourceName[0] ? sourceName : "-", a_event->source,
+				source ? static_cast<int>(source->GetFormType()) : -1, a_event->projectile,
+				a_event->flags.underlying(), distance, fighting);
+		}
+		if (!counts) {
+			return RE::BSEventNotifyControl::kContinue;
+		}
+
 		// Newest hits win the space. 24 bars is already an unreadable fight.
 		constexpr std::size_t kMaxTracked = 24;
 		if (_combatHits.size() >= kMaxTracked && !_combatHits.contains(target->GetFormID())) {
@@ -1936,7 +2010,7 @@ namespace SS
 					// line to look for when a bar is over a head it should
 					// not be: the entry either says fighting or aimed, or
 					// it is not here and the bar came from a hit.
-					if (settings->debug) {
+					{
 						const auto* name = a_actor->GetDisplayFullName();
 						logger::info("combat bars: {} ({:08X}) added, {}",
 							name && name[0] ? name : "?", id, a_why);
@@ -1996,16 +2070,29 @@ namespace SS
 			// end of it. Somebody who arrived without a hit is held only by
 			// the stricter question that let them in.
 			const bool struck = _struckEver.contains(it->first);
+			const auto read = dead ? CombatRead{} : ReadCombat(actor, player);
 			const bool engaged = !dead && real - it->second.lastHitAt < 120.0f &&
-			                     (struck ? (actor->IsInCombat() &&
-			                                   actor->GetActorRuntimeData().currentCombatTarget ==
-			                                       player->CreateRefHandle()) :
-			                               FightingPlayer(actor, player));
+			                     (struck ? read.Hunted() : read.Fighting());
 			if (engaged) {
 				it->second.lastEngagedAt = real;
 			}
+			// Each change of heart, with the engine's answers as they were at
+			// that moment: this is the line that says why a bar stayed up
+			// over somebody who had plainly stopped, or came down on
+			// somebody who had not.
+			if (engaged != it->second.engaged) {
+				const auto* name = actor->GetDisplayFullName();
+				logger::info("combat bars: {} ({:08X}) {} - {}, {}, {:.0f}s since the last hit",
+					name && name[0] ? name : "?", it->first,
+					engaged ? "engaged" : "disengaged", struck ? "struck" : "not struck",
+					DescribeCombat(read), real - it->second.lastHitAt);
+			}
+			it->second.engaged = engaged;
 
 			if (!engaged && real - it->second.lastEngagedAt > settings->combatLinger) {
+				{
+					logger::info("combat bars: {:08X} dropped after the linger", it->first);
+				}
 				it = _combatHits.erase(it);
 				continue;
 			}

@@ -115,6 +115,7 @@ namespace SS
 		// two flags and one variable read - and a no-op unless we own them.
 		// Main thread only, like the poll.
 		void HoldEnemyHud();
+		std::uint32_t _hitsLogged{ 0 };
 		// Records breadcrumbs behind anyone the sense has touched, and hands
 		// the drawable trails to Labels.
 		void PollTrails();
@@ -171,6 +172,8 @@ namespace SS
 			// by death or disengagement, and the entry fades linger seconds
 			// after it stops moving.
 			float               lastEngagedAt{ 0.0f };
+			// Last tick's verdict, so a change of it can be logged.
+			bool                engaged{ false };
 		};
 		std::unordered_map<RE::FormID, HitTrack> _combatHits;
 		std::vector<Labels::Entry>               _combatBuffer;

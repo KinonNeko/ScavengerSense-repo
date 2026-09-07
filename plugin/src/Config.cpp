@@ -1145,9 +1145,9 @@ namespace SS
 		}
 
 		logger::info(
-			"config: key={} pad={} radius={} max={} sweepTime={} duration={} throughWalls={} tint={} markerStyles={}",
+			"config: key={} pad={} radius={} max={} sweepTime={} duration={} throughWalls={} tint={} markerStyles={} combat={} combatWhen={} pushTrueHUD={}",
 			keyboard, gamepad, radius, maxObjects, sweepTime, duration, throughWalls, tintEnabled,
-			markStyles.size());
+			markStyles.size(), combatBars, kCombatBarsWhenNames[static_cast<std::size_t>(combatBarsWhen)], pushTrueHUDAside);
 		return true;
 	}
 

@@ -39,6 +39,24 @@ the bars over somebody else's head.
   open/close sink re-asserts everything on the spot, before the frame
   draws; and the vanilla HUD is hidden at its main clip as well as its
   movie, because the clip is not what the game hands back.
+- **An aura was a hit, and every hostile in reach wore a bar.** Measured
+  rather than reasoned this time: with "only once you have hit them" on,
+  the log showed a spell ability pulsing a hit event, player as cause, on
+  every draugr within four thousand units every half second, none of them
+  in combat, refreshing each entry faster than the linger could drop it.
+  That is the "every hostile creature, permanently" report, and the 0.9.1
+  seed change above never touched it because the seed is not where these
+  came from. A hit on somebody who is not fighting anybody now counts only
+  from a weapon or bare hands; a spell earns its bar once its target is in
+  a fight. The first forty hits of a session are logged with their source,
+  distance and the target's combat state, so the next one of these is a
+  read and not a theory.
+- **Somebody you had hit kept a bar after losing you.** The stricter question
+  above only guarded the people who arrived without a hit; a wolf you had
+  struck once was held by the bare combat flag, searching or stuck, for the
+  two minutes of the staleness cap. It now has to still know where you are
+  - fleeing still counts, searching does not. Every change of verdict is
+  logged with the engine's answers as they were.
 - **The activation prompt can be moved.** The "Talk  Lydia" line is the
   game's, not this mod's, and it sits on the crosshair - which is to say
   on the face of whoever you are about to talk to. Six offsets under
