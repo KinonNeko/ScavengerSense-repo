@@ -839,6 +839,16 @@ namespace SS
 			}
 		}
 		Get(table, "perks", "notify", perkNotify);
+		// From 0.9 to 0.9.5 the writer put these six under [Perks] by
+		// accident and the reader looked in [Player], so they reset on every
+		// load. Files from those versions are read from where they were
+		// written; a [Player] entry, which is where they belong, wins.
+		Get(table, "perks", "coldMax", coldMax);
+		Get(table, "perks", "levelOthers", levelOthers);
+		Get(table, "perks", "weaponIcons", weaponIcons);
+		Get(table, "perks", "weaponEnchant", weaponEnchant);
+		Get(table, "perks", "raceIcons", raceIcons);
+		Get(table, "perks", "statsPlace", statsPlace);
 		Get(table, "player", "coldMax", coldMax);
 		Get(table, "player", "levelOthers", levelOthers);
 		Get(table, "player", "weaponIcons", weaponIcons);
@@ -1522,7 +1532,21 @@ namespace SS
 		file << "; Editor ID of the global variable that says how cold you are, and\n";
 		file << "; the value that counts as fully frozen. Survival Mode's global is\n";
 		file << "; the default; the row hides itself when it does not exist.\n";
-		file << "coldGlobal = " << coldGlobal << "\n\n\n";
+		file << "coldGlobal = " << coldGlobal << "\n";
+		file << "coldMax = " << coldMax << "\n";
+		file << "; Their level in parentheses after the name, enemies included.\n";
+		file << "levelOthers = " << boolean(levelOthers) << "\n";
+		file << "; Tag icons follow the drawn weapon - yours and theirs - instead of\n";
+		file << "; the relationship shape. The colour still says friend or foe.\n";
+		file << "weaponIcons = " << boolean(weaponIcons) << "\n";
+		file << "; The weapon glyph in its enchantment's colour, filled to the charge left.\n";
+		file << "weaponEnchant = " << boolean(weaponEnchant) << "\n";
+		file << "; A racial emblem beside people's tags and on your level entry,\n";
+		file << "; with a fang or paw mark after it for vampires and werewolves.\n";
+		file << "raceIcons = " << boolean(raceIcons) << "\n";
+		file << "; Where the stats row lives: bars (riding the over-head stack),\n";
+		file << "; corner (under the corner readout), or both.\n";
+		file << "statsPlace = " << kStatsPlaceNames[static_cast<std::size_t>(statsPlace)] << "\n\n\n";
 
 		file << "[Perks]\n\n";
 		file << "; Make the sense and the hunt things you learn rather than\n";
@@ -1540,20 +1564,7 @@ namespace SS
 		file << "tracking = " << perkTracking << "\n\n";
 		file << "; Say so on screen when a key is refused. Off leaves it\n";
 		file << "; silent, which reads as a broken hotkey.\n";
-		file << "notify = " << boolean(perkNotify) << "\n";
-		file << "coldMax = " << coldMax << "\n";
-		file << "; Their level in parentheses after the name, enemies included.\n";
-		file << "levelOthers = " << boolean(levelOthers) << "\n";
-		file << "; Tag icons follow the drawn weapon - yours and theirs - instead of\n";
-		file << "; the relationship shape. The colour still says friend or foe.\n";
-		file << "weaponIcons = " << boolean(weaponIcons) << "\n";
-		file << "; A racial emblem beside people's tags and on your level entry,\n";
-		file << "; with a fang or paw mark after it for vampires and werewolves.\n";
-		file << "raceIcons = " << boolean(raceIcons) << "\n";
-		file << "; Where the stats row lives: bars (riding the over-head stack),\n";
-		file << "; corner (under the corner readout), or both.\n";
-		file << "statsPlace = " << kStatsPlaceNames[static_cast<std::size_t>(statsPlace)] << "\n\n\n";
-
+		file << "notify = " << boolean(perkNotify) << "\n\n\n";
 		file << "[Tracks]\n\n";
 		file << "; Breadcrumb trails behind anyone the sense has touched - sweep-lit\n";
 		file << "; or fought - as chevrons on the ground pointing the way they went,\n";

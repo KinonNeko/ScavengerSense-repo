@@ -8,6 +8,12 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+- **Six settings that reset on every load since 0.9.** The perk section
+  was written into the middle of the player section, so your level,
+  weapon and race icon choices, the stats row's place and the cold cap
+  landed under `[Perks]` and were read from `[Player]` - and came back
+  as defaults every time. Written where they are read now, and a file
+  from those versions is read from where it put them.
 ## 0.9.5 beta
 
 Three from the feedback, all of them about somebody else's interface or
