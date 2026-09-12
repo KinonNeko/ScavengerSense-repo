@@ -792,6 +792,16 @@ namespace SS
 
 		// [Labels] continued - behaviour that needs the main thread every frame
 		bool labelsFollow{ true };
+		// Where over a person the tag and the bars hang. Off, the head - which
+		// bobs with every step and every swing. On, a fixed height over the
+		// feet, which glide: a standing person's head height, held there
+		// whatever the head does.
+		bool  anchorSteady{ false };
+		// Seconds of screen-space smoothing on the way the anchor moves, so
+		// what is left of the motion is eased rather than followed frame by
+		// frame. Zero is off; a tenth of a second is a good deal steadier
+		// without visible lag.
+		float anchorSmoothing{ 0.0f };
 		// off / hide / lift, for getting out of the way of a subtitle mod
 		int  labelSpeakerMode{ 1 };
 		float labelSpeakerLift{ 90.0f };

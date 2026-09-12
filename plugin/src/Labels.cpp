@@ -791,6 +791,203 @@ namespace SS
 		_selfHudAt = a_changedAt;
 	}
 
+	// Screen-space easing of an anchor, per owner: the projected point is
+	// chased with a time constant rather than taken as it comes, so a head
+	// bob becomes a sway and a stumble a drift. A jump too large to be
+	// motion - a new entry, a camera cut - snaps. Render thread only.
+	struct Eased
+	{
+		ImVec2 at{};
+		float  seen{ -1000.0f };
+	};
+	static std::unordered_map<std::uint32_t, Eased> g_eased;
+
+	static ImVec2 Steady(std::uint32_t a_owner, ImVec2 a_at, float a_now)
+	{
+		const float tau = Settings::GetSingleton()->anchorSmoothing;
+		if (tau <= 0.001f || a_owner == 0) {
+			return a_at;
+		}
+		auto&       e = g_eased[a_owner];
+		const float dt = a_now - e.seen;
+		e.seen = a_now;
+		const float dx = a_at.x - e.at.x;
+		const float dy = a_at.y - e.at.y;
+		if (dt <= 0.0f || dt > 0.5f || dx * dx + dy * dy > 240.0f * 240.0f) {
+			e.at = a_at;
+			return e.at;
+		}
+		const float k = 1.0f - std::exp(-dt / tau);
+		e.at.x += dx * k;
+		e.at.y += dy * k;
+		return e.at;
+	}
+
+	// Owners not seen for a while are let go, so the map does not grow with
+	// every person ever tagged.
+	static void PruneEased(float a_now)
+	{
+		static float last = -1000.0f;
+		if (a_now - last < 5.0f) {
+			return;
+		}
+		last = a_now;
+		for (auto it = g_eased.begin(); it != g_eased.end();) {
+			it = a_now - it->second.seen > 3.0f ? g_eased.erase(it) : std::next(it);
+		}
+	}
+
+	// The light sources gathered while the HUD is drawn, for the shader glow
+	// pass at the end of the frame. Render thread only.
+	static std::vector<PostFX::GlowSource> g_glow;
+
+	// One source: a rounded rectangle in screen pixels, lit in its colour.
+	static void AddGlow(float a_x0, float a_y0, float a_x1, float a_y1, std::uint32_t a_colour,
+		float a_intensity, float a_radius, float a_rounding)
+	{
+		if (g_glow.size() >= PostFX::kMaxGlow || a_intensity <= 0.001f) {
+			return;
+		}
+		const auto top = (a_colour >> 24) & 0xFF;
+		const float own = top == 0 ? 1.0f : static_cast<float>(top) / 255.0f;
+		PostFX::GlowSource g;
+		g.x0 = a_x0; g.y0 = a_y0; g.x1 = a_x1; g.y1 = a_y1;
+		g.r = static_cast<float>((a_colour >> 16) & 0xFF) / 255.0f;
+		g.g = static_cast<float>((a_colour >> 8) & 0xFF) / 255.0f;
+		g.b = static_cast<float>(a_colour & 0xFF) / 255.0f;
+		g.intensity = a_intensity * own;
+		g.radius = a_radius;
+		g.rounding = a_rounding;
+		g_glow.push_back(g);
+	}
+
+	// Light leaking out of a block of bars: layers of its rectangle, each a
+	// little larger and fainter than the one inside it, breathing together
+	// with a flicker of their own. a_strength scales it, and above about a
+	// half the block itself is washed brighter as well - the flash that says
+	// a cooldown is back. Drawn under the bars, never over them.
+	static void DrawBlockGlow(ImDrawList* a_draw, float a_left, float a_right, float a_top, float a_bottom,
+		float a_thick, std::uint32_t a_colour, float a_strength, float a_alpha, float a_now)
+	{
+		if (a_strength <= 0.01f) {
+			return;
+		}
+		const float breathe = 1.0f + 0.18f * std::sin(a_now * 2.2f);
+		if (Settings::GetSingleton()->glowShader) {
+			AddGlow(a_left, a_top, a_right, a_bottom, a_colour, a_alpha * 0.55f * a_strength * breathe,
+				std::max(6.0f, a_thick * 2.2f) * breathe, a_thick * 0.5f);
+			return;
+		}
+		const float spread = std::max(4.0f, a_thick * 2.6f) * breathe * (0.6f + 0.4f * a_strength);
+		constexpr int kLayers = 8;
+		for (int i = 0; i < kLayers; ++i) {
+			const float f = static_cast<float>(i + 1) / static_cast<float>(kLayers);
+			const float grow = spread * f;
+			const float flicker = 0.9f + 0.1f * std::sin(a_now * 6.0f + static_cast<float>(i) * 1.9f);
+			const float a = 0.17f * (1.0f - f) * (1.0f - f) * flicker * a_strength;
+			const ImVec2 quad[4]{ { a_left - grow, a_top - grow }, { a_right + grow, a_top - grow },
+				{ a_right + grow, a_bottom + grow }, { a_left - grow, a_bottom + grow } };
+			ImDrawList_AddConvexPolyFilled(a_draw, quad, 4, PackColour(a_colour, a_alpha * a));
+		}
+		if (a_strength > 0.5f) {
+			const ImVec2 wash[4]{ { a_left, a_top }, { a_right, a_top }, { a_right, a_bottom }, { a_left, a_bottom } };
+			ImDrawList_AddConvexPolyFilled(a_draw, wash, 4,
+				PackColour(0xFFFFFF, a_alpha * 0.28f * (a_strength - 0.5f) * 2.0f));
+		}
+	}
+
+	// The Thu'um as a rune: three claw strokes over a bar, the way the
+	// dragon tongue is cut into a word wall.
+	static void DrawShoutRune(ImDrawList* a_draw, ImVec2 a_c, float a_size, ImU32 a_colour)
+	{
+		const float r = a_size * 0.5f;
+		const float line = std::max(1.2f, a_size * 0.13f);
+		ImDrawList_AddLine(a_draw, ImVec2{ a_c.x - r * 0.75f, a_c.y - r * 0.95f }, ImVec2{ a_c.x - r * 0.3f, a_c.y + r * 0.55f }, a_colour, line);
+		ImDrawList_AddLine(a_draw, ImVec2{ a_c.x, a_c.y - r * 1.0f }, ImVec2{ a_c.x, a_c.y + r * 0.55f }, a_colour, line);
+		ImDrawList_AddLine(a_draw, ImVec2{ a_c.x + r * 0.75f, a_c.y - r * 0.95f }, ImVec2{ a_c.x + r * 0.3f, a_c.y + r * 0.55f }, a_colour, line);
+		ImDrawList_AddLine(a_draw, ImVec2{ a_c.x - r * 0.85f, a_c.y + r * 0.8f }, ImVec2{ a_c.x + r * 0.85f, a_c.y + r * 0.8f }, a_colour, line);
+	}
+
+	// A weapon glyph wearing its enchantment: the glyph as it would be drawn,
+	// then the bottom a_fill of it again in the enchantment's colour - the
+	// marker tally's fill, on a weapon. No enchantment, no second pass.
+	static void DrawWeaponIconEnchanted(ImDrawList* a_draw, WeaponKind a_kind, ImVec2 a_c, float a_size,
+		ImU32 a_base, std::uint32_t a_enchant, float a_fill, float a_alpha,
+		std::uint32_t a_spellL = 0, std::uint32_t a_spellR = 0)
+	{
+		// A halo that is the glyph's own shape: the glyph drawn three times
+		// larger and fainter in its colour before the real one goes on top,
+		// so the light hugs a blade or a bolt rather than pooling round it.
+		// Two hands, two colours: each copy is cut down the middle.
+		if (Settings::GetSingleton()->glyphGlow) {
+			const bool spell = a_kind == WeaponKind::kSpell && (a_spellL != 0 || a_spellR != 0);
+			const std::uint32_t one = spell ? (a_spellL ? a_spellL : a_spellR) : a_enchant;
+			if (one != 0 && Settings::GetSingleton()->glowShader) {
+				const bool  split = spell && a_spellL != 0 && a_spellR != 0 && a_spellL != a_spellR;
+				const float half = a_size * 0.42f;
+				if (split) {
+					AddGlow(a_c.x - half, a_c.y - half, a_c.x, a_c.y + half, a_spellL, a_alpha * 0.45f, a_size * 0.5f, half);
+					AddGlow(a_c.x, a_c.y - half, a_c.x + half, a_c.y + half, a_spellR, a_alpha * 0.45f, a_size * 0.5f, half);
+				} else {
+					AddGlow(a_c.x - half, a_c.y - half, a_c.x + half, a_c.y + half, one, a_alpha * 0.45f, a_size * 0.5f, half);
+				}
+			} else if (one != 0) {
+				const bool split = spell && a_spellL != 0 && a_spellR != 0 && a_spellL != a_spellR;
+				for (int ring = 2; ring >= 0; --ring) {
+					const float grow = 1.0f + 0.14f * static_cast<float>(ring + 1);
+					const float a = a_alpha * (0.34f - 0.10f * static_cast<float>(ring));
+					const float big = a_size * grow;
+					const float half = big * 0.5f;
+					if (split) {
+						ImDrawList_PushClipRect(a_draw, ImVec2{ a_c.x - half - 1.0f, a_c.y - half - 1.0f },
+							ImVec2{ a_c.x, a_c.y + half + 1.0f }, true);
+						DrawWeaponIcon(a_draw, a_kind, a_c, big, PackColour(a_spellL, a));
+						ImDrawList_PopClipRect(a_draw);
+						ImDrawList_PushClipRect(a_draw, ImVec2{ a_c.x, a_c.y - half - 1.0f },
+							ImVec2{ a_c.x + half + 1.0f, a_c.y + half + 1.0f }, true);
+						DrawWeaponIcon(a_draw, a_kind, a_c, big, PackColour(a_spellR, a));
+						ImDrawList_PopClipRect(a_draw);
+					} else {
+						DrawWeaponIcon(a_draw, a_kind, a_c, big, PackColour(one, a));
+					}
+				}
+			}
+		}
+		DrawWeaponIcon(a_draw, a_kind, a_c, a_size, a_base);
+		// A spell glyph takes the colour of what is being cast: one colour
+		// for the whole glyph, or the left half in the left hand's and the
+		// right half in the right hand's when the two differ.
+		if (a_kind == WeaponKind::kSpell && (a_spellL != 0 || a_spellR != 0)) {
+			const float half = a_size * 0.5f;
+			if (a_spellL != 0 && a_spellR != 0 && a_spellL != a_spellR) {
+				ImDrawList_PushClipRect(a_draw, ImVec2{ a_c.x - half - 1.0f, a_c.y - half - 1.0f },
+					ImVec2{ a_c.x, a_c.y + half + 1.0f }, true);
+				DrawWeaponIcon(a_draw, a_kind, a_c, a_size, PackColour(a_spellL, a_alpha));
+				ImDrawList_PopClipRect(a_draw);
+				ImDrawList_PushClipRect(a_draw, ImVec2{ a_c.x, a_c.y - half - 1.0f },
+					ImVec2{ a_c.x + half + 1.0f, a_c.y + half + 1.0f }, true);
+				DrawWeaponIcon(a_draw, a_kind, a_c, a_size, PackColour(a_spellR, a_alpha));
+				ImDrawList_PopClipRect(a_draw);
+			} else {
+				DrawWeaponIcon(a_draw, a_kind, a_c, a_size, PackColour(a_spellL ? a_spellL : a_spellR, a_alpha));
+			}
+			return;
+		}
+		if (a_enchant == 0 || a_fill < 0.0f) {
+			return;
+		}
+		const float fill = std::clamp(a_fill, 0.0f, 1.0f);
+		if (fill <= 0.001f) {
+			return;
+		}
+		const float half = a_size * 0.5f;
+		const float line = a_c.y + half - a_size * fill;
+		ImDrawList_PushClipRect(a_draw, ImVec2{ a_c.x - half - 1.0f, line },
+			ImVec2{ a_c.x + half + 1.0f, a_c.y + half + 1.0f }, true);
+		DrawWeaponIcon(a_draw, a_kind, a_c, a_size, PackColour(a_enchant, a_alpha));
+		ImDrawList_PopClipRect(a_draw);
+	}
+
 	void Labels::SetCombatBars(std::vector<Entry> a_entries)
 	{
 		// Main thread, so this is the place to trade the handle for its number
@@ -1565,6 +1762,8 @@ namespace SS
 		if (!draw) {
 			return;
 		}
+		g_glow.clear();
+		PruneEased(now);
 
 		{
 			std::scoped_lock guard{ _lock };
@@ -1824,6 +2023,7 @@ namespace SS
 				if (!Project(c.world, width, height, at)) {
 					continue;
 				}
+				at = Steady(c.ownerId, at, now);
 
 				// The last stretch of the linger fades on the shared Fading
 				// over time, mirroring the corner readout, so the stack leaves
@@ -2009,6 +2209,11 @@ namespace SS
 				}
 				continue;
 			}
+			// The tag and the combat bar for one person are eased apart: they
+			// can hang from different points (a speaker lift, a stale anchor),
+			// and one eased state fed two points a frame would snap on the
+			// second and drag the first toward it.
+			at = Steady(entry.ownerId ^ 0x80000000u, at, now);
 			if (at.x < 0.0f || at.y < 0.0f || at.x > width || at.y > height) {
 				if (probe) {
 					logger::info("TAG '{}' dropped: off screen at {:.0f},{:.0f}",

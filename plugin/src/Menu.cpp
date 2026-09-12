@@ -818,6 +818,17 @@ namespace SS::Menu
 				Help(
 					"Tags stay over people as they walk about. Off, a tag stays where the\n"
 					"person was standing when the wave reached them.");
+				igCheckbox(T("Steady: over the feet, not the head"), &a_settings.anchorSteady);
+				Help(
+					"Tags and bars hang a standing head's height over the feet, which\n"
+					"glide, instead of over the head, which bobs with every step and\n"
+					"every swing. A crouch or a fall still brings them down: the head\n"
+					"may sink forty units before they follow it.");
+				igSliderFloat(T("Smoothing"), &a_settings.anchorSmoothing, 0.0f, 0.5f, "%.2f s", 0);
+				Help(
+					"Eases how tags and bars move on screen, over this many seconds:\n"
+					"a bob becomes a sway. Zero follows every frame; a tenth of a\n"
+					"second is a good deal steadier without visible lag.");
 
 				igSpacing();
 				igCheckbox(T("Friend or foe marker"), &a_settings.labelIcons);

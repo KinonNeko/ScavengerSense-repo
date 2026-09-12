@@ -8,6 +8,12 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+- **Tags and bars can hold still.** Two switches beside "Tags follow what
+  they name": hang them a standing head's height over the feet instead of
+  over the head, which bobs with every step - a crouch or a fall still
+  brings them down once the head has sunk forty units; and ease their movement on
+  screen over a fraction of a second, so what bob is left becomes a sway.
+  Both off by default; both apply to tags, combat bars and your own.
 - **Six settings that reset on every load since 0.9.** The perk section
   was written into the middle of the player section, so your level,
   weapon and race icon choices, the stats row's place and the cold cap

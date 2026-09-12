@@ -618,6 +618,23 @@ namespace SS
 		{
 			const auto base = a_ref->GetPosition();
 
+			if (a_isActor && Settings::GetSingleton()->anchorSteady) {
+				// The steady choice: the feet plus a standing height. The root
+				// glides where the head bobs, so the tag stops riding the walk
+				// cycle - at the price of sitting high over somebody crouched.
+				//
+				// Except when the body really has gone down - a crouch, a knockdown,
+				// a ragdoll - which the root knows nothing about. The head is allowed
+				// forty units under its standing place before the anchor follows it;
+				// a walk bobs by ten and never reaches that, a crouch drops by fifty
+				// and does. min() makes the hand-over continuous, so nothing jumps.
+				const float height = std::clamp(a_ref->GetHeight(), 60.0f, 400.0f);
+				const float standing = base.z + height * 1.15f;
+				const auto  eyes = a_ref->GetLookingAtLocation();
+				const float head = eyes.z - base.z > 8.0f ? eyes.z + 26.0f : standing;
+				return RE::NiPoint3{ base.x, base.y, std::min(standing, head + 40.0f) };
+			}
+
 			if (a_isActor) {
 				auto eyes = a_ref->GetLookingAtLocation();
 				// Guard against the engine handing back the origin for something

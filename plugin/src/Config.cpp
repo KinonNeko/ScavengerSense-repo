@@ -933,6 +933,8 @@ namespace SS
 		Get(table, "vitals", "pushTrueHUD", pushTrueHUDAside);
 
 		Get(table, "labels", "follow", labelsFollow);
+		Get(table, "labels", "steady", anchorSteady);
+		Get(table, "labels", "smoothing", anchorSmoothing);
 		Get(table, "labels", "speakerMode", labelSpeakerMode);
 		Get(table, "labels", "speakerLift", labelSpeakerLift);
 
@@ -1038,6 +1040,8 @@ namespace SS
 		cooldown = std::clamp(cooldown, 0.0f, 30.0f);
 		soundVolume = std::clamp(soundVolume, 0.0f, 1.0f);
 		combatLinger = std::clamp(combatLinger, 0.0f, 30.0f);
+		anchorSmoothing = std::clamp(anchorSmoothing, 0.0f, 0.5f);
+		lockSize = std::clamp(lockSize, 2.0f, 80.0f);
 		coldMax = std::clamp(coldMax, 1.0f, 100000.0f);
 		trailLifetime = std::clamp(trailLifetime, 10.0f, 300.0f);
 		trackRange = std::clamp(trackRange, 500.0f, 10000.0f);
@@ -1350,7 +1354,12 @@ namespace SS
 		file << "; Anchors are recomputed on the main thread about sixty times a second\n";
 		file << "; for the hundred-odd things a wave lights, which costs nothing worth\n";
 		file << "; measuring - but it is a switch in case you disagree.\n";
-		file << "follow = " << boolean(labelsFollow) << "\n\n";
+		file << "follow = " << boolean(labelsFollow) << "\n";
+		file << "; Hang tags and bars a fixed height over the feet, which glide, rather\n";
+		file << "; than over the head, which bobs; and ease their movement on screen\n";
+		file << "; over this many seconds (0 is off).\n";
+		file << "steady = " << boolean(anchorSteady) << "\n";
+		file << "smoothing = " << anchorSmoothing << "\n\n";
 		file << "; What to do about somebody who is talking, for people running a mod\n";
 		file << "; that floats subtitles over the speaker's head:\n";
 		file << ";   0  nothing\n";
