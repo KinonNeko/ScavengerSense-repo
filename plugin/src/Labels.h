@@ -100,6 +100,20 @@ namespace SS
 			// "heart" for the built-in shape, else a file. Read on the main
 			// thread and carried here so the render side never asks Settings.
 			std::string   markIcon;
+			// TDM's target lock is on this one. Drawn as a bracket around the
+			// bars, standing in for the reticle TrueHUD would have drawn.
+			bool          locked{ false };
+			// Where the lock mark sits: the chest, not the head the bars hang
+			// from, the way TDM's own reticle does.
+			RE::NiPoint3  lockWorld{};
+			// The weapon's enchantment, for the glyph: its colour (0 for none)
+			// and how much charge is left, 0 to 1, -1 for not applicable.
+			std::uint32_t weaponColour{ 0 };
+			float         weaponFill{ -1.0f };
+			// The spell in each hand, as a colour (0 for none). Both set and
+			// different, the spell glyph is drawn in two halves.
+			std::uint32_t spellColourL{ 0 };
+			std::uint32_t spellColourR{ 0 };
 		};
 
 		// The stats row under the corner readout. Values below zero hide the

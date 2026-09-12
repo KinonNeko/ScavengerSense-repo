@@ -41,6 +41,10 @@ namespace SS
 		// TrueHUD's plugin API, when TrueHUD is in the load order. Only used
 		// to ask it to dismiss its own bar over somebody ours is covering.
 		TRUEHUD_API::IVTrueHUD1* g_trueHud = nullptr;
+		// True Directional Movement, for its target lock. Its reticle is a
+		// TrueHUD widget and goes wherever TrueHUD's overlay goes, so while
+		// the enemy bars are ours the locked target is marked here instead.
+		TDM_API::IVTDM1* g_tdm = nullptr;
 
 		// The movie we are holding down, if any, and the door it comes back
 		// through. Every menu movie in the game shares one vtable, and its
@@ -719,6 +723,13 @@ namespace SS
 				_poolSet.insert(shader);
 			}
 		}
+		// The last shader is the lock's own, kept out of the sweep's rotation
+		// so a wave can never re-tune its record under a live lock. It stays
+		// in the set, so a cancel clears it with the rest.
+		if (_pool.size() > 8) {
+			_lockShader = _pool.back();
+			_pool.pop_back();
+		}
 
 		_imod = handler->LookupForm<RE::TESImageSpaceModifier>(kImodFormID, kPluginFile);
 
@@ -740,6 +751,11 @@ namespace SS
 			g_trueHud = static_cast<TRUEHUD_API::IVTrueHUD1*>(
 				TRUEHUD_API::RequestPluginAPI(TRUEHUD_API::InterfaceVersion::V1));
 			logger::info("TrueHUD API: {}", g_trueHud ? "acquired" : "not present");
+		}
+		if (!g_tdm) {
+			g_tdm = static_cast<TDM_API::IVTDM1*>(
+				TDM_API::RequestPluginAPI(TDM_API::InterfaceVersion::V1));
+			logger::info("TDM API: {}", g_tdm ? "acquired - the locked target gets a bracket of ours" : "not present");
 		}
 
 		// Hits feed the in-combat bars. Registered once even though
@@ -2032,6 +2048,7 @@ namespace SS
 			_combatHits.clear();
 		}
 		if (!wantCombat && !wantSelf) {
+			UnlightLock();
 			if (_combatShown) {
 				_combatBuffer.clear();
 				Labels::GetSingleton()->SetCombatBars({});
@@ -2182,6 +2199,48 @@ namespace SS
 				}
 			}
 		}
+		// TDM's locked target. Whatever the mode says about who earns a bar,
+		// a lock is the player's own declaration, and it is the one case where
+		// TrueHUD's overlay - hidden while the bars are ours - was showing
+		// something of somebody else's: the reticle. The entry is refreshed
+		// every tick the lock holds, so it lives exactly as long as the lock
+		// does plus the linger, like anyone else's.
+		RE::FormID   lockedId = 0;
+		RE::NiPoint3 lockWorld{};
+		if (wantCombat && g_tdm && g_tdm->GetTargetLockState()) {
+			if (auto locked = g_tdm->GetCurrentTarget().get(); locked && !locked->IsPlayerRef()) {
+				lockedId = locked->GetFormID();
+				// The chest: six tenths of the way from the feet to the eyes,
+				// which holds for a person and a dragon alike.
+				const auto feet = locked->GetPosition();
+				const auto eyes = locked->GetLookingAtLocation();
+				lockWorld = eyes.z - feet.z > 8.0f ? feet + (eyes - feet) * 0.6f : feet + RE::NiPoint3{ 0.0f, 0.0f, 70.0f };
+				auto it = _combatHits.find(lockedId);
+				if (it == _combatHits.end()) {
+					_combatHits[lockedId] = { locked->CreateRefHandle(), real, real };
+					const auto* name = locked->GetDisplayFullName();
+					logger::info("combat bars: {} ({:08X}) added, locked on", name && name[0] ? name : "?", lockedId);
+				} else {
+					it->second.lastEngagedAt = real;
+					it->second.lastHitAt = real;
+				}
+			}
+		}
+		// The glow half of the mark: lit once when the lock lands, put out
+		// when it leaves or moves, never re-applied while it holds - a second
+		// shader on the same person would stack on the first.
+		{
+			const bool wantGlow = settings->lockMark == LockMark::kOutline ||
+			                      settings->lockMark == LockMark::kBoth;
+			const RE::FormID glowId = wantGlow ? lockedId : 0;
+			if (glowId != _lockLitId) {
+				UnlightLock();
+				if (glowId != 0) {
+					LightLock(glowId);
+				}
+			}
+		}
+
 		for (auto it = _combatHits.begin(); it != _combatHits.end();) {
 			auto  ref = it->second.handle.get();
 			auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
@@ -2204,7 +2263,7 @@ namespace SS
 			const bool struck = _struckEver.contains(it->first);
 			const auto read = dead ? CombatRead{} : ReadCombat(actor, player);
 			const bool engaged = !dead && real - it->second.lastHitAt < 120.0f &&
-			                     (struck ? read.Hunted() : read.Fighting());
+			                     ((struck ? read.Hunted() : read.Fighting()) || it->first == lockedId);
 			if (engaged) {
 				it->second.lastEngagedAt = real;
 			}
@@ -2258,6 +2317,8 @@ namespace SS
 				entry.raceMark = static_cast<std::uint8_t>(mod);
 			}
 			entry.vitalsAt = now;
+			entry.locked = it->first == lockedId;
+			entry.lockWorld = lockWorld;
 			_combatBuffer.push_back(std::move(entry));
 			++it;
 		}
@@ -3083,6 +3144,79 @@ namespace SS
 		}
 	}
 
+	// The sweep's own light on TDM's locked target: one shader from the
+	// pool, set up the way a sweep sets it up for people, with no end - it is
+	// put out by hand when the lock goes.
+	void Sense::LightLock(RE::FormID a_id)
+	{
+		auto* shader = _lockShader ? _lockShader : (_pool.empty() ? nullptr : _pool.front());
+		if (!shader) {
+			return;
+		}
+		auto* ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_id);
+		if (!ref || !ref->Is3DLoaded()) {
+			return;
+		}
+		const auto* settings = Settings::GetSingleton();
+		auto&       data = shader->data;
+		const auto& category = settings->categories[static_cast<std::size_t>(Category::kActor)];
+
+		// Everything a sweep writes for a person, written here too: the
+		// record is shared with the esp default and nothing else sets it.
+		data.membraneShaderZTestFunction =
+			settings->throughWalls ? RE::D3DCMPFUNC::kAlways : RE::D3DCMPFUNC::kEqual;
+		data.flags.set(RE::EffectShaderData::Flags::kIgnoreBaseGeomTexAlpha);
+
+		// In the lock's colour, and lit for as long as the lock holds: the
+		// fade-in is the sweep's, the full stretch is effectively forever,
+		// and there is no fade-out - the effect is put out by hand.
+		const auto edge = ToColor(settings->lockColour, settings->glowStrength);
+		const auto fill = ToColor(settings->lockColour, settings->glowStrength * 0.5f);
+		data.edgeEffectColor = edge;
+		data.edgeColor = edge;
+		data.fillTextureEffectColorKey1 = fill;
+		data.fillTextureEffectColorKey2 = fill;
+		data.fillTextureEffectColorKey3 = fill;
+		data.edgeEffectAlphaFadeInTime = settings->fadeIn;
+		data.edgeEffectFullAlphaTime = 1.0e8f;
+		data.edgeEffectAlphaFadeOutTime = 0.0f;
+		data.edgeEffectAlphaPulseAmplitude = settings->pulseAmplitude;
+		data.edgeEffectAlphaPulseFrequency = settings->pulseFrequency;
+		data.fillTextureEffectAlphaFadeInTime = settings->fadeIn;
+		data.fillTextureEffectFullAlphaTime = 1.0e8f;
+		data.fillTextureEffectAlphaFadeOutTime = 0.0f;
+		data.fillTextureEffectAlphaPulseAmplitude = settings->pulseAmplitude;
+		data.fillTextureEffectAlphaPulseFrequency = settings->pulseFrequency;
+
+		data.fillTextureEffectFullAlphaRatio = category.outlineOnly ? 0.0f : 1.0f;
+		data.fillTextureEffectPersistentAlphaRatio = category.outlineOnly ? 0.0f : 0.55f;
+		data.edgeEffectFallOff = category.outlineOnly ? std::max(settings->edgeFalloff, 2.6f) : settings->edgeFalloff;
+
+		if (ref->ApplyEffectShader(shader, -1.0f)) {
+			_lockLitId = a_id;
+			_lockLitShader = shader;
+		}
+	}
+
+	void Sense::UnlightLock()
+	{
+		if (_lockLitId == 0) {
+			return;
+		}
+		if (auto* lists = RE::ProcessLists::GetSingleton()) {
+			lists->ForEachShaderEffect([&](RE::ShaderReferenceEffect* a_effect) {
+				if (a_effect && a_effect->effectData == _lockLitShader) {
+					if (auto target = a_effect->target.get(); target && target->GetFormID() == _lockLitId) {
+						a_effect->finished = true;
+					}
+				}
+				return RE::BSContainer::ForEachResult::kContinue;
+			});
+		}
+		_lockLitId = 0;
+		_lockLitShader = nullptr;
+	}
+
 	void Sense::ApplyTo(RE::TESObjectREFR* a_ref, Category a_category)
 	{
 		if (_pool.empty()) {
@@ -3528,6 +3662,9 @@ namespace SS
 	{
 		{
 			std::scoped_lock guard{ _lock };
+			// The lock's light is a pool effect too and goes with the rest;
+			// forgetting it here is what lets the next tick light it again.
+			UnlightLock();
 			ClearOurEffects();
 			_labelBuffer.clear();
 			_pending.clear();

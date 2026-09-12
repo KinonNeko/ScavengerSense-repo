@@ -56,6 +56,8 @@ namespace SS
 		constexpr const char* kAmmoWhenNames[] = { "always", "drawn", "sensing" };
 
 		constexpr const char* kCombatBarsWhenNames[] = { "struck", "fighting", "aimed" };
+		constexpr const char* kLockMarkNames[] = { "off", "dot", "outline", "both" };
+		constexpr const char* kLockShapeNames[] = { "disc", "ring", "diamond", "cross" };
 
 		constexpr const char* kBarNumbersNames[] = { "off", "current", "outofmax", "percent" };
 
@@ -459,6 +461,25 @@ namespace SS
 			}
 			logger::warn("unrecognised ammo rule \"{}\" - keeping {}", raw,
 				kAmmoWhenNames[static_cast<std::size_t>(a_value)]);
+		}
+
+		template <class E, std::size_t N>
+		void GetNamed(const Table& a_table, std::string_view a_section, std::string_view a_key, E& a_value,
+			const char* const (&a_names)[N])
+		{
+			std::string raw;
+			if (!Lookup(a_table, a_section, a_key, raw) || raw.empty()) {
+				return;
+			}
+			raw = Lower(raw);
+			for (std::size_t i = 0; i < N; ++i) {
+				if (raw == a_names[i]) {
+					a_value = static_cast<E>(i);
+					return;
+				}
+			}
+			logger::warn("config: {}.{} = '{}' is not a choice, keeping {}", a_section, a_key, raw,
+				a_names[static_cast<std::size_t>(a_value)]);
 		}
 
 		void Get(const Table& a_table, std::string_view a_section, std::string_view a_key, CombatBarsWhen& a_value)
@@ -937,6 +958,12 @@ namespace SS
 		Get(table, "vitals", "combatAll", combatBarsAll);
 		Get(table, "vitals", "combatLinger", combatLinger);
 		Get(table, "vitals", "pushTrueHUD", pushTrueHUDAside);
+		GetNamed(table, "vitals", "lockMark", lockMark, kLockMarkNames);
+		GetNamed(table, "vitals", "lockShape", lockShape, kLockShapeNames);
+		Get(table, "vitals", "lockColour", lockColour);
+		Get(table, "vitals", "lockSize", lockSize);
+		Get(table, "vitals", "lockHaze", lockHaze);
+		Get(table, "vitals", "lockHazeColour", lockHazeColour);
 
 		Get(table, "labels", "follow", labelsFollow);
 		Get(table, "labels", "steady", anchorSteady);
@@ -1701,7 +1728,18 @@ namespace SS
 		file << "; Whenever this mod draws bars over somebody, ask TrueHUD to dismiss\n";
 		file << "; its own bar for them, so the two never stack. Does nothing when\n";
 		file << "; TrueHUD is not installed.\n";
-		file << "pushTrueHUD = " << boolean(pushTrueHUDAside) << "\n\n\n";
+		file << "pushTrueHUD = " << boolean(pushTrueHUDAside) << "\n";
+		file << "; TDM's locked target, while the bars are yours and TrueHUD's reticle\n";
+		file << "; is hidden with its overlay: off, dot (a shape at the chest), outline\n";
+		file << "; (lit like the sweep lights people), or both. The shape is disc,\n";
+		file << "; ring, diamond or cross; the size is its width in pixels.\n";
+		file << "lockMark = " << kLockMarkNames[static_cast<std::size_t>(lockMark)] << "\n";
+		file << "lockShape = " << kLockShapeNames[static_cast<std::size_t>(lockShape)] << "\n";
+		file << "lockColour = " << ColourText(lockColour) << "\n";
+		file << "lockSize = " << lockSize << "\n";
+		file << "; A drifting haze around the locked target's bars, in its own colour.\n";
+		file << "lockHaze = " << boolean(lockHaze) << "\n";
+		file << "lockHazeColour = " << ColourText(lockHazeColour) << "\n\n\n";
 
 		file << "[Titles]\n\n";
 		file << "; A small word above the name - Jarl, Blacksmith, Thane of Whiterun -\n";

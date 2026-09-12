@@ -1929,7 +1929,39 @@ namespace SS::Menu
 			Help(
 				"While the combat bars are on, this mod is the only enemy health\n"
 				"on screen: TrueHUD's overlay is hidden and the vanilla bar is\n"
-				"parked off screen. Both come back when either box is unticked.");
+				"parked off screen. Both come back when either box is unticked.\n"
+				"TDM's lock-on reticle goes with that overlay; the mark below\n"
+				"stands in for it.");
+
+			if (a_settings.pushTrueHUDAside) {
+				static const char* const kLockMarkLabels[] = { "No mark", "A shape at the chest",
+					"Lit like the sweep", "Shape and light" };
+				static const char* const kLockShapeLabels[] = { "Disc", "Ring", "Diamond", "Cross" };
+				int mark = static_cast<int>(a_settings.lockMark);
+				if (igCombo_Str_arr(T("Lock-on mark"), &mark, Translated(kLockMarkLabels, 4), 4, -1)) {
+					a_settings.lockMark = static_cast<LockMark>(std::clamp(mark, 0, 3));
+				}
+				Help(
+					"How TDM's locked target is marked while its own reticle is\n"
+					"hidden. The shape sits at the chest, TDM-style; the light is\n"
+					"the same one the sweep puts on people, held for as long as\n"
+					"the lock does.");
+				if (a_settings.lockMark == LockMark::kDot || a_settings.lockMark == LockMark::kBoth) {
+					int shape = static_cast<int>(a_settings.lockShape);
+					if (igCombo_Str_arr(T("Shape"), &shape, Translated(kLockShapeLabels, 4), 4, -1)) {
+						a_settings.lockShape = static_cast<LockShape>(std::clamp(shape, 0, 3));
+					}
+					ColourPicker(T("Mark colour"), a_settings.lockColour);
+					igSliderFloat(T("Mark size"), &a_settings.lockSize, 2.0f, 60.0f, "%.0f px", 0);
+				}
+				igCheckbox(T("Haze around the locked target's bars"), &a_settings.lockHaze);
+				Help(
+					"A drifting mist wrapped round the bars of whoever you have locked,\n"
+					"breathing, so the lock reads at a glance. In the colour below.");
+				if (a_settings.lockHaze) {
+					ColourPicker(T("Haze colour"), a_settings.lockHazeColour);
+				}
+			}
 
 			igSpacing();
 		}

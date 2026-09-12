@@ -2046,6 +2046,26 @@ namespace SS
 				const BarNumbers numbers =
 					c.vitalsSelf ? settings->selfBarNumbers : settings->barNumbers;
 
+				// The lock glow: the bars' own light leaking outward. Layers of
+				// the bar block's rectangle, each a little larger and a little
+				// fainter than the one inside it, breathing together with a
+				// flicker of their own - so it reads as the bar shedding light,
+				// not a frame drawn round it. Under the bars, never over them.
+				if (c.locked && settings->lockHaze) {
+					int rowsAhead = 0;
+					for (int i = 0; i < 3; ++i) {
+						if (c.vitals[i] >= 0.0f) {
+							++rowsAhead;
+						}
+					}
+					if (rowsAhead > 0) {
+						const float cx = at.x + settings->overheadOffsetX * c.scale;
+						const float y0 = at.y + settings->overheadOffsetY * c.scale;
+						DrawBlockGlow(draw, cx - span * 0.5f, cx + span * 0.5f, y0 - thick * 0.15f,
+							y0 + step * static_cast<float>(rowsAhead - 1) + thick * 1.15f,
+							thick, settings->lockHazeColour, 1.0f, alpha, now);
+					}
+				}
 				// A small chip above the stack: race, level, and what they hold.
 				// Reads as a nameplate for a stack that has no name.
 				if (chipFont && (c.weapon != 0 || c.level >= 0 || c.race != 0)) {
@@ -2124,6 +2144,46 @@ namespace SS
 
 				// The full-glance HUD: your stats ride directly under your own
 				// stack, so nothing asks the eye to travel.
+				// The lock mark: TDM's reticle is hidden with the rest of
+				// TrueHUD's overlay while the bars are ours, so the locked
+				// target wears a shape of this mod's at the chest instead.
+				// Shape, colour and size are the player's; a shadow pass
+				// first so it reads on any ground.
+				if (c.locked && (settings->lockMark == LockMark::kDot || settings->lockMark == LockMark::kBoth)) {
+					ImVec2 p;
+					if (Project(c.lockWorld, width, height, p)) {
+						const float size = std::max(2.0f, settings->lockSize * c.scale);
+						const float half = size * 0.5f;
+						const float line = std::max(1.5f, size * 0.16f);
+						const ImU32 ink = PackColour(settings->lockColour, alpha);
+						const ImU32 shadow = PackColour(0x000000, alpha * 0.75f);
+						for (int pass = 0; pass < 2; ++pass) {
+							const ImU32  col = pass == 0 ? shadow : ink;
+							const float  off = pass == 0 ? 1.0f : 0.0f;
+							const ImVec2 at{ p.x + off, p.y + off };
+							switch (settings->lockShape) {
+							case LockShape::kRing:
+								ImDrawList_AddCircle(draw, at, half, col, 0, line);
+								break;
+							case LockShape::kDiamond: {
+								const ImVec2 pts[4]{ { at.x, at.y - half }, { at.x + half, at.y },
+									{ at.x, at.y + half }, { at.x - half, at.y } };
+								ImDrawList_AddConvexPolyFilled(draw, pts, 4, col);
+								break;
+							}
+							case LockShape::kCross:
+								ImDrawList_AddLine(draw, ImVec2{ at.x - half, at.y }, ImVec2{ at.x + half, at.y }, col, line);
+								ImDrawList_AddLine(draw, ImVec2{ at.x, at.y - half }, ImVec2{ at.x, at.y + half }, col, line);
+								break;
+							case LockShape::kDisc:
+							default:
+								ImDrawList_AddCircleFilled(draw, at, half, col, 0);
+								break;
+							}
+						}
+					}
+				}
+
 				if (c.vitalsSelf && settings->statsPlace != StatsPlace::kCorner) {
 					DrawStatsRow(draw, statsSnapshot, settings,
 						at.x + settings->overheadOffsetX * c.scale,

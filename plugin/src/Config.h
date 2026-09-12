@@ -282,6 +282,24 @@ namespace SS
 		kAimed,       // the above, plus whoever the crosshair rests on
 	};
 
+	// How TDM's locked target is marked while the enemy bars are ours and
+	// TrueHUD's reticle is hidden with the rest of its overlay.
+	enum class LockMark
+	{
+		kOff = 0,
+		kDot,      // a shape at the chest, TDM-style
+		kOutline,  // lit the way the sweep lights people
+		kBoth,
+	};
+
+	enum class LockShape
+	{
+		kDisc = 0,
+		kRing,
+		kDiamond,
+		kCross,
+	};
+
 	// What, if anything, is written next to a vitals bar.
 	enum class BarNumbers
 	{
@@ -805,6 +823,16 @@ namespace SS
 		// own API) to dismiss its bar for them, so the two never stack. Does
 		// nothing when TrueHUD is not installed.
 		bool     pushTrueHUDAside{ true };
+		// The lock-on mark, see LockMark. Colour is RGB; size is the shape's
+		// width in pixels at label scale 1.
+		LockMark      lockMark{ LockMark::kDot };
+		LockShape     lockShape{ LockShape::kDisc };
+		std::uint32_t lockColour{ 0xCC2929 };
+		float         lockSize{ 12.0f };
+		// A drifting haze wrapped around the locked target's bars, in its own
+		// colour, breathing. Off leaves the bars as everyone else's.
+		bool          lockHaze{ true };
+		std::uint32_t lockHazeColour{ 0xCC2929 };
 
 		// [Labels] continued - behaviour that needs the main thread every frame
 		bool labelsFollow{ true };

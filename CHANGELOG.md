@@ -8,6 +8,18 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+- **A lock-on is marked while the enemy bars are yours.** Owning the bars
+  hides TrueHUD's overlay, and TDM draws its target-lock reticle inside
+  that overlay, so the lock went unmarked. The mod now asks TDM for its
+  locked target directly: that person gets a bar for as long as the lock
+  holds, whatever the mode, and a mark of your choosing: a shape at the
+  chest where TDM's reticle sat - disc, ring, diamond or cross, any colour
+  and size, a red disc by default - or the same light the sweep puts on
+  people, or both. On top of either, a drifting haze wrapped round that
+  person's bars, breathing, in a colour of its own: red by default, and
+  its own switch. The haze is the bars' own light leaking outward - layers
+  of the bar block, each larger and fainter - rather than anything drawn
+  round them.
 - **Every colour has an opacity now.** The colour pickers carry an alpha
   bar; a colour with one set is written to the INI as eight hex digits
   and read back either way, and a six-digit colour stays what it was.

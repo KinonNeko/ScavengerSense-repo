@@ -115,6 +115,12 @@ namespace SS
 		// two flags and one variable read - and a no-op unless we own them.
 		// Main thread only, like the poll.
 		void HoldEnemyHud(const char* a_when);
+		void LightLock(RE::FormID a_id);
+		void UnlightLock();
+		// The lock's own effect shader, taken off the end of the pool at load.
+		RE::TESEffectShader* _lockShader{ nullptr };
+		RE::FormID          _lockLitId{ 0 };
+		RE::TESEffectShader* _lockLitShader{ nullptr };
 		// How often TrueHUD's movie has been found visible while ours to
 		// hold down: the flash, as a number.
 		std::uint32_t _trueHudReshown{ 0 };
