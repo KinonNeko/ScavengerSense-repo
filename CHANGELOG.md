@@ -14,6 +14,9 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
   landed under `[Perks]` and were read from `[Player]` - and came back
   as defaults every time. Written where they are read now, and a file
   from those versions is read from where it put them.
+- **The author's preset is the author's current game**, every setting,
+  including the new ones: the lock-on mark, the glyph colours, the
+  cooldown burst, the steady anchor.
 ## 0.9.5 beta
 
 Three from the feedback, all of them about somebody else's interface or
