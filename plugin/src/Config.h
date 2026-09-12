@@ -610,6 +610,22 @@ namespace SS
 		// cold comes from whatever survival mod is running. All of it draws as
 		// a stats row under the corner readout.
 		bool        senseLevel{ true };
+		// The chosen power on the stats row: its race's emblem, or the fangs
+		// or claws, full when it is ready and hollow while it waits.
+		bool        sensePower{ true };
+		// The Thu'um on the stats row: a rune filling as the voice recovers,
+		// a plain ring for a mortal who cannot shout yet.
+		bool        senseShout{ true };
+		// A moment's light over your own bars when a cooldown comes back.
+		bool          readyFlash{ true };
+		std::uint32_t readyFlashColour{ 0xD9B166 };
+		// A halo behind a weapon or spell glyph in its enchantment's or
+		// spell's colour.
+		bool          glyphGlow{ true };
+		// The glows - lock, halo, burst - as real light from a shader pass
+		// added over the frame, instead of shapes drawn in the HUD. Runs after
+		// Community Shaders like the post-process grade does.
+		bool          glowShader{ false };
 		bool        senseGold{ true };
 		bool        senseWeight{ true };
 		bool        senseCold{ true };

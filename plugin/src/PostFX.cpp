@@ -11,6 +11,7 @@
 
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <algorithm>
 
 namespace SS
 {
@@ -46,6 +47,39 @@ VSOut VSMain(uint id : SV_VertexID)
     o.uv = float2((id << 1) & 2, id & 2);
     o.position = float4(o.uv * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
     return o;
+}
+
+cbuffer Glow : register(b1)
+{
+    float4 GlowMeta;        // count, width, height, unused
+    float4 GlowRect[24];    // x0, y0, x1, y1 in pixels
+    float4 GlowColour[24];  // rgb, intensity
+    float4 GlowShape[24];   // radius, rounding, unused, unused
+};
+
+// Light from every source, summed: inside a shape the full colour, outside
+// it an exponential tail over the source's radius. Added to the frame by the
+// blend state, so it brightens what is there instead of painting over it.
+float4 PSGlow(VSOut input) : SV_TARGET
+{
+    float2 p = input.uv * GlowMeta.yz;
+    float3 light = float3(0.0, 0.0, 0.0);
+    int count = (int)GlowMeta.x;
+    for (int i = 0; i < 24; ++i) {
+        if (i >= count) {
+            break;
+        }
+        float4 rect = GlowRect[i];
+        float2 centre = (rect.xy + rect.zw) * 0.5;
+        float2 half = max((rect.zw - rect.xy) * 0.5, 0.0);
+        float rounding = min(GlowShape[i].y, min(half.x, half.y));
+        float2 q = abs(p - centre) - (half - rounding);
+        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rounding;
+        float tail = exp(-max(d, 0.0) / max(GlowShape[i].x, 1.0));
+        float inside = d <= 0.0 ? 1.0 : 0.0;
+        light += GlowColour[i].rgb * GlowColour[i].a * max(tail, inside);
+    }
+    return float4(light, 1.0);
 }
 
 float4 PSMain(VSOut input) : SV_TARGET
@@ -262,8 +296,12 @@ float4 PSMain(VSOut input) : SV_TARGET
 		Release<ID3D11Buffer>(_cb);
 		Release<ID3D11SamplerState>(_sampler);
 		Release<ID3D11BlendState>(_blend);
+		Release<ID3D11BlendState>(_glowBlend);
+		Release<ID3D11PixelShader>(_glowPs);
+		Release<ID3D11Buffer>(_glowCb);
 		Release<ID3D11DepthStencilState>(_depth);
 		Release<ID3D11RasterizerState>(_raster);
+		Release<ID3D11RasterizerState>(_glowRaster);
 	}
 
 	void PostFX::Skip(const char* a_why)
@@ -379,6 +417,33 @@ float4 PSMain(VSOut input) : SV_TARGET
 			return false;
 		}
 
+		// The glow's own pixel shader, from the same source. Optional, unlike
+		// the grade's: if it will not compile or the device refuses it, the
+		// glow pass stays off and the grade carries on as it always did.
+		{
+			ID3DBlob*  glowBlob = nullptr;
+			ID3DBlob*  errors = nullptr;
+			const auto hr = compile(kShaderSource, std::strlen(kShaderSource), "ScavengerSense",
+				nullptr, nullptr, "PSGlow", "ps_5_0", 0, 0, &glowBlob, &errors);
+			if (SUCCEEDED(hr) && glowBlob) {
+				ID3D11PixelShader* glow = nullptr;
+				if (SUCCEEDED(device->CreatePixelShader(
+						glowBlob->GetBufferPointer(), glowBlob->GetBufferSize(), nullptr, &glow))) {
+					_glowPs = glow;
+				} else {
+					logger::warn("postfx: the device refused the glow shader - the glow pass is off");
+				}
+			} else {
+				logger::warn("postfx: the glow shader failed to compile - the glow pass is off: {}",
+					errors ? static_cast<const char*>(errors->GetBufferPointer()) : "no detail");
+			}
+			if (errors) {
+				errors->Release();
+			}
+			if (glowBlob) {
+				glowBlob->Release();
+			}
+		}
 		D3D11_BUFFER_DESC cbDesc{};
 		cbDesc.ByteWidth = sizeof(Params);
 		cbDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -391,6 +456,34 @@ float4 PSMain(VSOut input) : SV_TARGET
 			return false;
 		}
 		_cb = cb;
+		D3D11_BUFFER_DESC glowDesc{};
+		glowDesc.ByteWidth = 16 + static_cast<UINT>(kMaxGlow) * 48;
+		glowDesc.Usage = D3D11_USAGE_DYNAMIC;
+		glowDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		glowDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		ID3D11Buffer* glowCb = nullptr;
+		if (SUCCEEDED(device->CreateBuffer(&glowDesc, nullptr, &glowCb))) {
+			_glowCb = glowCb;
+		} else {
+			logger::warn("postfx: could not create the glow constant buffer - the glow pass is off");
+		}
+		// Light adds: one plus one on the colour, alpha left alone.
+		D3D11_BLEND_DESC additive{};
+		additive.RenderTarget[0].BlendEnable = TRUE;
+		additive.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+		additive.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+		additive.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+		additive.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ZERO;
+		additive.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+		additive.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+		additive.RenderTarget[0].RenderTargetWriteMask =
+			D3D11_COLOR_WRITE_ENABLE_RED | D3D11_COLOR_WRITE_ENABLE_GREEN | D3D11_COLOR_WRITE_ENABLE_BLUE;
+		ID3D11BlendState* glowBlend = nullptr;
+		if (SUCCEEDED(device->CreateBlendState(&additive, &glowBlend))) {
+			_glowBlend = glowBlend;
+		} else {
+			logger::warn("postfx: could not create the glow blend state - the glow pass is off");
+		}
 
 		D3D11_SAMPLER_DESC sampler{};
 		sampler.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
@@ -449,6 +542,17 @@ float4 PSMain(VSOut input) : SV_TARGET
 			return false;
 		}
 		_raster = rasterState;
+
+		// The glow's rasteriser scissors: its light is a few shapes on a
+		// mostly dark screen, so the pass is clipped to where the light can
+		// reach. Optional like the rest of the glow; without it the pass
+		// runs full screen on the grade's state.
+		D3D11_RASTERIZER_DESC scissored = raster;
+		scissored.ScissorEnable = TRUE;
+		ID3D11RasterizerState* glowRaster = nullptr;
+		if (SUCCEEDED(device->CreateRasterizerState(&scissored, &glowRaster))) {
+			_glowRaster = glowRaster;
+		}
 
 		return true;
 	}
@@ -721,6 +825,156 @@ float4 PSMain(VSOut input) : SV_TARGET
 			if (a_cmd && a_cmd->UserCallbackData) {
 				static_cast<PostFX*>(a_cmd->UserCallbackData)->Execute();
 			}
+		}
+
+		void __cdecl GlowTrampoline(const ImDrawList*, const ImDrawCmd* a_cmd)
+		{
+			if (a_cmd && a_cmd->UserCallbackData) {
+				static_cast<PostFX*>(a_cmd->UserCallbackData)->ExecuteGlow();
+			}
+		}
+	}
+
+	void PostFX::SubmitGlow(void* a_drawList, const std::vector<GlowSource>& a_sources)
+	{
+		if (Failed() || !a_drawList || a_sources.empty()) {
+			return;
+		}
+		_glow.assign(a_sources.begin(), a_sources.begin() +
+			static_cast<std::ptrdiff_t>(std::min(a_sources.size(), kMaxGlow)));
+		auto* draw = static_cast<ImDrawList*>(a_drawList);
+		ImDrawList_AddCallback(draw, GlowTrampoline, this);
+		ImDrawList_AddCallback(draw, ImDrawCallback_ResetRenderState, nullptr);
+	}
+
+	void PostFX::ExecuteGlow()
+	{
+		if (Failed() || _glow.empty()) {
+			return;
+		}
+		auto* renderer = RE::BSGraphics::Renderer::GetSingleton();
+		if (!renderer) {
+			return;
+		}
+		auto& data = renderer->GetRuntimeData();
+		auto* device = reinterpret_cast<ID3D11Device*>(data.forwarder);
+		auto* context = reinterpret_cast<ID3D11DeviceContext*>(data.context);
+		if (!device || !context || !PrepareShared(device)) {
+			return;
+		}
+		if (!_glowPs || !_glowCb || !_glowBlend) {
+			return;  // the glow is the optional half; its absence was logged once
+		}
+
+		// Straight into whatever ImGui is drawing on: the light goes over the
+		// HUD as well as the world, which is what light does. The viewport
+		// is whatever is current - ImGui's, sized to its display - and the
+		// shader is told that size so its pixels line up with the HUD's.
+		ID3D11RenderTargetView* boundRTV = nullptr;
+		ID3D11DepthStencilView* boundDSV = nullptr;
+		context->OMGetRenderTargets(1, &boundRTV, &boundDSV);
+		if (!boundRTV) {
+			if (boundDSV) {
+				boundDSV->Release();
+			}
+			return;
+		}
+		UINT           viewports = 1;
+		D3D11_VIEWPORT viewport{};
+		context->RSGetViewports(&viewports, &viewport);
+		if (viewports == 0 || viewport.Width <= 0.0f || viewport.Height <= 0.0f) {
+			boundRTV->Release();
+			if (boundDSV) {
+				boundDSV->Release();
+			}
+			return;
+		}
+
+		// The shader reads three arrays, not an array of structs: all the
+		// rects, then all the colours, then all the shapes.
+		struct Rows
+		{
+			float meta[4];
+			float rect[kMaxGlow][4];
+			float colour[kMaxGlow][4];
+			float shape[kMaxGlow][4];
+		} rows{};
+		rows.meta[0] = static_cast<float>(_glow.size());
+		rows.meta[1] = viewport.Width;
+		rows.meta[2] = viewport.Height;
+		// Where any light can reach: every source's rectangle, padded by the
+		// distance its tail has faded to nothing. The pass is scissored to it.
+		float reachL = viewport.Width, reachT = viewport.Height, reachR = 0.0f, reachB = 0.0f;
+		for (std::size_t i = 0; i < _glow.size(); ++i) {
+			const auto& g = _glow[i];
+			rows.rect[i][0] = g.x0; rows.rect[i][1] = g.y0; rows.rect[i][2] = g.x1; rows.rect[i][3] = g.y1;
+			rows.colour[i][0] = g.r; rows.colour[i][1] = g.g; rows.colour[i][2] = g.b; rows.colour[i][3] = g.intensity;
+			rows.shape[i][0] = g.radius; rows.shape[i][1] = g.rounding; rows.shape[i][2] = 0.0f; rows.shape[i][3] = 0.0f;
+			const float reach = g.radius * 5.0f + 2.0f;
+			reachL = std::min(reachL, g.x0 - reach);
+			reachT = std::min(reachT, g.y0 - reach);
+			reachR = std::max(reachR, g.x1 + reach);
+			reachB = std::max(reachB, g.y1 + reach);
+		}
+		static_assert(sizeof(Rows) == 16 + kMaxGlow * 48, "the glow block must match the buffer");
+
+		auto*                    cb = static_cast<ID3D11Buffer*>(_glowCb);
+		D3D11_MAPPED_SUBRESOURCE mapped{};
+		if (FAILED(context->Map(cb, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+			boundRTV->Release();
+			if (boundDSV) {
+				boundDSV->Release();
+			}
+			return;
+		}
+		std::memcpy(mapped.pData, &rows, sizeof(rows));
+		context->Unmap(cb, 0);
+
+		ID3D11Buffer* noBuffer = nullptr;
+		UINT          zero = 0;
+		context->IASetInputLayout(nullptr);
+		context->IASetVertexBuffers(0, 1, &noBuffer, &zero, &zero);
+		context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		context->VSSetShader(static_cast<ID3D11VertexShader*>(_vs), nullptr, 0);
+		context->PSSetShader(static_cast<ID3D11PixelShader*>(_glowPs), nullptr, 0);
+		context->GSSetShader(nullptr, nullptr, 0);
+		context->HSSetShader(nullptr, nullptr, 0);
+		context->DSSetShader(nullptr, nullptr, 0);
+		ID3D11ShaderResourceView* noSRV = nullptr;
+		context->PSSetShaderResources(0, 1, &noSRV);
+		context->PSSetConstantBuffers(1, 1, &cb);
+		const float blendFactor[4]{ 0.0f, 0.0f, 0.0f, 0.0f };
+		context->OMSetBlendState(static_cast<ID3D11BlendState*>(_glowBlend), blendFactor, 0xFFFFFFFF);
+		context->OMSetDepthStencilState(static_cast<ID3D11DepthStencilState*>(_depth), 0);
+		if (_glowRaster) {
+			D3D11_RECT clip{};
+			clip.left = static_cast<LONG>(std::clamp(reachL, 0.0f, viewport.Width));
+			clip.top = static_cast<LONG>(std::clamp(reachT, 0.0f, viewport.Height));
+			clip.right = static_cast<LONG>(std::clamp(reachR, 0.0f, viewport.Width));
+			clip.bottom = static_cast<LONG>(std::clamp(reachB, 0.0f, viewport.Height));
+			if (clip.right <= clip.left || clip.bottom <= clip.top) {
+				context->PSSetConstantBuffers(1, 1, &noBuffer);
+				boundRTV->Release();
+				if (boundDSV) {
+					boundDSV->Release();
+				}
+				return;
+			}
+			context->RSSetScissorRects(1, &clip);
+			context->RSSetState(static_cast<ID3D11RasterizerState*>(_glowRaster));
+		} else {
+			context->RSSetState(static_cast<ID3D11RasterizerState*>(_raster));
+		}
+		context->Draw(3, 0);
+		context->PSSetConstantBuffers(1, 1, &noBuffer);
+		if (!_glowNamed) {
+			_glowNamed = true;
+			logger::info("postfx: the glow pass ran, {} source(s), {:.0f}x{:.0f}", _glow.size(), viewport.Width, viewport.Height);
+		}
+		boundRTV->Release();
+		if (boundDSV) {
+			boundDSV->Release();
 		}
 	}
 }

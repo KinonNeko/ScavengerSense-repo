@@ -2134,7 +2134,19 @@ namespace SS
 			}
 		}
 
+		// Every light gathered on the way through, as one shader pass over
+		// the finished HUD. Handed over at the early return below as well as
+		// at the end: the lock, the halos and the burst are gathered before
+		// it, and a fight with no sweep running is the common case. The list
+		// is cleared once per frame, so a frame hands its lights over once.
+		const auto flushGlow = [&]() {
+			if (!g_glow.empty()) {
+				PostFX::GetSingleton()->SubmitGlow(draw, g_glow);
+			}
+		};
+
 		if (!settings->labelsEnabled || snapshot.empty()) {
+			flushGlow();
 			return;
 		}
 
@@ -2679,6 +2691,7 @@ namespace SS
 				}
 			}
 		}
+		flushGlow();
 	}
 
 	namespace

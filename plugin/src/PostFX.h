@@ -67,6 +67,20 @@ namespace SS
 		};
 		static_assert(sizeof(Params) == 64, "constant buffers want 16 byte rows");
 
+		// A source of light for the glow pass: a rounded rectangle in screen
+		// pixels, its colour and strength, and how far the light carries past
+		// its edge. Anything inside the shape is lit in full; outside, the
+		// light falls off exponentially over `radius` pixels. A circle is a
+		// square with rounding of half its side.
+		struct GlowSource
+		{
+			float x0{ 0.0f }, y0{ 0.0f }, x1{ 0.0f }, y1{ 0.0f };
+			float r{ 1.0f }, g{ 1.0f }, b{ 1.0f }, intensity{ 1.0f };
+			float radius{ 8.0f }, rounding{ 0.0f }, pad0{ 0.0f }, pad1{ 0.0f };
+		};
+		static_assert(sizeof(GlowSource) == 48, "three rows of sixteen");
+		static constexpr std::size_t kMaxGlow = 24;
+
 		[[nodiscard]] static PostFX* GetSingleton();
 
 		// Compile and build everything that does not depend on the frame buffer.
@@ -81,7 +95,13 @@ namespace SS
 		// Runs the pass. Called only from the ImGui draw callback, on the render
 		// thread, with the finished frame bound.
 		void Execute();
-
+		// The glow pass: real light, added over the finished frame - and over
+		// the HUD - by a pixel shader, so it looks like light and not like a
+		// ghost of the shape. Runs downstream of Community Shaders like the
+		// grade does, needs no copy of the frame, and is queued at the end of
+		// the HUD so the sources gathered while drawing are all in.
+		void SubmitGlow(void* a_drawList, const std::vector<GlowSource>& a_sources);
+		void ExecuteGlow();
 		// True once a pass has actually landed and nothing has gone wrong since,
 		// so the ImGui vignette can stand aside rather than doubling up.
 		[[nodiscard]] bool Working() const
@@ -116,6 +136,12 @@ namespace SS
 		// that happens to include it.
 		void*         _vs{ nullptr };
 		void*         _ps{ nullptr };
+		void*         _glowPs{ nullptr };
+		void*         _glowCb{ nullptr };
+		void*         _glowBlend{ nullptr };
+		void*         _glowRaster{ nullptr };
+		std::vector<GlowSource> _glow;
+		bool          _glowNamed{ false };
 		void*         _copy{ nullptr };
 		void*         _srv{ nullptr };
 		void*         _cb{ nullptr };

@@ -17,6 +17,12 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
   brings them down once the head has sunk forty units; and ease their movement on
   screen over a fraction of a second, so what bob is left becomes a sway.
   Both off by default; both apply to tags, combat bars and your own.
+- **The glows can be real light.** A switch under the halo: every glow -
+  the lock, the halo, the cooldown burst - drawn by a pixel shader as
+  light added over the finished frame, with an exponential tail past the
+  shape's edge, instead of shapes blended in the HUD. It runs downstream
+  of Community Shaders the way the post-process grade does. Off by
+  default; the drawn shapes stay the default.
 - **Six settings that reset on every load since 0.9.** The perk section
   was written into the middle of the player section, so your level,
   weapon and race icon choices, the stats row's place and the cold cap
