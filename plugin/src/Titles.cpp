@@ -1,4 +1,5 @@
 #include "Titles.h"
+#include "Config.h"
 
 #include <fstream>
 #include <iomanip>
@@ -437,9 +438,7 @@ namespace SS
 				if (rule.text != rule.name) {
 					out << "text = " << rule.text << "\n";
 				}
-				out << "color = 0x" << std::hex << std::uppercase << std::setfill('0')
-					<< std::setw(6) << (rule.colour & 0xFFFFFF) << std::dec
-					<< std::nouppercase << std::setfill(' ') << "\n";
+				out << "color = " << ColourText(rule.colour) << "\n";
 				out << "priority = " << rule.priority << "\n";
 				out << "nameContains = ";
 				for (std::size_t i = 0; i < rule.nameContains.size(); ++i) {
@@ -456,9 +455,7 @@ namespace SS
 					out << "enabled = " << (rule.enabled ? "true" : "false") << "\n";
 				}
 				if (rule.colour != rule.fileColour) {
-					out << "color = 0x" << std::hex << std::uppercase << std::setfill('0')
-						<< std::setw(6) << (rule.colour & 0xFFFFFF) << std::dec
-						<< std::nouppercase << std::setfill(' ') << "\n";
+					out << "color = " << ColourText(rule.colour) << "\n";
 				}
 				out << "\n";
 			}

@@ -240,20 +240,31 @@ namespace SS::Menu
 			// push an index of their own.
 			igPushID_Str(a_label);
 
-			float colour[3]{
+			// Four channels: the top byte is opacity, zero meaning opaque so a
+			// colour written before there was such a thing still reads right.
+			const auto top = (a_rgb >> 24) & 0xFF;
+			float      colour[4]{
 				static_cast<float>((a_rgb >> 16) & 0xFF) / 255.0f,
 				static_cast<float>((a_rgb >> 8) & 0xFF) / 255.0f,
 				static_cast<float>(a_rgb & 0xFF) / 255.0f,
+				top == 0 ? 1.0f : static_cast<float>(top) / 255.0f,
 			};
 
 			// NoInputs: the three float boxes are wide enough to push the
 			// buttons off the row inside the categories table, and the popup you
 			// get from clicking the swatch has the same fields in it anyway.
-			if (igColorEdit3("##swatch", colour, ImGuiColorEditFlags_NoInputs)) {
+			if (igColorEdit4("##swatch", colour,
+					ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf)) {
 				const auto channel = [](float a_value) {
 					return static_cast<std::uint32_t>(std::clamp(a_value, 0.0f, 1.0f) * 255.0f + 0.5f);
 				};
+				// A top byte of zero means "no opacity set", so fully
+				// transparent is stored as one: invisible all the same.
+				const auto opacity = std::max<std::uint32_t>(channel(colour[3]), 1u);
 				a_rgb = (channel(colour[0]) << 16) | (channel(colour[1]) << 8) | channel(colour[2]);
+				if (opacity < 255) {
+					a_rgb |= opacity << 24;
+				}
 				changed = true;
 			}
 
@@ -299,14 +310,20 @@ namespace SS::Menu
 			igSameLine(0.0f, -1.0f);
 
 			if (g_hasClip) {
+				const auto clipTop = (g_clipColour >> 24) & 0xFF;
 				const auto swatch = ImVec4{
 					static_cast<float>((g_clipColour >> 16) & 0xFF) / 255.0f,
 					static_cast<float>((g_clipColour >> 8) & 0xFF) / 255.0f,
-					static_cast<float>(g_clipColour & 0xFF) / 255.0f, 1.0f
+					static_cast<float>(g_clipColour & 0xFF) / 255.0f,
+					clipTop == 0 ? 1.0f : static_cast<float>(clipTop) / 255.0f
 				};
 				igColorButton("##clip", swatch, ImGuiColorEditFlags_NoTooltip, ImVec2{ 0.0f, 0.0f });
 				igSameLine(0.0f, -1.0f);
-				igText("0x%06X", g_clipColour & 0xFFFFFFu);
+				if (clipTop != 0) {
+					igText("0x%08X", g_clipColour);
+				} else {
+					igText("0x%06X", g_clipColour & 0xFFFFFFu);
+				}
 			} else {
 				igText("%s", T("empty - press copy beside any colour"));
 			}

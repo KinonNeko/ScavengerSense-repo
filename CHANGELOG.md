@@ -8,6 +8,9 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+- **Every colour has an opacity now.** The colour pickers carry an alpha
+  bar; a colour with one set is written to the INI as eight hex digits
+  and read back either way, and a six-digit colour stays what it was.
 - **Tags and bars can hold still.** Two switches beside "Tags follow what
   they name": hang them a standing head's height over the feet instead of
   over the head, which bobs with every step - a crouch or a fall still

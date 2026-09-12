@@ -1045,7 +1045,6 @@ namespace SS
 		coldMax = std::clamp(coldMax, 1.0f, 100000.0f);
 		trailLifetime = std::clamp(trailLifetime, 10.0f, 300.0f);
 		trackRange = std::clamp(trackRange, 500.0f, 10000.0f);
-		aimColour &= 0xFFFFFF;
 		trailHoldTime = std::clamp(trailHoldTime, 0.2f, 2.0f);
 		markDeathDelay = std::clamp(markDeathDelay, 0.0f, 300.0f);
 		trailPrintScale = std::clamp(trailPrintScale, 0.5f, 2.5f);
@@ -1165,6 +1164,19 @@ namespace SS
 			keyboard, gamepad, radius, maxObjects, sweepTime, duration, throughWalls, tintEnabled,
 			markStyles.size(), combatBars, kCombatBarsWhenNames[static_cast<std::size_t>(combatBarsWhen)], pushTrueHUDAside);
 		return true;
+	}
+
+	// A colour as the INI writes it: six hex digits, or eight when the player
+	// has put an opacity in the top byte. Read back with strtoul either way.
+	std::string ColourText(std::uint32_t a_colour)
+	{
+		char text[16];
+		if ((a_colour >> 24) & 0xFF) {
+			std::snprintf(text, sizeof(text), "0x%08X", a_colour);
+		} else {
+			std::snprintf(text, sizeof(text), "0x%06X", a_colour & 0xFFFFFF);
+		}
+		return text;
 	}
 
 	bool Settings::Save() const
@@ -1337,8 +1349,7 @@ namespace SS
 		file << "; slightly bigger tag. Favourites are a per-save inventory flag, so\n";
 		file << "; this is read fresh from the player on every sweep.\n";
 		file << "favourite = " << boolean(favouriteHighlight) << "\n";
-		file << "favouriteColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (favouriteColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+		file << "favouriteColor = " << ColourText(favouriteColour) << "\n";
 		file << "favouriteScale = " << favouriteScale << "\n\n";
 		file << "; Fold tags with the same name that sit within this many units of\n";
 		file << "; each other into one, so a wine cellar reads \"Wine x40\" instead of\n";
@@ -1375,8 +1386,7 @@ namespace SS
 		file << "; It is drawn as real world-space points, so it climbs stairs and\n";
 		file << "; follows hills rather than sitting flat on the screen.\n";
 		file << "enable = " << boolean(ringEnabled) << "\n\n";
-		file << "color = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (ringColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n\n";
+		file << "color = " << ColourText(ringColour) << "\n\n";
 		file << "; Line width in pixels, and the width of the soft halo behind it.\n";
 		file << "thickness = " << ringThickness << "\n";
 		file << "glow = " << ringGlow << "\n\n";
@@ -1422,15 +1432,13 @@ namespace SS
 		file << "; Overall blend of the effect, 0.0 to 1.0.\n";
 		file << "strength = " << tintStrength << "\n\n";
 		file << "; Colour graded into the image while sensing, and how much of it.\n";
-		file << "castColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (tintCastColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+		file << "castColor = " << ColourText(tintCastColour) << "\n";
 		file << "castAmount = " << tintCastAmount << "\n\n";
 		file << "; Composited overlay drawn on the finished frame. Mostly a vignette:\n";
 		file << "; overlayFlat is the share of the strength spent as an even sheet of\n";
 		file << "; colour, the rest darkens the edges. All-flat looks like cellophane.\n";
 		file << "overlay = " << boolean(washEnabled) << "\n";
-		file << "overlayColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (washColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+		file << "overlayColor = " << ColourText(washColour) << "\n";
 		file << "overlayStrength = " << washStrength << "\n";
 		file << "overlayFlat = " << washFlat << "\n\n\n";
 
@@ -1444,8 +1452,7 @@ namespace SS
 		file << "; figure while mortal, a pair of fangs while vampiric, three claw marks\n";
 		file << "; while a werewolf or in vampire lord form.\n";
 		file << "icon = " << boolean(selfIcon) << "\n\n";
-		file << "color = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (selfColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+		file << "color = " << ColourText(selfColour) << "\n";
 		file << "scale = " << selfScale << "\n\n";
 		file << "; Your health, magicka and stamina as three thin bars under your\n";
 		file << "; name, for as long as a sweep lasts. Only yours - a bar over every\n";
@@ -1477,14 +1484,10 @@ namespace SS
 		file << "barGlow = " << boolean(selfBarGlow) << "\n";
 		file << "; One set of colours for every bar drawn anywhere - yours, the corner\n";
 		file << "; readout, other people's.\n";
-		file << "healthColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (selfHealthColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-		file << "magickaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (selfMagickaColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-		file << "staminaColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (selfStaminaColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-		file << "frameColor = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (selfBarFrameColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+		file << "healthColor = " << ColourText(selfHealthColour) << "\n";
+		file << "magickaColor = " << ColourText(selfMagickaColour) << "\n";
+		file << "staminaColor = " << ColourText(selfStaminaColour) << "\n";
+		file << "frameColor = " << ColourText(selfBarFrameColour) << "\n";
 
 		file << "; The same stack over your own head with no sweep running, third\n";
 		file << "; person only - the player's answer to the combat bars.\n";
@@ -1527,8 +1530,7 @@ namespace SS
 		file << "; Its own fade, in seconds. Zero on either side snaps.\n";
 		file << "fadeIn = " << ammoFadeIn << "\n";
 		file << "fadeOut = " << ammoFadeOut << "\n";
-		file << "color = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			<< (ammoColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n\n\n";
+		file << "color = " << ColourText(ammoColour) << "\n\n\n";
 
 
 		file << "[Player]\n\n";
@@ -1618,7 +1620,7 @@ namespace SS
 		file << "; The marking sign: corners, ring or chevron, and its colour when\n";
 		file << "; the target is not already marked.\n";
 		file << "aimStyle = " << kAimStyleNames[static_cast<std::size_t>(aimStyle)] << "\n";
-		file << std::format("aimColor = 0x{:06X}\n", aimColour & 0xFFFFFF);
+		file << "aimColor = " << ColourText(aimColour) << "\n";
 		file << "; Which gesture wipes everything: hold, doubletap or off - and how\n";
 		file << "; long a hold must last.\n";
 		file << "wipe = " << kTrailWipeNames[static_cast<std::size_t>(trailWipe)] << "\n";
@@ -1692,8 +1694,7 @@ namespace SS
 		file << "; Let each title use the colour its own rule asks for. Off makes them\n";
 		file << "; all the one colour below, which is calmer in a crowd.\n";
 		file << "ruleColor = " << boolean(titleRuleColour) << "\n";
-		file << "color = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (titleColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n\n\n";
+		file << "color = " << ColourText(titleColour) << "\n\n\n";
 
 		file << "[Arousal]\n\n";
 		file << "; Reads SLO Aroused NG, if you have it. A small flame on the right of\n";
@@ -1704,8 +1705,7 @@ namespace SS
 		file << "min = " << arousalMin << "\n\n";
 		file << "; Print the figure beside the flame as well.\n";
 		file << "number = " << boolean(arousalNumber) << "\n\n";
-		file << "color = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-			 << (arousalColour & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n\n\n";
+		file << "color = " << ColourText(arousalColour) << "\n\n\n";
 
 		file << "[Bonds]\n\n";
 		file << "; THIS SECTION WRITES TO YOUR SAVE. Everything else in this file only\n";
@@ -1771,8 +1771,7 @@ namespace SS
 		file << "; actorColor below, for the glow and the name tag alike.\n";
 		file << "actorByDisposition = " << boolean(actorByDisposition) << "\n";
 		const auto hex = [&file](const char* a_key, std::uint32_t a_rgb) {
-			file << a_key << " = 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-				 << (a_rgb & 0xFFFFFF) << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+			file << a_key << " = " << ColourText(a_rgb) << "\n";
 		};
 		file << "; Colour by the relationship record as well, so a rival reads\n";
 		file << "; differently from a stranger even when nobody has drawn a weapon.\n";
@@ -1789,10 +1788,7 @@ namespace SS
 		file << "; reads as a clean silhouette and keeps overlapping shapes separate.\n\n";
 		for (std::size_t i = 0; i < kCategoryCount; ++i) {
 			file << kCategoryNames[i] << " = " << boolean(categories[i].enabled) << "\n";
-			file << kCategoryNames[i] << "Color = 0x"
-				 << std::hex << std::uppercase << std::setfill('0') << std::setw(6)
-				 << (categories[i].colour & 0xFFFFFF)
-				 << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+			file << kCategoryNames[i] << "Color = " << ColourText(categories[i].colour) << "\n";
 			file << kCategoryNames[i] << "OutlineOnly = " << boolean(categories[i].outlineOnly) << "\n\n";
 		}
 
@@ -1809,9 +1805,7 @@ namespace SS
 			for (const auto& style : markStyles) {
 				file << style.name << ".enabled = " << boolean(style.enabled) << "\n";
 				if (style.overrideColour) {
-					file << style.name << ".color = 0x" << std::hex << std::uppercase
-						 << std::setfill('0') << std::setw(6) << (style.colour & 0xFFFFFF)
-						 << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+					file << style.name << ".color = " << ColourText(style.colour) << "\n";
 				}
 				file << style.name << ".style = " << CountStyleName(style.countStyle) << "\n";
 				file << style.name << ".full = " << style.countFull << "\n";

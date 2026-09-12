@@ -49,7 +49,9 @@ namespace SS
 
 		[[nodiscard]] ImU32 PackColour(std::uint32_t a_rgb, float a_alpha)
 		{
-			const auto a = static_cast<ImU32>(std::clamp(a_alpha, 0.0f, 1.0f) * 255.0f);
+			const auto  top = (a_rgb >> 24) & 0xFF;
+			const float own = top == 0 ? 1.0f : static_cast<float>(top) / 255.0f;
+			const auto  a = static_cast<ImU32>(std::clamp(a_alpha * own, 0.0f, 1.0f) * 255.0f);
 			return (a << 24) | ((a_rgb & 0xFF) << 16) | (((a_rgb >> 8) & 0xFF) << 8) | ((a_rgb >> 16) & 0xFF);
 		}
 

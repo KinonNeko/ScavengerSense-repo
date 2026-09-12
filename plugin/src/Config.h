@@ -866,6 +866,9 @@ namespace SS
 
 	// "number" / "fill" / "hidden", as written in the INI.
 	[[nodiscard]] const char* CountStyleName(CountStyle a_style);
+	// A colour as the INI writes it: six hex digits, or eight when an opacity
+	// sits in the top byte. Every writer of a colour goes through this.
+	[[nodiscard]] std::string ColourText(std::uint32_t a_colour);
 
 	// Named preset files under ScavengerSense/presets.
 	namespace Presets
