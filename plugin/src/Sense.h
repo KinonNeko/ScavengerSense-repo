@@ -276,6 +276,8 @@ namespace SS
 		bool           _coldLooked{ false };
 		// Gold walks the whole inventory, so it is asked once a second.
 		float          _goldAt{ -1000.0f };
+		// The first ash piles a session judges, logged with their verdict.
+		mutable int    _ashSaid{ 0 };  // the judging is const; the count of what it said is not
 		// The ammo count is throttled like gold: walking the inventory every
 		// frame to count arrows is waste, and a fifth of a second is invisible.
 		float        _ammoAt{ -1000.0f };

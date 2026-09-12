@@ -1002,9 +1002,24 @@ namespace SS
 				// container, nothing held, before and after alike - which is
 				// exactly what a lever reads, and why the old test could not
 				// tell the two apart and never fired.
-				if (const auto body = a_ref->extraList.GetAshPileRef(); body) {
-					const auto held = body.get();
-					if (held && !HoldsAnything(held.get())) {
+				//
+				// And after a reload the link can be there with nobody on the
+				// other end of it: the handle no longer resolves, the pile is
+				// still an activator with nothing of its own, and activating it
+				// opens nothing. That is an empty pile too - it used to fall
+				// through to the "never had an inventory" case and come back
+				// as a name, which is the "shows again after reloading" report.
+				if (a_ref->extraList.HasType(RE::ExtraDataType::kAshPileRef)) {
+					const auto held = a_ref->extraList.GetAshPileRef().get();
+					const bool holds = held && HoldsAnything(held.get());
+					if (_ashSaid < 20) {
+						++_ashSaid;
+						const auto* name = a_ref->GetDisplayFullName();
+						logger::info("ash: {} ({:08X}) linked to a body that is {} - {}",
+							name && name[0] ? name : "?", a_ref->GetFormID(),
+							held ? "still here" : "gone", holds ? "holds loot, shown" : "empty, hidden");
+					}
+					if (!holds) {
 						++a_stats.emptyAsh;
 						return false;
 					}

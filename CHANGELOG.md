@@ -17,6 +17,11 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 - **The author's preset is the author's current game**, every setting,
   including the new ones: the lock-on mark, the glyph colours, the
   cooldown burst, the steady anchor.
+- **An ash pile whose body is gone is an empty one.** After a reload the
+  pile's link to the body it came from can point at nothing; the pile
+  used to fall through to "never had an inventory" and come back as a
+  name. A link with nobody on the other end now reads as empty, and the
+  first twenty piles a session judges are logged with the verdict.
 ## 0.9.5 beta
 
 Three from the feedback, all of them about somebody else's interface or
