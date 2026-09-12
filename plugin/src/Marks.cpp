@@ -735,6 +735,11 @@ namespace SS
 		return TextureFile(a_icon.empty() ? rule.icon : a_icon, rule.name);
 	}
 
+	void* Marks::IconTexture(const std::string& a_file)
+	{
+		return TextureFile(a_file, "stats row");
+	}
+
 	std::vector<std::string> Marks::IconFiles()
 	{
 		std::vector<std::string> files;

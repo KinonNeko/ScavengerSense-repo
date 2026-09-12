@@ -14,6 +14,7 @@
 
 #include <Windows.h>
 
+#include "TrueDirectionalMovementAPI.h"
 #include "TrueHUDAPI.h"
 
 namespace SS
@@ -331,6 +332,211 @@ namespace SS
 		// from the keywords the game itself conditions on - so a modded
 		// strain that copied them counts too. Creatures come out kNone;
 		// their name already says what they are.
+		// What an enchantment does, as a colour: the element it carries first,
+		// then what kind of thing it is, then which value it drains. Anything
+		// else is the arcane violet of "enchanted, at any rate". Every one of
+		// them is muted to sit with the bars' own palette - brick, dusty
+		// blue, olive, slate - rather than the saturated colours the effects
+		// have in the spell menu, which would shout over everything else on
+		// the tag.
+		// The element an effect resists against, as a colour; 0 when it has
+		// none. One table for enchantments and spells alike, so a fire sword
+		// and a fire spell can never drift apart.
+		[[nodiscard]] std::uint32_t ElementColour(RE::ActorValue a_resist)
+		{
+			switch (a_resist) {
+			case RE::ActorValue::kResistFire:
+				return 0xCC6E3A;
+			case RE::ActorValue::kResistFrost:
+				return 0x9CC0D1;
+			case RE::ActorValue::kResistShock:
+				return 0xBCA9DB;
+			case RE::ActorValue::kPoisonResist:
+				return 0x8CB06A;
+			default:
+				return 0;
+			}
+		}
+
+		[[nodiscard]] std::uint32_t EnchantColour(RE::EnchantmentItem* a_ench)
+		{
+			if (!a_ench) {
+				return 0;
+			}
+			for (const auto* effect : a_ench->effects) {
+				const auto* base = effect ? effect->baseEffect : nullptr;
+				if (!base) {
+					continue;
+				}
+				if (const auto element = ElementColour(base->data.resistVariable); element != 0) {
+					return element;
+				}
+				switch (base->GetArchetype()) {
+				case RE::EffectSetting::Archetype::kSoulTrap:
+					return 0x9C7AC4;
+				case RE::EffectSetting::Archetype::kParalysis:
+					return 0xD6DCE0;
+				case RE::EffectSetting::Archetype::kTurnUndead:
+					return 0xD9B166;
+				case RE::EffectSetting::Archetype::kDemoralize:
+					return 0x8FA3AD;
+				case RE::EffectSetting::Archetype::kFrenzy:
+					return 0xC4566E;
+				case RE::EffectSetting::Archetype::kBanish:
+					return 0x7F7AC4;
+				default:
+					break;
+				}
+				switch (base->data.primaryAV) {
+				case RE::ActorValue::kHealth:
+					return 0xC4564A;
+				case RE::ActorValue::kMagicka:
+					return 0x7FA8C4;
+				case RE::ActorValue::kStamina:
+					return 0x8FA86B;
+				default:
+					break;
+				}
+			}
+			return 0xA896C4;
+		}
+
+		// The enchantment on the weapon in hand - right hand first - as a
+		// colour and a charge. Two ways in: the inventory entry, which knows a
+		// player-made enchantment and the charge left in it, and the weapon
+		// record itself, which is all an NPC's high process may hold. An NPC's
+		// weapon never runs down, so theirs reads full either way.
+		void ReadWeaponEnchant(RE::Actor* a_actor, std::uint32_t& a_colour, float& a_fill)
+		{
+			a_colour = 0;
+			a_fill = -1.0f;
+			if (!a_actor) {
+				return;
+			}
+			static int said = 0;
+			for (const bool left : { false, true }) {
+				auto* entry = a_actor->GetEquippedEntryData(left);
+				auto* object = entry ? entry->object : nullptr;  // not GetObject(): Windows.h renames that one
+				RE::EnchantmentItem* ench = nullptr;
+				std::optional<double> charge;
+				if (object && object->Is(RE::FormType::Weapon)) {
+					ench = entry->GetEnchantment();
+					charge = entry->GetEnchantmentCharge();
+				}
+				const RE::TESObjectWEAP* weapon = nullptr;
+				if (!ench) {
+					auto* held = a_actor->GetEquippedObject(left);
+					weapon = held ? held->As<RE::TESObjectWEAP>() : nullptr;
+					if (weapon && weapon->formEnchanting) {
+						ench = weapon->formEnchanting;
+					}
+				}
+				if (said < 12) {
+					++said;
+					const auto* name = a_actor->GetDisplayFullName();
+					logger::info("weapon enchant: {} {} hand - entry {}, object {}, record {}, enchantment {}, charge {}",
+						name && name[0] ? name : "?", left ? "left" : "right", entry ? "yes" : "no",
+						object ? "yes" : "no", weapon ? "yes" : "no", ench ? ench->GetName() : "-",
+						charge ? std::to_string(static_cast<int>(*charge)) : "-");
+				}
+				if (!ench) {
+					continue;
+				}
+				a_colour = EnchantColour(ench);
+				a_fill = charge ? std::clamp(static_cast<float>(*charge) / 100.0f, 0.0f, 1.0f) : 1.0f;
+				return;
+			}
+		}
+
+		// A spell's colour: its element when it has one, its school otherwise,
+		// on the same muted palette as the enchantments.
+		[[nodiscard]] std::uint32_t SpellColour(const RE::SpellItem* a_spell)
+		{
+			if (!a_spell) {
+				return 0;
+			}
+			if (const auto* effect = a_spell->GetAVEffect(); effect) {
+				if (const auto element = ElementColour(effect->data.resistVariable); element != 0) {
+					return element;
+				}
+			}
+			switch (a_spell->GetAssociatedSkill()) {
+			case RE::ActorValue::kAlteration:
+				return 0x7FB8B0;
+			case RE::ActorValue::kConjuration:
+				return 0xA896C4;
+			case RE::ActorValue::kDestruction:
+				return 0xC4564A;
+			case RE::ActorValue::kIllusion:
+				return 0xC49CB0;
+			case RE::ActorValue::kRestoration:
+				return 0xE0C27A;
+			default:
+				return 0xB8B8B8;
+			}
+		}
+
+		// What each hand is casting, as colours; 0 for a hand with no spell.
+		void ReadSpellColours(RE::Actor* a_actor, std::uint32_t& a_left, std::uint32_t& a_right)
+		{
+			a_left = 0;
+			a_right = 0;
+			if (!a_actor) {
+				return;
+			}
+			if (auto* held = a_actor->GetEquippedObject(true); held) {
+				a_left = SpellColour(held->As<RE::SpellItem>());
+			}
+			if (auto* held = a_actor->GetEquippedObject(false); held) {
+				a_right = SpellColour(held->As<RE::SpellItem>());
+			}
+		}
+
+		[[nodiscard]] std::pair<RaceKind, RaceMark> ClassifyRace(RE::Actor* a_actor);
+
+		// The player's chosen power - the one in the shout slot - and whether
+		// it is ready. The engine keeps a list of the powers cast since the
+		// day turned; being on it is the cooldown. Which picture stands for it:
+		// a power from the race's own spell list is the race, and anything
+		// else a vampire or werewolf carries is theirs.
+		void ReadPower(RE::Actor* a_actor, std::uint8_t& a_kind, bool& a_ready, std::uint32_t& a_id)
+		{
+			a_kind = 0;
+			a_ready = true;
+			a_id = 0;
+			if (!a_actor) {
+				return;
+			}
+			auto* form = a_actor->GetActorRuntimeData().selectedPower;
+			auto* spell = form ? form->As<RE::SpellItem>() : nullptr;
+			if (!spell) {
+				return;
+			}
+			const auto type = spell->GetSpellType();
+			if (type != RE::MagicSystem::SpellType::kPower && type != RE::MagicSystem::SpellType::kLesserPower) {
+				return;
+			}
+			a_kind = 4;
+			a_id = spell->GetFormID();
+			if (auto* race = a_actor->GetRace(); race && race->actorEffects && race->actorEffects->spells) {
+				for (std::uint32_t i = 0; i < race->actorEffects->numSpells; ++i) {
+					if (race->actorEffects->spells[i] == spell) {
+						a_kind = 1;
+						break;
+					}
+				}
+			}
+			if (a_kind == 4) {
+				const auto [kind, mark] = ClassifyRace(a_actor);
+				if (mark == RaceMark::kVampire) {
+					a_kind = 2;
+				} else if (mark == RaceMark::kWerewolf) {
+					a_kind = 3;
+				}
+			}
+			a_ready = !a_actor->IsInCastPowerList(spell);
+		}
+
 		[[nodiscard]] std::pair<RaceKind, RaceMark> ClassifyRace(RE::Actor* a_actor)
 		{
 			auto* race = a_actor ? a_actor->GetRace() : nullptr;
@@ -1474,6 +1680,10 @@ namespace SS
 				}
 				if (settings->weaponIcons) {
 					_labelBuffer.back().weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
+					if (settings->weaponEnchant) {
+						ReadWeaponEnchant(player, _labelBuffer.back().weaponColour, _labelBuffer.back().weaponFill);
+						ReadSpellColours(player, _labelBuffer.back().spellColourL, _labelBuffer.back().spellColourR);
+					}
 				}
 				if (settings->raceIcons) {
 					const auto [kind, mod] = ClassifyRace(player);
@@ -1740,6 +1950,54 @@ namespace SS
 		}
 		if (settings->weaponIcons) {
 			stats.weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
+			if (settings->weaponEnchant) {
+				ReadWeaponEnchant(player, stats.weaponColour, stats.weaponFill);
+				ReadSpellColours(player, stats.spellColourL, stats.spellColourR);
+			}
+		}
+		if (settings->sensePower) {
+			ReadPower(player, stats.power, stats.powerReady, stats.powerId);
+			// The power's emblem is the race's, whether or not the race rides
+			// on the tags.
+			const auto [kind, mod] = ClassifyRace(player);
+			stats.race = static_cast<std::uint8_t>(kind);
+			stats.raceMark = static_cast<std::uint8_t>(mod);
+		}
+		if (settings->senseShout) {
+			// The voice. A mortal is somebody with no word of power unlocked -
+			// learned off a wall is not enough, a soul has to have been spent
+			// on it - and that is a flag on the word itself, read straight off
+			// every word the game has, once every couple of seconds. Nothing
+			// is asked of the actor's shout machinery: GetCurrentShout is the
+			// shout in the middle of being cast, not the one in the slot, and
+			// GetCurrentShoutLevel crashed the game the moment a shout went
+			// off. Recovery is the time left against the longest wait seen
+			// since it last ran out - the engine keeps the remainder, not the
+			// whole.
+			const float wall = SS::RealNow();
+			if (wall - _anyWordAt > 2.0f) {
+				_anyWordAt = wall;
+				_anyWord = false;
+				if (auto* data = RE::TESDataHandler::GetSingleton()) {
+					for (const auto* word : data->GetFormArray<RE::TESWordOfPower>()) {
+						if (word && (word->formFlags & RE::TESForm::RecordFlags::kUnlocked) != 0) {
+							_anyWord = true;
+							break;
+						}
+					}
+				}
+			}
+			stats.shout = _anyWord ? 2 : 1;
+			const float remaining = std::max(0.0f, player->GetVoiceRecoveryTime());
+			if (remaining > _shoutPeak) {
+				_shoutPeak = remaining;
+			}
+			if (remaining <= 0.01f) {
+				_shoutPeak = 0.0f;
+				stats.shoutFill = 1.0f;
+			} else {
+				stats.shoutFill = _shoutPeak > 0.0f ? std::clamp(1.0f - remaining / _shoutPeak, 0.0f, 1.0f) : 0.0f;
+			}
 		}
 		if (settings->senseWeight) {
 			if (auto* values = player->AsActorValueOwner()) {
@@ -1763,6 +2021,25 @@ namespace SS
 			const auto [kind, mod] = ClassifyRace(player);
 			stats.race = static_cast<std::uint8_t>(kind);
 			stats.raceMark = static_cast<std::uint8_t>(mod);
+		}
+		// A cooldown coming back - the power off the day's cast list, the
+		// voice recovered - is worth a moment: the bars are asked on screen
+		// as if a value had moved, and lit. Compared against the last tick so
+		// it fires once, on the edge.
+		{
+			// The same power, spent last tick and ready now - a swap to a
+			// different, unspent one is not a return.
+			const bool powerBack = stats.power != 0 && stats.powerReady &&
+			                       _lastStats.power != 0 && !_lastStats.powerReady &&
+			                       stats.powerId == _lastStats.powerId;
+			const bool voiceBack = stats.shout == 2 && stats.shoutFill >= 0.999f &&
+			                       _lastStats.shout == 2 && _lastStats.shoutFill < 0.999f;
+			if ((powerBack || voiceBack) && settings->readyFlash) {
+				_selfChangedAt = SS::RealNow();
+				Labels::GetSingleton()->FlashReady(powerBack ? 2 : 1);
+				logger::info("self: {} back - the bars flash", powerBack ? "the power is" : "the voice is");
+			}
+			_lastStats = stats;
 		}
 		Labels::GetSingleton()->SetSelfStats(stats);
 	}
@@ -2093,6 +2370,10 @@ namespace SS
 				}
 				if (settings->weaponIcons) {
 					entry.weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
+					if (settings->weaponEnchant) {
+						ReadWeaponEnchant(player, entry.weaponColour, entry.weaponFill);
+						ReadSpellColours(player, entry.spellColourL, entry.spellColourR);
+					}
 				}
 				if (settings->raceIcons) {
 					const auto [kind, mod] = ClassifyRace(player);
@@ -2262,6 +2543,8 @@ namespace SS
 			// the stricter question that let them in.
 			const bool struck = _struckEver.contains(it->first);
 			const auto read = dead ? CombatRead{} : ReadCombat(actor, player);
+			// A lock is engagement in its own right: the bar is up for as long
+			// as the lock holds, whatever the engine says about the fight.
 			const bool engaged = !dead && real - it->second.lastHitAt < 120.0f &&
 			                     ((struck ? read.Hunted() : read.Fighting()) || it->first == lockedId);
 			if (engaged) {
@@ -2310,6 +2593,10 @@ namespace SS
 			}
 			if (settings->weaponIcons) {
 				entry.weapon = static_cast<std::uint8_t>(ClassifyWeapon(actor));
+				if (settings->weaponEnchant) {
+					ReadWeaponEnchant(actor, entry.weaponColour, entry.weaponFill);
+					ReadSpellColours(actor, entry.spellColourL, entry.spellColourR);
+				}
 			}
 			if (settings->raceIcons) {
 				const auto [kind, mod] = ClassifyRace(actor);
@@ -3472,6 +3759,12 @@ namespace SS
 						if (isActor && settings->weaponIcons) {
 							_labelBuffer.back().weapon = static_cast<std::uint8_t>(
 								ClassifyWeapon(a_ref->As<RE::Actor>()));
+							if (settings->weaponEnchant) {
+								ReadWeaponEnchant(a_ref->As<RE::Actor>(),
+									_labelBuffer.back().weaponColour, _labelBuffer.back().weaponFill);
+								ReadSpellColours(a_ref->As<RE::Actor>(),
+									_labelBuffer.back().spellColourL, _labelBuffer.back().spellColourR);
+							}
 						}
 						if (isActor && settings->raceIcons) {
 							const auto [kind, mod] = ClassifyRace(a_ref->As<RE::Actor>());
@@ -3656,6 +3949,20 @@ namespace SS
 		if (_imod) {
 			RE::ImageSpaceModifierInstanceForm::Stop(_imod);
 		}
+	}
+
+	void Sense::OnGameLoad()
+	{
+		// What a session learns about the player does not carry across a
+		// load: the voice's longest wait, the last stats row (or a stale one
+		// fires a "back" flash on the first tick), whether any word is
+		// unlocked, and the lock light, which the load itself put out.
+		_shoutPeak = 0.0f;
+		_lastStats = {};
+		_anyWord = false;
+		_anyWordAt = -1000.0f;
+		_lockLitId = 0;
+		_lockLitShader = nullptr;
 	}
 
 	void Sense::Cancel()

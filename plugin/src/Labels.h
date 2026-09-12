@@ -129,6 +129,21 @@ namespace SS
 			std::uint8_t weapon{ 0 };
 			std::uint8_t race{ 0 };      // RaceKind
 			std::uint8_t raceMark{ 0 };  // RaceMark
+			std::uint32_t weaponColour{ 0 };
+			float         weaponFill{ -1.0f };
+			std::uint32_t spellColourL{ 0 };
+			std::uint32_t spellColourR{ 0 };
+			// The chosen power: 0 none, 1 the race's own, 2 a vampire's, 3 a
+			// werewolf's, 4 some other; and whether the day has let it back.
+			std::uint8_t power{ 0 };
+			bool         powerReady{ true };
+			// The Thu'um: 0 not shown, 1 a mortal with no voice yet, 2 a
+			// shout in the slot; and how far its recovery has come, 0 to 1.
+			std::uint8_t shout{ 0 };
+			float        shoutFill{ 1.0f };
+			// Which power is in the slot, so a swap is not mistaken for a
+			// return.
+			std::uint32_t powerId{ 0 };
 		};
 
 		// The sonar ring, sampled as a height field so the render thread never
@@ -185,6 +200,9 @@ namespace SS
 		void SetCombatBars(std::vector<Entry> a_entries);
 
 		void SetSelfStats(const SelfStats& a_stats);
+		// A cooldown has just come back: burst around its glyph for a moment.
+		// 1 the voice, 2 the power.
+		void FlashReady(std::uint8_t a_what);
 
 		// How much of the drawn ammunition is left. The main thread resolves the
 		// anchor - body, head or bow - into a world point before handing it over,
@@ -205,7 +223,7 @@ namespace SS
 		// Draws the stats row at a point: -1 grows right from it, +1 grows
 		// left, 0 centres. Render thread; takes a snapshot, not the member.
 		void DrawStatsRow(void* a_drawList, const SelfStats& stats, const Settings* settings,
-			float a_x, float a_y, int a_align, float fontSize, float alpha);
+			float a_x, float a_y, int a_align, float fontSize, float alpha, float a_now);
 
 		// Breadcrumb trails, pushed whole from the main thread whenever the
 		// recorder runs. Fade is precomputed there, so the render side never
@@ -282,6 +300,11 @@ namespace SS
 		float              _selfHudPeak[3]{ -1.0f, -1.0f, -1.0f };
 		float              _selfHudAt{ -1000.0f };
 		SelfStats          _selfStats;
+		// When a cooldown last came back, and which - 1 the voice, 2 the
+		// power - for the burst around its glyph on the stats row. Atomics,
+		// because the row is drawn wherever the bars are, locked or not.
+		std::atomic<float>        _readyFlashAt{ -1000.0f };
+		std::atomic<std::uint8_t> _readyFlashWhat{ 0 };
 		Ammo               _ammo;
 		float              _washBorn{ 0.0f };
 		float              _washDies{ 0.0f };

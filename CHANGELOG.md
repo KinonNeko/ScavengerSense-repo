@@ -8,6 +8,8 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+## 0.9.6 beta
+
 - **A lock-on is marked while the enemy bars are yours.** Owning the bars
   hides TrueHUD's overlay, and TDM draws its target-lock reticle inside
   that overlay, so the lock went unmarked. The mod now asks TDM for its
@@ -23,6 +25,31 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 - **Every colour has an opacity now.** The colour pickers carry an alpha
   bar; a colour with one set is written to the INI as eight hex digits
   and read back either way, and a six-digit colour stays what it was.
+- **An enchanted weapon's glyph wears its enchantment.** Coloured by what
+  it does - fire, frost, shock, poison, soul trap, paralysis and the
+  rest, every colour muted to sit with the bars' own palette - and filled
+  from the bottom to the charge left in it, the way a marker fills to its
+  tally. Other people's weapons never run down, so
+  theirs read full; yours drains as you use it. Its own switch under the
+  weapon icons. An enchantment the inventory does not know about - an
+  NPC's own weapon, typically - is read off the weapon record instead.
+- **A spell glyph is the colour of the spell.** Its element when it has
+  one, its school otherwise; two different spells in two hands split the
+  glyph down the middle, left hand left, right hand right.
+- **Your chosen power sits on the stats row, ready or not.** The race's
+  emblem for one of its own powers, the fangs or the claws for a vampire's
+  or a werewolf's: full when it can be cast, hollow while the day has not
+  given it back. Its own switch beside "My level".
+- **The Thu'um beside the level, and the race off the stats row.** The
+  race emblem was on the overhead chip and again under the bars; the row
+  now carries a dragon-script glyph instead - thuum.png in the icons
+  folder, claw-cut wedges the way a word wall is carved, and anyone may
+  put the game's own letters over it - filling as the voice recovers, and
+  a plain ring for a mortal who cannot shout yet - somebody with no word
+  of power unlocked, read off the words themselves. When a cooldown comes
+  back the bars are asked on screen as if a value had moved, so the flash
+  has something to light. The weapon glyph stays off
+  the row while race emblems are on, as before.
 - **Tags and bars can hold still.** Two switches beside "Tags follow what
   they name": hang them a standing head's height over the feet instead of
   over the head, which bobs with every step - a crouch or a fall still
@@ -49,6 +76,19 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
   used to fall through to "never had an inventory" and come back as a
   name. A link with nobody on the other end now reads as empty, and the
   first twenty piles a session judges are logged with the verdict.
+- **A burst when a cooldown comes back**, out of the glyph that came
+  back and in its shape: the rune or the emblem itself racing outward
+  three times and thinning to nothing, a white wash over it for an
+  instant, and the stats row brought up with it. And a halo behind an
+  enchanted or spell glyph - the glyph's own silhouette, larger and
+  fainter, in its colour. Both optional; the burst has a colour of its
+  own. Hiding only TrueHUD's bars and leaving its reticle was
+  tried twice and crashed twice - a Scaleform value reached from this side
+  has no object interface to call through - so the overlay stays hidden
+  whole and the mark is drawn here. The switch was always there: "Own the
+  enemy bars" under Vitals, and unticking it, or the combat bars, hands
+  everything back.
+
 ## 0.9.5 beta
 
 Three from the feedback, all of them about somebody else's interface or

@@ -315,10 +315,12 @@ namespace SS
 			// Effect shaders and image space modifiers are transient; make sure a
 			// wave that was in flight cannot leak across a load.
 			Sense::GetSingleton()->Cancel();
+			Sense::GetSingleton()->OnGameLoad();
 			break;
 
 		case SKSE::MessagingInterface::kNewGame:
 			Sense::GetSingleton()->Cancel();
+			Sense::GetSingleton()->OnGameLoad();
 			GameMenus::GetSingleton()->LastWord();
 			// Split from kPreLoadGame, which shares the cancel but happens
 			// before the world exists - the warning would be spent on a frame

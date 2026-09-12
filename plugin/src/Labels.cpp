@@ -47,6 +47,9 @@ namespace SS
 			return true;
 		}
 
+		// A colour setting is 0xRRGGBB, or 0xAARRGGBB when the player has set
+		// an opacity on it: a top byte of zero is the old form and means
+		// opaque, so every colour ever written stays what it was.
 		[[nodiscard]] ImU32 PackColour(std::uint32_t a_rgb, float a_alpha)
 		{
 			const auto  top = (a_rgb >> 24) & 0xFF;
@@ -1010,6 +1013,12 @@ namespace SS
 		_selfStats = a_stats;
 	}
 
+	void Labels::FlashReady(std::uint8_t a_what)
+	{
+		_readyFlashWhat.store(a_what, std::memory_order_relaxed);
+		_readyFlashAt.store(Now(), std::memory_order_relaxed);
+	}
+
 	void Labels::SetAmmo(const Ammo& a_ammo)
 	{
 		std::scoped_lock guard{ _lock };
@@ -1176,6 +1185,7 @@ namespace SS
 		                    settings->selfHudCorner == Corner::kBottomRight;
 
 		auto* draw = static_cast<ImDrawList*>(a_drawList);
+
 		for (int r = 0; r < shown; ++r) {
 			const int   i = rows[r];
 			const float away = static_cast<float>(r) * settings->selfBarPerspective;
@@ -1211,17 +1221,17 @@ namespace SS
 			                        : settings->selfHudY + step * static_cast<float>(shown) +
 			                              thick * 0.8f;
 			const float statsX = right ? a_width - settings->selfHudX : settings->selfHudX;
-			DrawStatsRow(draw, _selfStats, settings, statsX, statsY, right ? 1 : -1, fontSize, alpha);
+			DrawStatsRow(draw, _selfStats, settings, statsX, statsY, right ? 1 : -1, fontSize, alpha, a_now);
 		}
 	}
 
 	// The stats row itself, drawable wherever a stack of bars wants it.
 	// a_align: -1 grows right from a_x, +1 grows left from a_x, 0 centres on it.
 	void Labels::DrawStatsRow(void* a_drawList, const SelfStats& stats, const Settings* settings,
-		float a_x, float a_y, int a_align, float fontSize, float alpha)
+		float a_x, float a_y, int a_align, float fontSize, float alpha, float a_now)
 	{
 		const bool anyStat = stats.level >= 0 || stats.gold >= 0 || stats.weight >= 0.0f ||
-		                     stats.cold >= 0.0f || stats.weapon != 0;
+		                     stats.cold >= 0.0f || stats.weapon != 0 || stats.shout != 0 || stats.power != 0;
 		auto* draw = static_cast<ImDrawList*>(a_drawList);
 		auto* font = igGetFont();
 		if (!anyStat || !font || !draw) {
@@ -1236,30 +1246,45 @@ namespace SS
 				std::uint8_t  glyph{ 0 };  // WeaponKind, or the specials below
 				std::string   text;
 				std::uint32_t tint{ 0 };
-				// The racial emblem and its vampire/werewolf rider, 0 for none.
-				std::uint8_t  race{ 0 };
-				std::uint8_t  raceMark{ 0 };
+				// The chosen power's picture (SelfStats::power) and whether it
+				// is back: a full emblem when it is, a hollow one while it waits.
+				std::uint8_t  power{ 0 };
+				bool          powerReady{ true };
+				// The Thu'um (SelfStats::shout) and its recovery, 0 to 1.
+				std::uint8_t  shout{ 0 };
+				float         shoutFill{ 1.0f };
 			};
 			constexpr std::uint8_t kGlyphCoin = 200;
 			constexpr std::uint8_t kGlyphWeight = 201;
 			constexpr std::uint8_t kGlyphFlake = 202;
+			constexpr std::uint8_t kGlyphPower = 203;
+			constexpr std::uint8_t kGlyphShout = 204;
 
-			// With race emblems on, the level's mark is the race and nothing
-			// else: the weapon already rides beside the name on tags and the
-			// overhead chip, so repeating it here says nothing new.
-			const bool raceChip = settings->raceIcons && stats.race != 0;
-
+			// The level's mark is the Thu'um, not the race: the race already
+			// rides on the overhead chip, and the voice has nowhere else to be.
+			// With race emblems on, the weapon stays off this row too, for the
+			// same reason - the chip above has it.
 			std::vector<Piece> pieces;
-			if (raceChip || stats.weapon != 0 || stats.level >= 0) {
+			if (stats.shout != 0 || stats.level >= 0) {
 				Piece piece;
-				piece.glyph = raceChip ? std::uint8_t{ 0 } : stats.weapon;
-				if (raceChip) {
-					piece.race = stats.race;
-					piece.raceMark = stats.raceMark;
-				}
+				piece.glyph = stats.shout != 0 ? kGlyphShout : std::uint8_t{ 0 };
+				piece.shout = stats.shout;
+				piece.shoutFill = stats.shoutFill;
 				if (stats.level >= 0) {
 					piece.text = std::format("Lv {}", stats.level);
 				}
+				pieces.push_back(std::move(piece));
+			}
+			if (!settings->raceIcons && stats.weapon != 0) {
+				Piece piece;
+				piece.glyph = stats.weapon;
+				pieces.push_back(std::move(piece));
+			}
+			if (stats.power != 0) {
+				Piece piece;
+				piece.glyph = kGlyphPower;
+				piece.power = stats.power;
+				piece.powerReady = stats.powerReady;
 				pieces.push_back(std::move(piece));
 			}
 			if (stats.gold >= 0) {
@@ -1290,15 +1315,7 @@ namespace SS
 					ImFont_CalcTextSizeA(&sizeOf, font, fontSize,
 						std::numeric_limits<float>::max(), 0.0f, piece.text.c_str(), nullptr, nullptr);
 				}
-				float chipW = 0.0f;
-				if (piece.race != 0) {
-					chipW = fontSize + fontSize * 0.2f;
-					if (piece.raceMark != 0) {
-						chipW += fontSize * 0.85f + fontSize * 0.15f;
-					}
-				}
-				const float w =
-					chipW + (piece.glyph ? fontSize + fontSize * 0.2f : 0.0f) + sizeOf.x;
+				const float w = (piece.glyph ? fontSize + fontSize * 0.2f : 0.0f) + sizeOf.x;
 				widths.push_back(w);
 				total += w + pad;
 			}
@@ -1312,21 +1329,52 @@ namespace SS
 			for (std::size_t i = 0; i < pieces.size(); ++i) {
 				const auto& piece = pieces[i];
 				float       x = statsX;
-				if (piece.race != 0) {
-					const ImVec2 centre{ x + fontSize * 0.5f, statsY + fontSize * 0.52f };
-					DrawRaceIcon(draw, static_cast<RaceKind>(piece.race), centre,
-						fontSize * 0.95f, ink);
-					x += fontSize + fontSize * 0.2f;
-					if (piece.raceMark != 0) {
-						DrawRaceMarkIcon(draw, static_cast<RaceMark>(piece.raceMark),
-							ImVec2{ x + fontSize * 0.35f, statsY + fontSize * 0.52f },
-							fontSize * 0.7f, ink);
-						x += fontSize * 0.85f + fontSize * 0.15f;
-					}
-				}
 				if (piece.glyph) {
 					const ImVec2 centre{ x + fontSize * 0.5f, statsY + fontSize * 0.52f };
 					const auto   tint = piece.tint ? PackColour(piece.tint, alpha * 0.92f) : ink;
+
+					// A cooldown just back: the glyph that came back bursts, in
+					// its own shape - decided here, drawn in its case below.
+					const auto  flashWhat = _readyFlashWhat.load(std::memory_order_relaxed);
+					const float flashAge = a_now - _readyFlashAt.load(std::memory_order_relaxed);
+					const bool  flashing = settings->readyFlash && flashAge >= 0.0f && flashAge < 1.6f &&
+					                      ((piece.glyph == kGlyphShout && flashWhat == 1) ||
+					                       (piece.glyph == kGlyphPower && flashWhat == 2));
+					const float flashT = flashing ? flashAge / 1.6f : 1.0f;
+					// The glyph itself, larger and in the flash colour, fading; the
+					// silhouette racing outward three times, thinning to nothing;
+					// and a white wash over the real glyph for the first instant.
+					const auto burst = [&](auto&& a_paint, float a_size) {
+						if (!flashing) {
+							return;
+						}
+						const auto  colour = settings->readyFlashColour;
+						const float strength = (1.0f - flashT) * (1.0f - flashT);
+						if (settings->glowShader) {
+							// Real light: the glyph's disc, blazing then carrying
+							// further as it fades, and a ring running outward.
+							const float core = a_size * 0.45f;
+							AddGlow(centre.x - core, centre.y - core, centre.x + core, centre.y + core, colour,
+								alpha * 1.6f * strength, a_size * (0.6f + 2.4f * flashT), core);
+							const float ringR = a_size * (0.5f + 2.2f * flashT);
+							AddGlow(centre.x - ringR, centre.y - ringR, centre.x + ringR, centre.y + ringR, colour,
+								alpha * 0.5f * (1.0f - flashT), a_size * 0.25f, ringR);
+							return;
+						}
+						for (int wave = 2; wave >= 0; --wave) {
+							const float phase = flashT - static_cast<float>(wave) * 0.14f;
+							if (phase > 0.0f && phase < 1.0f) {
+								a_paint(centre, a_size * (1.0f + 2.6f * phase),
+									PackColour(colour, alpha * 0.6f * (1.0f - phase) * (1.0f - phase)));
+							}
+						}
+						a_paint(centre, a_size * 1.3f, PackColour(colour, alpha * 0.9f * strength));
+					};
+					const auto wash = [&](auto&& a_paint, float a_size) {
+						if (flashing && flashAge < 0.5f) {
+							a_paint(centre, a_size, PackColour(0xFFFFFF, alpha * 0.8f * (1.0f - flashAge / 0.5f)));
+						}
+					};
 					switch (piece.glyph) {
 					case kGlyphCoin:
 						ImDrawList_AddCircleFilled(draw, centre, fontSize * 0.32f, tint, 12);
@@ -1349,6 +1397,93 @@ namespace SS
 							ImDrawList_PathStroke(draw, tint, 0, std::max(1.0f, fontSize * 0.09f));
 						}
 						break;
+					case kGlyphShout:
+						{
+							const float size = fontSize * 1.15f;
+							auto* glyph = piece.shout == 1 ? nullptr : Marks::GetSingleton()->IconTexture("thuum.png");
+							// One painter for everything the rune does: the burst,
+							// the shadow, the dim base, the fill and the wash all
+							// go through it, so they all have its shape.
+							const auto paint = [&](ImVec2 a_at, float a_size, ImU32 a_col) {
+								if (piece.shout == 1) {
+									// A mortal: no voice yet, a plain ring where the rune will be.
+									ImDrawList_AddCircle(draw, a_at, a_size * 0.3f, a_col, 12,
+										std::max(1.0f, a_size * 0.08f));
+									return;
+								}
+								if (glyph) {
+									const float half = a_size * 0.5f;
+									ImDrawList_AddImage(draw, glyph, ImVec2{ a_at.x - half, a_at.y - half },
+										ImVec2{ a_at.x + half, a_at.y + half }, ImVec2{ 0.0f, 0.0f }, ImVec2{ 1.0f, 1.0f }, a_col);
+								} else {
+									DrawShoutRune(draw, a_at, a_size, a_col);
+								}
+							};
+							burst(paint, size);
+							if (piece.shout == 1) {
+								paint(centre, size, PackColour(settings->selfColour, alpha * 0.45f));
+							} else {
+								// The rune - thuum.png from the icons folder, and anyone
+								// may put the game's own letters over it - a shadow, then
+								// dim, then in ink from the bottom as far as the voice has
+								// recovered.
+								paint(ImVec2{ centre.x + 1.0f, centre.y + 1.0f }, size, shadow);
+								paint(centre, size, PackColour(settings->selfColour, alpha * 0.3f));
+								const float fill = std::clamp(piece.shoutFill, 0.0f, 1.0f);
+								if (fill > 0.001f) {
+									const float half = size * 0.5f;
+									const float line = centre.y + half - size * fill;
+									ImDrawList_PushClipRect(draw, ImVec2{ centre.x - half - 1.0f, line },
+										ImVec2{ centre.x + half + 1.0f, centre.y + half + 1.0f }, true);
+									paint(centre, size, tint);
+									ImDrawList_PopClipRect(draw);
+								}
+							}
+							wash(paint, size);
+						}
+						break;
+					case kGlyphPower:
+						{
+							// The race's emblem for its own power, the fangs or the
+							// claws for a vampire's or a werewolf's. Ready is the
+							// emblem as drawn; waiting is its outline with a dark
+							// heart - drawn four times a hair off centre in ink,
+							// then once in shadow on top, which outlines any shape
+							// without knowing it.
+							const float size = fontSize * 0.95f;
+							const auto  paint = [&](ImVec2 a_at, float a_size, ImU32 a_col) {
+								if (piece.power == 2 || piece.power == 3) {
+									DrawRaceMarkIcon(draw, piece.power == 2 ? RaceMark::kVampire : RaceMark::kWerewolf,
+										a_at, a_size * 0.9f, a_col);
+								} else if (piece.power == 1 && stats.race != 0) {
+									DrawRaceIcon(draw, static_cast<RaceKind>(stats.race), a_at, a_size, a_col);
+								} else {
+									// A power from anywhere else - a standing stone, a
+									// quest - is a four-pointed star: two thin diamonds.
+									const float r = a_size * 0.48f;
+									const float w = a_size * 0.12f;
+									const ImVec2 tall[4]{ { a_at.x, a_at.y - r }, { a_at.x + w, a_at.y },
+										{ a_at.x, a_at.y + r }, { a_at.x - w, a_at.y } };
+									const ImVec2 wide[4]{ { a_at.x - r, a_at.y }, { a_at.x, a_at.y - w },
+										{ a_at.x + r, a_at.y }, { a_at.x, a_at.y + w } };
+									ImDrawList_AddConvexPolyFilled(draw, tall, 4, a_col);
+									ImDrawList_AddConvexPolyFilled(draw, wide, 4, a_col);
+								}
+							};
+							burst(paint, size);
+							if (piece.powerReady) {
+								paint(centre, size, tint);
+							} else {
+								const float d = std::max(1.0f, fontSize * 0.07f);
+								paint(ImVec2{ centre.x - d, centre.y }, size, tint);
+								paint(ImVec2{ centre.x + d, centre.y }, size, tint);
+								paint(ImVec2{ centre.x, centre.y - d }, size, tint);
+								paint(ImVec2{ centre.x, centre.y + d }, size, tint);
+								paint(centre, size, PackColour(0x101418, alpha * 0.95f));
+							}
+							wash(paint, size);
+						}
+						break;
 					case kGlyphFlake:
 						{
 							const float r = fontSize * 0.42f;
@@ -1363,8 +1498,9 @@ namespace SS
 						}
 						break;
 					default:
-						DrawWeaponIcon(draw, static_cast<WeaponKind>(piece.glyph), centre,
-							fontSize * 0.95f, tint);
+						DrawWeaponIconEnchanted(draw, static_cast<WeaponKind>(piece.glyph), centre,
+							fontSize * 0.95f, tint, stats.weaponColour, stats.weaponFill, alpha * 0.92f,
+							stats.spellColourL, stats.spellColourR);
 						break;
 					}
 					x += fontSize + fontSize * 0.2f;
@@ -2099,9 +2235,10 @@ namespace SS
 						x += raceGap;
 					}
 					if (glyph > 0.0f) {
-						DrawWeaponIcon(draw, static_cast<WeaponKind>(c.weapon),
+						DrawWeaponIconEnchanted(draw, static_cast<WeaponKind>(c.weapon),
 							ImVec2{ x + glyph * 0.5f, y + chipSize * 0.5f }, glyph,
-							PackColour(0xE8E8E8, alpha * 0.9f));
+							PackColour(0xE8E8E8, alpha * 0.9f), c.weaponColour, c.weaponFill, alpha,
+							c.spellColourL, c.spellColourR);
 						x += glyph + gap;
 					}
 					if (!levelText.empty()) {
@@ -2189,7 +2326,7 @@ namespace SS
 						at.x + settings->overheadOffsetX * c.scale,
 						at.y + step * static_cast<float>(shown) + thick * 0.9f +
 							settings->overheadOffsetY * c.scale,
-						0, std::max(10.0f, thick * 1.9f), alpha);
+						0, std::max(10.0f, thick * 1.9f), alpha, now);
 				}
 			}
 		}
@@ -2572,7 +2709,8 @@ namespace SS
 					const auto kind = static_cast<WeaponKind>(entry.weapon);
 					DrawWeaponIcon(draw, kind, ImVec2{ centre.x + 1.0f, centre.y + 1.0f },
 						iconSize, PackColour(0x000000, alpha * 0.7f));
-					DrawWeaponIcon(draw, kind, centre, iconSize, PackColour(entry.colour, alpha));
+					DrawWeaponIconEnchanted(draw, kind, centre, iconSize, PackColour(entry.colour, alpha),
+						entry.weaponColour, entry.weaponFill, alpha, entry.spellColourL, entry.spellColourR);
 				} else {
 					DrawIcon(draw, entry.icon, ImVec2{ centre.x + 1.0f, centre.y + 1.0f }, iconSize,
 						PackColour(0x000000, alpha * 0.7f));
@@ -2716,7 +2854,7 @@ namespace SS
 				if (entry.vitalsSelf && settings->statsPlace != StatsPlace::kCorner) {
 					DrawStatsRow(draw, statsSnapshot, settings,
 						topLeft.x + totalWidth * 0.5f, barsBottom + thick * 0.8f,
-						0, std::max(10.0f, thick * 1.9f), alpha);
+						0, std::max(10.0f, thick * 1.9f), alpha, now);
 				}
 			}
 

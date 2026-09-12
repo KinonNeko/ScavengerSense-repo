@@ -879,6 +879,7 @@ namespace SS
 		Get(table, "player", "coldMax", coldMax);
 		Get(table, "player", "levelOthers", levelOthers);
 		Get(table, "player", "weaponIcons", weaponIcons);
+		Get(table, "player", "weaponEnchant", weaponEnchant);
 		Get(table, "player", "raceIcons", raceIcons);
 		Get(table, "tracks", "enabled", trailsEnabled);
 		Get(table, "tracks", "lifetime", trailLifetime);

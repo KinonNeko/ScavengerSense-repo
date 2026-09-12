@@ -317,7 +317,7 @@ namespace SS::Menu
 					static_cast<float>(g_clipColour & 0xFF) / 255.0f,
 					clipTop == 0 ? 1.0f : static_cast<float>(clipTop) / 255.0f
 				};
-				igColorButton("##clip", swatch, ImGuiColorEditFlags_NoTooltip, ImVec2{ 0.0f, 0.0f });
+				igColorButton("##clip", swatch, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_AlphaPreviewHalf, ImVec2{ 0.0f, 0.0f });
 				igSameLine(0.0f, -1.0f);
 				if (clipTop != 0) {
 					igText("0x%08X", g_clipColour);
@@ -1552,6 +1552,25 @@ namespace SS::Menu
 					"glance - the full-HUD way to play. The row follows whichever\n"
 					"stack it is attached to.");
 				igCheckbox(T("My level"), &a_settings.senseLevel);
+				igCheckbox(T("My power"), &a_settings.sensePower);
+				Help(
+					"The power in your shout slot: your race's emblem for one of its\n"
+					"own, the fangs or the claws for a vampire's or a werewolf's.\n"
+					"Full when it is ready, hollow while the day has not given it\n"
+					"back yet.");
+				igCheckbox(T("My Thu'um"), &a_settings.senseShout);
+				Help(
+					"The shout in your slot as a rune beside the level, filling as\n"
+					"the voice recovers. Before you can shout at all it is a plain\n"
+					"ring: a mortal's.");
+				igCheckbox(T("Flash when a cooldown comes back"), &a_settings.readyFlash);
+				Help(
+					"The moment the power is yours again, or the voice, its glyph on\n"
+					"the stats row bursts in the colour below, and the row comes up\n"
+					"as if a value had moved.");
+				if (a_settings.readyFlash) {
+					ColourPicker(T("Flash colour"), a_settings.readyFlashColour);
+				}
 				igCheckbox(T("My septims"), &a_settings.senseGold);
 				igCheckbox(T("My carry weight"), &a_settings.senseWeight);
 				Help(
@@ -1581,13 +1600,35 @@ namespace SS::Menu
 					"The shape beside a name becomes what they are holding - sword,\n"
 					"bow, spell - instead of the relationship marker. Yours too. The\n"
 					"colour still says friend or foe.");
+				if (a_settings.weaponIcons) {
+					igCheckbox(T("The weapon wears its enchantment"), &a_settings.weaponEnchant);
+					Help(
+						"An enchanted weapon's glyph fills from the bottom in the colour\n"
+						"of what it does - fire, frost, shock, poison, soul trap, and so\n"
+						"on - to the charge left in it. Theirs never runs down; yours does.\n"
+						"Spells colour their glyph the same way, by element or school.");
+					if (a_settings.weaponEnchant) {
+						igCheckbox(T("A halo behind it"), &a_settings.glyphGlow);
+						Help(
+							"A soft light behind the glyph in that colour, so an enchanted\n"
+							"blade or a spell reads before the shape does.");
+					}
+				}
 
-				igCheckbox(T("Race beside the level"), &a_settings.raceIcons);
+				igCheckbox(T("Glows as real light (shader pass)"), &a_settings.glowShader);
+				Help(
+					"Every glow - the lock, the halo, the cooldown burst - drawn by a\n"
+					"pixel shader as light added over the frame, instead of shapes\n"
+					"in the HUD. Looks like light rather than a ghost of the shape.\n"
+					"Runs after Community Shaders, so it works with it.");
+
+				igCheckbox(T("Racial emblems on tags"), &a_settings.raceIcons);
 				Help(
 					"A racial emblem - a horned helm for a Nord, cat ears for a\n"
-					"Khajiit - marks the level instead of repeating the weapon shape,\n"
-					"with fangs or a paw after it for a vampire or werewolf. On other\n"
-					"people it sits before their weapon icon.");
+					"Khajiit - before the weapon icon on people's tags and chips,\n"
+					"with fangs or a paw after it for a vampire or werewolf. Your own\n"
+					"rides on the overhead chip; the stats row keeps the Thu'um and\n"
+					"leaves the weapon shape to the chip.");
 				igSpacing();
 			}
 		}

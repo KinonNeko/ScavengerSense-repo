@@ -134,6 +134,10 @@ namespace SS
 		[[nodiscard]] void* Texture(int a_rule, bool a_full = false, const std::string& a_icon = {});
 		// Every PNG in the icons folder, for the menu to offer.
 		[[nodiscard]] static std::vector<std::string> IconFiles();
+		// Any picture in the icons folder by name, for things that are not
+		// marker rules - the Thu'um glyph on the stats row. Render thread,
+		// same cache as the markers.
+		[[nodiscard]] void* IconTexture(const std::string& a_file);
 
 		// Register a bridge that lives in code rather than in the rule file, so
 		// it appears on the Add-ons page beside the ones the rules declare.

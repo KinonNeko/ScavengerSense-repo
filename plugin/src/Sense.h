@@ -190,6 +190,11 @@ namespace SS
 		};
 		std::unordered_map<RE::FormID, HitTrack> _combatHits;
 		std::vector<Labels::Entry>               _combatBuffer;
+	public:
+		// A save is being loaded, or a new game started: forget what this
+		// session had learned about the player.
+		void OnGameLoad();
+	private:
 		// Everyone the player has ever struck this session. Never expires:
 		// "hostile because of something you did" should not be forgotten the
 		// moment the fight ends, and Only enemies reads it for corpses too.
@@ -270,6 +275,8 @@ namespace SS
 		bool                                     _hitSinkRegistered{ false };
 		float                          _selfLast[3]{ -1.0f, -1.0f, -1.0f };
 		float                          _selfChangedAt{ -1000.0f };
+		// Last tick's stats row, for the cooldown-back edge.
+		Labels::SelfStats              _lastStats;
 		std::unordered_set<RE::FormID> _favourites;  // rebuilt at the start of each sweep
 		// Lowercased placeholder substrings, split once per sweep.
 		std::vector<std::string>       _placeholderPieces;
@@ -282,8 +289,15 @@ namespace SS
 		bool           _coldLooked{ false };
 		// Gold walks the whole inventory, so it is asked once a second.
 		float          _goldAt{ -1000.0f };
+		// The longest voice recovery seen since it last ran out, so the
+		// remainder the engine keeps can be read as a fraction.
+		float          _shoutPeak{ 0.0f };
 		// The first ash piles a session judges, logged with their verdict.
 		mutable int    _ashSaid{ 0 };  // the judging is const; the count of what it said is not
+		// Whether any word of power is unlocked, re-read every couple of
+		// seconds: the line between a mortal and a Dragonborn.
+		bool           _anyWord{ false };
+		float          _anyWordAt{ -1000.0f };
 		// The ammo count is throttled like gold: walking the inventory every
 		// frame to count arrows is waste, and a fifth of a second is invisible.
 		float        _ammoAt{ -1000.0f };

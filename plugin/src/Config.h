@@ -742,6 +742,9 @@ namespace SS
 		// The tag icon follows the drawn weapon - yours and theirs - instead
 		// of the relationship shape. The colour still says friend or foe.
 		bool        weaponIcons{ false };
+		// The weapon glyph coloured by its enchantment and filled to the
+		// charge left in it, the way a marker fills to its tally.
+		bool        weaponEnchant{ true };
 		// A small racial emblem beside people's tags and on your stats row's
 		// level entry, followed by a fang or paw mark for vampires and
 		// werewolves.
