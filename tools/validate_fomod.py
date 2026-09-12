@@ -109,7 +109,7 @@ CONFIG = os.path.join(ROOT, "plugin/src/Config.cpp")
 known = set()
 if os.path.isfile(CONFIG):
     src = open(CONFIG, encoding="utf-8").read()
-    for sec, key in re.findall(r'Get\(\s*table,\s*"([^"]+)"\s*,\s*"([^"]+)"', src):
+    for sec, key in re.findall(r'Get(?:Named)?\(\s*table,\s*"([^"]+)"\s*,\s*"([^"]+)"', src):
         known.add((sec.lower(), key.lower()))
     # per-category keys are built at runtime: name, nameColor, nameOutlineOnly
     for cat in re.findall(r'^\s*"(\w+)",?\s*$', src, re.M):
