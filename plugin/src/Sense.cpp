@@ -1091,6 +1091,15 @@ namespace SS
 					}
 					if (auto* task = SKSE::GetTaskInterface()) {
 						task->AddTask([this]() {
+							// Nothing of ours is on screen while a cell loads, and
+							// the world is half torn down: actors, processes and
+							// HUD movies are being replaced under any pointer we
+							// might hold. Sit the frame out until the loading
+							// screen is gone.
+							if (auto* ui = RE::UI::GetSingleton();
+								ui && (ui->IsMenuOpen(RE::LoadingMenu::MENU_NAME) || ui->IsMenuOpen(RE::MistMenu::MENU_NAME))) {
+								return;
+							}
 							PollSelf();
 							PollCombat();
 							PollTrails();
@@ -2306,7 +2315,10 @@ namespace SS
 
 			// Every combatant, not just the ones fighting the player: a bar
 			// over somebody attacking your follower is still a bar we own.
-			if (g_trueHud) {
+			// Only while TrueHUD's menu is actually up: its widgets live in
+			// that movie, and asking it to remove one while the movie is being
+			// rebuilt is asking it to touch what it has just let go of.
+			if (g_trueHud && RE::UI::GetSingleton() && RE::UI::GetSingleton()->IsMenuOpen("TrueHUD")) {
 				if (auto* lists = RE::ProcessLists::GetSingleton()) {
 					lists->ForEachHighActor([&](RE::Actor* a_actor) {
 						if (a_actor && !a_actor->IsPlayerRef() && a_actor->IsInCombat()) {

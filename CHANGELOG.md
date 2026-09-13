@@ -62,6 +62,15 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
   shape's edge, instead of shapes blended in the HUD. It runs downstream
   of Community Shaders the way the post-process grade does. Off by
   default; the drawn shapes stay the default.
+- **A crash on entering a cell, Alftand Cathedral for one.** The mod's
+  per-frame work - the player's readout, the combat bars, the hold on
+  TrueHUD's overlay, and the half-second request that TrueHUD dismiss its
+  bars - kept running through loading screens, while actors, processes
+  and HUD movies were being torn down and rebuilt under them; the game
+  then died in its own light culling a second later. The frame is sat out
+  while a loading screen is up, and TrueHUD is only asked to remove a bar
+  while its menu is actually open. Found by the author, reproduced twice,
+  gone on the first try after this.
 - **Six settings that reset on every load since 0.9.** The perk section
   was written into the middle of the player section, so your level,
   weapon and race icon choices, the stats row's place and the cold cap
