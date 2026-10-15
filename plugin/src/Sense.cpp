@@ -2523,8 +2523,8 @@ namespace SS
 		// when it leaves or moves, never re-applied while it holds - a second
 		// shader on the same person would stack on the first.
 		{
-			const bool wantGlow = settings->lockMark == LockMark::kOutline ||
-			                      settings->lockMark == LockMark::kBoth;
+			const bool wantGlow = settings->ObjectGlowEnabled() &&
+				(settings->lockMark == LockMark::kOutline || settings->lockMark == LockMark::kBoth);
 			const RE::FormID glowId = wantGlow ? lockedId : 0;
 			if (glowId != _lockLitId) {
 				UnlightLock();
@@ -3284,6 +3284,21 @@ namespace SS
 
 	void Sense::Tick()
 	{
+		const auto* settings = Settings::GetSingleton();
+		if (!settings->ObjectGlowEnabled() && _glowWasEnabled) {
+			std::scoped_lock guard{ _lock };
+			UnlightLock();
+			ClearOurEffects();
+		}
+		_glowWasEnabled = settings->ObjectGlowEnabled();
+		if (settings->TintBlend() <= 0.0f || UsingPostFX()) {
+			Vision::GetSingleton()->End();
+		}
+		if (_legacyTintActive &&
+			(settings->TintBlend() <= 0.0f || !settings->tintUseImod || UsingPostFX())) {
+			RE::ImageSpaceModifierInstanceForm::Stop(_imod);
+			_legacyTintActive = false;
+		}
 		if (!_active) {
 			return;
 		}
@@ -3448,6 +3463,7 @@ namespace SS
 	// put out by hand when the lock goes.
 	void Sense::LightLock(RE::FormID a_id)
 	{
+		if (!Settings::GetSingleton()->ObjectGlowEnabled()) { return; }
 		auto* shader = _lockShader ? _lockShader : (_pool.empty() ? nullptr : _pool.front());
 		if (!shader) {
 			return;
@@ -3686,7 +3702,7 @@ namespace SS
 									 ? std::max(settings->edgeFalloff, 2.6f)
 									 : settings->edgeFalloff;
 
-		auto* effect = a_ref->ApplyEffectShader(shader, settings->duration);
+		auto* effect = settings->ObjectGlowEnabled() ? a_ref->ApplyEffectShader(shader, settings->duration) : nullptr;
 		++_appliedThisWave;
 
 		if (favourite) {
@@ -3830,7 +3846,7 @@ namespace SS
 				_appliedThisWave, total, SS::Now() - _waveStart,
 				a_ref->GetFormID(), CategoryName(a_category),
 				RE::PlayerCharacter::GetSingleton()->GetPosition().GetDistance(a_ref->GetPosition()),
-				effect ? "ok" : "ENGINE RETURNED NULL",
+				!settings->ObjectGlowEnabled() ? "glow disabled" : (effect ? "ok" : "ENGINE RETURNED NULL"),
 				asActor && asActor->IsGhost() ? " [ghost]" : "");
 		}
 	}
@@ -3891,7 +3907,7 @@ namespace SS
 		// The image space route would otherwise hold the tint at full strength
 		// to the last frame and then pop: give it a short envelope that eases
 		// from the current grade back to neutral over the fade.
-		if (settings->tintUseImod && _imod) {
+		if (settings->TintBlend() > 0.0f && settings->tintUseImod && !UsingPostFX() && _imod) {
 			const auto ease = [&](RE::NiFloatInterpolator* a_interp, float a_from) {
 				if (!a_interp) {
 					return;
@@ -3914,7 +3930,7 @@ namespace SS
 			ease(_imod->cinematic.saturation.mult.get(), settings->tintSaturation);
 			ease(_imod->cinematic.brightness.mult.get(), settings->tintBrightness);
 			ease(_imod->cinematic.contrast.mult.get(), settings->tintContrast);
-			RE::ImageSpaceModifierInstanceForm::Trigger(_imod, settings->tintStrength, nullptr);
+			_legacyTintActive = RE::ImageSpaceModifierInstanceForm::Trigger(_imod, settings->TintBlend(), nullptr) != nullptr;
 		}
 
 		logger::info("wave fading out over {:.2f}s", fade);
@@ -3934,7 +3950,7 @@ namespace SS
 			Vision::GetSingleton()->End();
 		}
 
-		if (!settings->tintUseImod || !_imod) {
+		if (settings->TintBlend() <= 0.0f || !settings->tintUseImod || UsingPostFX() || !_imod) {
 			return;
 		}
 
@@ -3945,7 +3961,8 @@ namespace SS
 		RewriteEnvelope(_imod->cinematic.brightness.mult.get(), duration, settings->tintBrightness);
 		RewriteEnvelope(_imod->cinematic.contrast.mult.get(), duration, settings->tintContrast);
 
-		const auto* instance = RE::ImageSpaceModifierInstanceForm::Trigger(_imod, settings->tintStrength, nullptr);
+		const auto* instance = RE::ImageSpaceModifierInstanceForm::Trigger(_imod, settings->TintBlend(), nullptr);
+		_legacyTintActive = instance != nullptr;
 		logger::info("tint triggered for {:.2f}s -> {}", duration, instance ? "ok" : "engine returned null");
 	}
 
@@ -3961,6 +3978,7 @@ namespace SS
 		if (_imod) {
 			RE::ImageSpaceModifierInstanceForm::Stop(_imod);
 		}
+		_legacyTintActive = false;
 	}
 
 	void Sense::OnGameLoad()

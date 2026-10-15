@@ -792,6 +792,20 @@ namespace SS::Menu
 			igSpacing();
 		}
 
+		void DrawLightingControls(Settings& a_settings)
+		{
+			if (!Header(T("Lighting controls"))) { return; }
+			igCheckbox(T("Screen effects"), &a_settings.screenEffectsEnabled);
+			Help("Turns screen grading and the dark vignette on or off together. Object glow, names, bars and trails keep their own settings.");
+			igSliderFloat(T("Screen effect strength"), &a_settings.screenEffectsStrength, 0.0f, 1.0f, "%.2f", 0);
+			Help("0 keeps the original scene. 1 applies the full tint and vignette configured below. Turn this down if sensing looks too dark or too bright.");
+			if (igButton(T("Keep original brightness"), ImVec2{ 0.0f, 0.0f })) {
+				a_settings.KeepOriginalBrightness();
+			}
+			Help("Resets brightness and contrast to 1, removes the colour cast and switches off the dark vignette. Desaturation and object glow are kept.");
+			igSpacing();
+		}
+
 		void DrawVision(Settings& a_settings)
 		{
 			if (!Header(T("Vision"))) {
@@ -807,9 +821,11 @@ namespace SS::Menu
 			Help(
 				"Higher gives a thin rim. Lower fills more of the object with light.");
 
-			igSliderFloat(T("Glow strength"), &a_settings.glowStrength, 0.0f, 3.0f, "%.2f", 0);
+			igCheckbox(T("Object glow"), &a_settings.glowEnabled);
+			Help("Turns off object and target-lock highlights without hiding names or bars. Re-enabling applies on the next sweep or target lock.");
+			igSliderFloat(T("Glow strength"), &a_settings.glowStrength, 0.0f, 4.0f, "%.2f", 0);
 			Help(
-				"Brightness of the glow. Above 1.0 the colours wash towards white.");
+				"Brightness of newly highlighted objects. 0 turns the glow off. Above 1.0 the colours wash towards white.");
 
 			igSliderFloat(T("Throb amount"), &a_settings.pulseAmplitude, 0.0f, 1.0f, "%.2f", 0);
 			igSliderFloat(T("Throb speed"), &a_settings.pulseFrequency, 0.0f, 8.0f, "%.2f", 0);
@@ -938,7 +954,8 @@ namespace SS::Menu
 			if (a_settings.tintEnabled) {
 				igSliderFloat(T("Saturation"), &a_settings.tintSaturation, 0.0f, 1.5f, "%.2f", 0);
 				Help("1.0 is normal colour. 0.0 is fully grey.");
-				igSliderFloat(T("Brightness"), &a_settings.tintBrightness, 0.2f, 1.5f, "%.2f", 0);
+				igSliderFloat(T("Brightness"), &a_settings.tintBrightness, 0.2f, 2.0f, "%.2fx", 0);
+				Help("1.0 keeps the original brightness. Lower darkens the scene; higher brightens it. The screen-effect strength controls how much is applied.");
 				igSliderFloat(T("Contrast"), &a_settings.tintContrast, 0.5f, 2.0f, "%.2f", 0);
 				igSliderFloat(T("Blend"), &a_settings.tintStrength, 0.0f, 1.0f, "%.2f", 0);
 
@@ -2726,6 +2743,7 @@ namespace SS::Menu
 
 			if (igBeginTabItem(T("Look"), nullptr, 0)) {
 				igSpacing();
+				DrawLightingControls(settings);
 				DrawVision(settings);
 				DrawRing(settings);
 				DrawTint(settings);

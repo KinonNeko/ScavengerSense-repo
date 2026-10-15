@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-15",
+  "version": "0.10.2 beta",
+  "base_commit": "62ecdd4",
+  "branch": "codex/0.10.2-light-controls",
+  "profile": "J61-BFCO",
+  "native_suites_passed": 6,
+  "feature_checks": 42,
+  "framework_imports_checked": 75,
+  "framework_abi": {
+    "host": {
+      "version": "1.90.8",
+      "io": 14616,
+      "style": 1140,
+      "vec2": 8,
+      "vec4": 16,
+      "drawvert": 20,
+      "drawidx": 2
+    },
+    "compiled": {
+      "version": "1.90.8",
+      "io": 14616,
+      "style": 1140,
+      "vec2": 8,
+      "vec4": 16,
+      "drawvert": 20,
+      "drawidx": 2
+    },
+    "matches": true
+  },
+  "framework_sha256": "0c107ad4c471c904186b68e1b50b10a66311affb40eb0ba2b8fcca36735d55a2",
+  "translation_keys": 636,
+  "chinese_ideographs_covered": 914,
+  "installer_routes": 102,
+  "xsd": "ModConfig 5.0 PASS",
+  "archive": {
+    "path": "E:\\dev\\ScavengerSense\\ScavengerSense-0.10.2-beta.zip",
+    "members": 65,
+    "bytes": 16619746,
+    "sha256": "277dec33532fda82222aaee1929268560bd0081de6ab265c9bb9245954169355",
+    "all_member_bytes_and_crc_verified": true
+  },
+  "dll_sha256": "54d35f5b0798e8c03d23f6477cc0d125b9abfa7886a525d939ae0470041ef82b",
+  "esp_sha256": "b9b6c75f39a8ac58379c39d7fd8f5c029a97f6fe6bb980d0c360992e11b249bf",
+  "deployment": {
+    "changed": [
+      "meta.ini",
+      "SKSE/Plugins/ScavengerSense.dll",
+      "SKSE/Plugins/ScavengerSense_chinese.ini",
+      "SKSE/Plugins/ScavengerSense/docs/CUSTOMISING.txt",
+      "SKSE/Plugins/ScavengerSense/docs/DEPENDENCIES.txt",
+      "SKSE/Plugins/ScavengerSense/docs/中文说明.txt",
+      "SKSE/Plugins/ScavengerSense/translations/ScavengerSense_english.ini"
+    ],
+    "unchanged_file_count": 24,
+    "preserved": {
+      "modlist.txt": "8dc503d4c7da8dc064908ca5d40bebc1d18a49340541ee6161fba7bbb49b87ab",
+      "plugins.txt": "7cd67eb13dde871a53866f49ac08fe863c0c29cab2db354d13c18f50c3052289",
+      "ScavengerSense-personal.ini": "a0e348e9818d9326008f9aeec0caf49d6b3917900b57b127bb4685c50d83e8f2",
+      "SKSEMenuFramework.ini": "f97f2e18cec1fc77d3eb0a648a71e4c070cbaaa039fc1ec7b9dc1894d7a04e9f"
+    }
+  },
+  "gameplay_verified": false,
+  "limits": [
+    "No Skyrim gameplay or visual confirmation",
+    "Positive object-glow strength changes affect newly highlighted objects",
+    "Legacy image-space modifier tint sliders apply on the next sweep; master disable stops it",
+    "Per-second regeneration figures remain unimplemented",
+    "Generic 1.6.1170 DLL error still needs logs"
+  ]
+}

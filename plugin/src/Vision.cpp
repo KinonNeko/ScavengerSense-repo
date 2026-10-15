@@ -55,7 +55,8 @@ namespace SS
 	void Vision::Begin(float a_startsAt, float a_endsAt)
 	{
 		const auto* settings = Settings::GetSingleton();
-		if (!settings->tintEnabled) {
+		if (settings->TintBlend() <= 0.0f || settings->tintUseImod) {
+			End();
 			return;
 		}
 
@@ -119,7 +120,7 @@ namespace SS
 		const auto k = (settings->menuAware && GameMenus::GetSingleton()->Blocking())
 						   ? 0.0f
 						   : Envelope(Now(), _startsAt, _endsAt) *
-								 std::clamp(settings->tintStrength, 0.0f, 1.0f);
+								 settings->TintBlend();
 
 		if (_heldOverride) {
 			_override = _base;

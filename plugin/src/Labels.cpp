@@ -1575,7 +1575,7 @@ namespace SS
 	void Labels::SubmitPostFX(void* a_drawList, float a_now)
 	{
 		const auto* settings = Settings::GetSingleton();
-		if (!settings->postProcess || _washDies <= _washBorn) {
+		if (!settings->postProcess || settings->ScreenEffectScale() <= 0.0f || _washDies <= _washBorn) {
 			return;
 		}
 		if (a_now < _washBorn || a_now > _washDies) {
@@ -1594,7 +1594,7 @@ namespace SS
 			params.saturation = settings->tintSaturation;
 			params.brightness = settings->tintBrightness;
 			params.contrast = settings->tintContrast;
-			params.strength = ramp * std::clamp(settings->tintStrength, 0.0f, 1.0f);
+			params.strength = ramp * settings->TintBlend();
 
 			const auto cast = settings->tintCastColour;
 			params.tintR = static_cast<float>((cast >> 16) & 0xFF) / 255.0f;
@@ -1610,7 +1610,7 @@ namespace SS
 			params.washB = static_cast<float>(wash & 0xFF) / 255.0f;
 			params.vignetteInner = 0.30f;
 			params.vignetteOuter = 1.05f;
-			params.vignetteStrength = ramp * settings->washStrength;
+			params.vignetteStrength = ramp * settings->washStrength * settings->ScreenEffectScale();
 		}
 
 		PostFX::GetSingleton()->Submit(a_drawList, params);
@@ -1631,7 +1631,7 @@ namespace SS
 		const auto since = a_now - _washBorn;
 		const auto until = _washDies - a_now;
 		const auto ramp = std::min({ since / 0.25f, until / 1.0f, 1.0f });
-		const auto strength = settings->washStrength * std::max(ramp, 0.0f);
+		const auto strength = settings->washStrength * settings->ScreenEffectScale() * std::max(ramp, 0.0f);
 		if (strength <= 0.01f) {
 			return;
 		}

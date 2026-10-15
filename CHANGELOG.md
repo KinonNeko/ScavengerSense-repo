@@ -8,6 +8,23 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+## 0.10.2 beta — lighting controls, 2026-10-15 (not published)
+
+- Add a screen-effects master switch and 0–1 blend at the top of Look. Both
+  scene grading and the vignette follow it across shader, image-space and
+  overlay routes. Disabling restores held image-space values and stops an
+  active legacy modifier without cancelling tags, bars or tracking.
+- Add Keep original brightness: neutral brightness/contrast, no colour cast
+  or dark vignette, retaining the selected desaturation and object glow.
+  Brightness slider now reaches 2x; 1x is neutral.
+- Add a separate object/target-lock glow switch. Disabling, including setting
+  glow strength to zero, clears this plugin's live highlights and skips new
+  shader applications while keeping tags. Strength edits affect newly lit
+  objects. Use one grading route rather than stacking the legacy modifier with
+  the override or shader route.
+- Add save/load/default/range checks, English/Chinese controls and user docs.
+  Personal INI and framework settings remain unchanged on deployment.
+
 ## 0.10.1 beta — recheck, 2026-10-15 (not published)
 
 - Correct the ImGui header configuration to match the updated Menu Framework:

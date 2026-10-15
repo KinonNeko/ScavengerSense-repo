@@ -19,6 +19,9 @@ static void Write(const fs::path& path, const std::string& text) {
 int main() try {
 	SS::Settings saved;
 	saved.RestoreDefaults();
+	saved.screenEffectsEnabled = false;
+	saved.screenEffectsStrength = .375f;
+	saved.glowEnabled = false;
 	saved.hideGameHud = true;
 	saved.hideCompass = saved.hideMessages = saved.hideSubtitles = false;
 	saved.hideMenus = "HUD Menu, CustomCaseMenu";
@@ -36,6 +39,27 @@ int main() try {
 	Check(saved.SaveAs("roundtrip.ini"), "save config");
 	SS::Settings loaded;
 	Check(loaded.LoadFrom("roundtrip.ini"), "load config");
+	Check(!loaded.screenEffectsEnabled && loaded.screenEffectsStrength == .375f && !loaded.glowEnabled,
+		"screen/glow switches and intensity survive save/load");
+	Check(loaded.ScreenEffectScale() == 0 && loaded.TintBlend() == 0 && !loaded.ObjectGlowEnabled(),
+		"disabled screen master and object glow override individual effects");
+	loaded.screenEffectsEnabled = loaded.glowEnabled = true;
+	loaded.tintEnabled = true;
+	loaded.tintStrength = .5f;
+	Check(loaded.TintBlend() == .1875f && loaded.ScreenEffectScale() == .375f,
+		"screen master blends tint and overlay without replacing their strengths");
+	loaded.tintEnabled = false;
+	Check(loaded.TintBlend() == 0 && loaded.ScreenEffectScale() == .375f,
+		"desaturation switch leaves separately configured vignette available");
+	loaded.glowStrength = 0;
+	Check(!loaded.ObjectGlowEnabled(), "zero glow strength disables effects instead of drawing black membranes");
+	loaded.tintBrightness = .4f; loaded.tintContrast = 2; loaded.tintCastAmount = .7f; loaded.washEnabled = true;
+	const auto saturation = loaded.tintSaturation;
+	loaded.KeepOriginalBrightness();
+	Check(loaded.tintBrightness == 1 && loaded.tintContrast == 1 && loaded.tintCastAmount == 0 && !loaded.washEnabled,
+		"original brightness removes brightness/contrast/cast/vignette changes together");
+	Check(loaded.tintSaturation == saturation && loaded.screenEffectsStrength == .375f && loaded.glowEnabled,
+		"original brightness keeps desaturation, master strength and glow choices");
 	Check(loaded.hideGameHud && !loaded.hideCompass && !loaded.hideMessages && !loaded.hideSubtitles, "independent HUD flags");
 	Check(loaded.hideHealth && loaded.hideEnemyHealth && loaded.hideShout, "other HUD flags persist");
 	Check(loaded.hideMenus == saved.hideMenus && loaded.hideHudParts == saved.hideHudParts, "case-sensitive clip paths survive");
@@ -61,6 +85,16 @@ int main() try {
 	loaded.LoadFrom("invalid.ini");
 	Check(loaded.playerBarStyles[0].width == 1 && loaded.playerBarStyles[0].height == 5 && loaded.playerBarStyles[0].x == -4000, "invalid geometry bounded");
 	Check(loaded.actorBarStyles[2].width == .1f && loaded.barNumberScale == 1, "nonfinite values rejected");
+	Write("light-invalid.ini", "[Effects]\nscreenStrength=99\n[Vision]\nglowEnabled=false\n");
+	loaded.LoadFrom("light-invalid.ini");
+	Check(loaded.screenEffectsStrength == 1 && !loaded.glowEnabled, "excess screen blend clamps and glow switch loads");
+	Write("light-invalid.ini", "[Effects]\nscreenStrength=-1\n");
+	loaded.LoadFrom("light-invalid.ini");
+	Check(loaded.ScreenEffectScale() == 0 && loaded.TintBlend() == 0, "negative screen blend clamps to neutral");
+	Write("light-invalid.ini", "[Effects]\nscreenStrength=nan\n");
+	loaded.LoadFrom("light-invalid.ini");
+	Check(loaded.screenEffectsStrength == 1 && loaded.screenEffectsEnabled && loaded.glowEnabled,
+		"nonfinite screen blend rejected and old INIs retain enabled defaults");
 	Write("Data/SKSE/Plugins/ScavengerSense_french.ini", "\xEF\xBB\xBF[Translation]\nMenu language=Langue\na\\=b=ligne\\nseconde\nEmpty=\n");
 	Write("Data/SKSE/Plugins/ScavengerSense_marks.ini", "[Rule]\nName=not a language\n");
 	const auto languages = SS::Locale::Languages();

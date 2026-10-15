@@ -697,6 +697,28 @@ namespace SS
 		}
 	}
 
+	bool Settings::ObjectGlowEnabled() const
+	{
+		return glowEnabled && glowStrength > 0.0f;
+	}
+
+	float Settings::ScreenEffectScale() const
+	{
+		return screenEffectsEnabled ? std::clamp(screenEffectsStrength, 0.0f, 1.0f) : 0.0f;
+	}
+
+	float Settings::TintBlend() const
+	{
+		return tintEnabled ? ScreenEffectScale() * std::clamp(tintStrength, 0.0f, 1.0f) : 0.0f;
+	}
+
+	void Settings::KeepOriginalBrightness()
+	{
+		tintBrightness = tintContrast = 1.0f;
+		tintCastAmount = 0.0f;
+		washEnabled = false;
+	}
+
 	void Settings::Load()
 	{
 		LoadFrom(kIniPath);
@@ -805,6 +827,7 @@ namespace SS
 
 		Get(table, "vision", "throughWalls", throughWalls);
 		Get(table, "vision", "edgeFalloff", edgeFalloff);
+		Get(table, "vision", "glowEnabled", glowEnabled);
 		Get(table, "vision", "glowStrength", glowStrength);
 		Get(table, "vision", "pulseAmplitude", pulseAmplitude);
 		Get(table, "vision", "pulseFrequency", pulseFrequency);
@@ -1042,6 +1065,8 @@ namespace SS
 		Get(table, "ring", "height", ringHeight);
 		Get(table, "ring", "lead", ringLead);
 
+		Get(table, "effects", "screenEnabled", screenEffectsEnabled);
+		Get(table, "effects", "screenStrength", screenEffectsStrength);
 		Get(table, "tint", "enable", tintEnabled);
 		Get(table, "tint", "useOverride", tintUseOverride);
 		Get(table, "tint", "writeCurrent", tintWriteCurrent);
@@ -1111,6 +1136,7 @@ namespace SS
 		fadeOut = std::clamp(fadeOut, 0.0f, 10.0f);
 		edgeFalloff = std::clamp(edgeFalloff, 0.1f, 8.0f);
 		glowStrength = std::clamp(glowStrength, 0.0f, 4.0f);
+		screenEffectsStrength = std::clamp(screenEffectsStrength, 0.0f, 1.0f);
 		pulseAmplitude = std::clamp(pulseAmplitude, 0.0f, 1.0f);
 		pulseFrequency = std::clamp(pulseFrequency, 0.0f, 20.0f);
 		tintSaturation = std::clamp(tintSaturation, 0.0f, 2.0f);
@@ -1423,6 +1449,8 @@ namespace SS
 		file << "; Higher = thinner rim, lower = the whole object glows.\n";
 		file << "edgeFalloff = " << edgeFalloff << "\n\n";
 		file << "; Multiplies the category colours. Above 1.0 pushes toward white.\n";
+		file << "; Disable object/target-lock highlights without hiding tags or bars.\n";
+		file << "glowEnabled = " << boolean(glowEnabled) << "\n";
 		file << "glowStrength = " << glowStrength << "\n\n";
 		file << "; Throb. Amplitude 0 is a steady glow.\n";
 		file << "pulseAmplitude = " << pulseAmplitude << "\n";
@@ -1502,6 +1530,12 @@ namespace SS
 		file << "; Above 1.0 it keeps going past the last highlight, which reads as\n";
 		file << "; the pulse carrying on into the distance.\n";
 		file << "lead = " << ringLead << "\n\n\n";
+
+		file << "[Effects]\n\n";
+		file << "; Master switch/blend for screen tint and vignette, not object highlights.\n";
+		file << "; 0 leaves the original scene; 1 uses the configured Tint settings.\n";
+		file << "screenEnabled = " << boolean(screenEffectsEnabled) << "\n";
+		file << "screenStrength = " << screenEffectsStrength << "\n\n\n";
 
 		file << "[Tint]\n\n";
 		file << "; Desaturate and darken the world while the sweep runs.\n";

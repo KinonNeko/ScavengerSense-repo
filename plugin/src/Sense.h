@@ -163,6 +163,8 @@ namespace SS
 		std::vector<RE::TESEffectShader*>         _pool;
 		std::unordered_set<RE::TESEffectShader*>  _poolSet;
 		RE::TESImageSpaceModifier*                _imod{ nullptr };
+		bool                                    _legacyTintActive{ false };
+		bool                                    _glowWasEnabled{ true };
 		RE::BGSSoundDescriptorForm*               _sweepSound{ nullptr };
 
 		std::vector<Pending> _pending;

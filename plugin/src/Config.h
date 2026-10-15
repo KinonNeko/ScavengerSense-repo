@@ -428,6 +428,8 @@ namespace SS
 		float fadeOut{ 0.40f };
 
 		// [Vision]
+		bool  glowEnabled{ true };
+		[[nodiscard]] bool ObjectGlowEnabled() const;
 		bool  throughWalls{ true };
 		float edgeFalloff{ 1.6f };
 		float glowStrength{ 1.0f };
@@ -475,6 +477,13 @@ namespace SS
 		float         ringEchoGap{ 0.09f };  // seconds between them
 		float         ringHeight{ 10.0f };   // lift off the ground so it does not z-fight
 		float         ringLead{ 1.35f };     // ring travels this much further than the wave
+
+		// [Effects] - scales both screen grading and vignette, preserving their settings.
+		bool  screenEffectsEnabled{ true };
+		float screenEffectsStrength{ 1.0f };
+		[[nodiscard]] float ScreenEffectScale() const;
+		[[nodiscard]] float TintBlend() const;
+		void KeepOriginalBrightness();
 
 		// [Tint]
 		// Two completely different routes to "the world goes grey".

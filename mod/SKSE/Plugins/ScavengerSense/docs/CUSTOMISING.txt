@@ -100,3 +100,24 @@ gamepad = -1
 Save to INI after menu changes. Existing personal settings override installer
 answers; reinstalling does not overwrite ScavengerSense.ini. No new game,
 BodySlide build or animation/behaviour generation is needed for these changes.
+
+Screen lighting controls (0.10.2)
+-------------------------------
+Look -> Lighting controls: switch screen tint/vignette together, or blend them
+from 0 (original scene) to 1 (your full configured effect). Object glow is
+independent, under Vision. Brightness 1 is neutral; lower darkens and higher
+brightens. Keep original brightness resets brightness/contrast, clears the
+colour cast and disables the dark vignette while retaining desaturation.
+
+[Effects]
+screenEnabled = true
+screenStrength = 0.5
+[Vision]
+glowEnabled = true
+glowStrength = 0.7
+
+Switching object glow off clears this plugin's existing highlights, preserving
+tags and bars. Positive glow-strength changes affect newly highlighted objects.
+The legacy image-space-modifier route applies tint sliders on the next sweep;
+its active modifier is stopped when the screen master is disabled or zero.
+Save to INI after adjusting. Upgrading preserves existing personal settings.
