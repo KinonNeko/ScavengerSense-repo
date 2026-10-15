@@ -1,0 +1,30 @@
+{
+  "changed_install_files": [
+    "README.md",
+    "SKSE/Plugins/ScavengerSense.dll",
+    "SKSE/Plugins/ScavengerSense/docs/CUSTOMISING.txt",
+    "SKSE/Plugins/ScavengerSense/docs/DEPENDENCIES.txt",
+    "SKSE/Plugins/ScavengerSense/docs/中文说明.txt",
+    "SKSE/Plugins/ScavengerSense/presets/KShakes Choice.ini",
+    "SKSE/Plugins/ScavengerSense/presets/Only Sensing.ini",
+    "SKSE/Plugins/ScavengerSense/presets/Sensing and Tracking.ini",
+    "SKSE/Plugins/ScavengerSense/translations/ScavengerSense_english.ini",
+    "SKSE/Plugins/ScavengerSense_chinese.ini",
+    "meta.ini"
+  ],
+  "unchanged_install_files": 20,
+  "personal_ini_sha256": "a0e348e9818d9326008f9aeec0caf49d6b3917900b57b127bb4685c50d83e8f2",
+  "framework_ini_sha256": "f97f2e18cec1fc77d3eb0a648a71e4c070cbaaa039fc1ec7b9dc1894d7a04e9f",
+  "framework_dll_sha256": "0c107ad4c471c904186b68e1b50b10a66311affb40eb0ba2b8fcca36735d55a2",
+  "profiles_preserved": true,
+  "preset_menu_parity": true,
+  "installer": {
+    "installer_routes": 106,
+    "production_config_loads": 230,
+    "native_probe_used": true,
+    "preset_menu_parity_checked": true,
+    "preset_guide_and_choice_contracts": true
+  },
+  "native_suites_passed": 7,
+  "in_game_tested": false
+}

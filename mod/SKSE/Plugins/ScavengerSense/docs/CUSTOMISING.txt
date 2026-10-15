@@ -101,7 +101,7 @@ Save to INI after menu changes. Existing personal settings override installer
 answers; reinstalling does not overwrite ScavengerSense.ini. No new game,
 BodySlide build or animation/behaviour generation is needed for these changes.
 
-Screen lighting controls (0.10.2)
+Screen lighting controls (0.10.1 beta)
 -------------------------------
 Look -> Lighting controls: switch screen tint/vignette together, or blend them
 from 0 (original scene) to 1 (your full configured effect). Object glow is
@@ -122,7 +122,7 @@ The legacy image-space-modifier route applies tint sliders on the next sweep;
 its active modifier is stopped when the screen master is disabled or zero.
 Save to INI after adjusting. Upgrading preserves existing personal settings.
 
-Actor-only smoothing and dual equipment (0.10.3)
+Actor-only smoothing and dual equipment (0.10.1 beta)
 -----------------------------------------------
 Names -> Name tags -> Smooth characters and creatures only defaults ON.
 People, animals and creatures retain your smoothing duration; static objects
@@ -140,7 +140,7 @@ represented separately. A two-handed weapon remains one icon. Names, combat
 chips and the player stats row reserve the paired width. Existing marker-icon
 priority and race-emblem placement rules are retained.
 
-Installer/preset loading (0.10.4)
+Installer/preset loading (0.10.1 beta)
 --------------------------------
 All three shipped presets explicitly store screenEnabled/screenStrength,
 glowEnabled and smoothingActorsOnly. KShakes keeps its tuned 0.26 s; the two
@@ -149,3 +149,28 @@ personal INI. Loading a named preset resets defaults and ignores installer
 fragments/previous values before applying that file. Save to INI afterward.
 The Controls page explains lighting, smoothing, paired equipment and upgrade
 precedence for every installer route. See the root README for the full flow.
+
+
+TRACK APPEARANCE / BOOT OR PAW PNG
+Tracks -> Drawing -> Drawn as -> Footprints selects the existing alternating
+prints. KShakes Choice already uses them. The custom installer offers both
+chevrons and footprints; menu controls apply to any preset.
+
+[Tracks]
+style = footprints
+printTexture = tracks/my-boot.png
+guideLine = false
+printScale = 1.0
+printEvery = 1
+
+Put that example image at SKSE/Plugins/ScavengerSense/icons/tracks/my-boot.png.
+Use transparent RGBA on a square canvas, with a RIGHT boot/paw print pointing
+UP. The renderer rotates it along travel and mirrors the left print. White
+pixels take the trail colour; alpha keeps the background transparent. Use the
+Print size (0.5..2.5) and Print spacing (1..4 recorded marks) sliders to tune it.
+guideLine=false removes the faint line connecting illuminated marks.
+Empty/missing/unreadable PNGs use the existing built-in shape. The image cache
+loads each path once; restart Skyrim after replacing an already used image.
+This single image applies to every recorded target. These are projected
+tracking overlays, not permanent terrain decals or historical tracks generated
+before a target was recorded. No additional artwork is bundled.

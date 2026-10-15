@@ -1,6 +1,6 @@
 # Scavenger Sense
 
-**0.10.4 beta development build** — by KShakes.
+**0.10.1 beta** — by KShakes.
 
 Press a key to send a sensing wave through nearby loot and people, with optional
 name tags, tracking and HUD bars. This local build has passed offline checks;
@@ -268,3 +268,20 @@ font's OFL sits beside it in SKSE/Plugins/fonts/.
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
+
+
+## Track appearance
+
+Tracks -> Drawing -> Drawn as: choose **Footprints** for alternating prints
+instead of chevrons. KShakes Choice already selects footprints. Print size and
+Print spacing are adjustable. Turn **Connect lit tracks** off for separate
+prints without the connecting glow. The custom installer offers both styles.
+
+For custom boot soles or paws, place a transparent square PNG below
+`SKSE/Plugins/ScavengerSense/icons` and enter its relative path in **Footprint PNG**.
+Draw a right print with toes pointing UP; left prints mirror automatically.
+White artwork takes the trail colour. Blank/missing files use built-in prints.
+Restart Skyrim after replacing artwork already loaded in this session.
+These are projected tracking marks, not permanent ground decals; recording
+still starts at first contact and only follows loaded targets. No custom boot
+artwork or per-species texture selection is bundled. Save to INI after changes.

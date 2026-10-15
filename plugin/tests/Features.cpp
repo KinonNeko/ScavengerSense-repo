@@ -29,6 +29,9 @@ int main() try {
 	saved.hideMenus = "HUD Menu, CustomCaseMenu";
 	saved.hideHudParts = "MyWidget.Path, AnotherWidget";
 	saved.arousalIcon = "skins/flame.png";
+	saved.trailStyle = SS::TrailStyle::kFootprints;
+	saved.trailPrintTexture = "tracks/boot.png";
+	saved.trailGuideLine = false;
 	saved.barNumbers = SS::BarNumbers::kOutOfMax;
 	saved.barNumbersInside = true;
 	saved.barNumberScale = 1.75f;
@@ -71,6 +74,11 @@ int main() try {
 	Check(loaded.hideHealth && loaded.hideEnemyHealth && loaded.hideShout, "other HUD flags persist");
 	Check(loaded.hideMenus == saved.hideMenus && loaded.hideHudParts == saved.hideHudParts, "case-sensitive clip paths survive");
 	Check(loaded.arousalIcon == saved.arousalIcon, "custom arousal PNG survives");
+	Check(loaded.trailStyle == SS::TrailStyle::kFootprints && loaded.trailPrintTexture == saved.trailPrintTexture && !loaded.trailGuideLine,
+		"footprint PNG and guide-line choice survive save/load");
+	SS::Settings trackDefaults;
+	Check(trackDefaults.trailPrintTexture.empty() && trackDefaults.trailGuideLine,
+		"old settings keep built-in art and connecting line by default");
 	Check(loaded.barNumbers == SS::BarNumbers::kOutOfMax && loaded.barNumbersInside && loaded.barNumberScale == 1.75f, "NPC numbers persist");
 	for (int i = 0; i < 3; ++i) {
 		const auto& a = loaded.playerBarStyles[i]; const auto& b = saved.playerBarStyles[i];

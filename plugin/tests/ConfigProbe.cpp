@@ -31,6 +31,8 @@ int main(int argc, char** argv)
 		{"tint.overlaystrength",number(s.washStrength)}, {"categories.actor",boolean(s.categories[static_cast<unsigned>(SS::Category::kActor)].enabled)},
 		{"categories.actorfilter",SS::ActorFilterName(s.actorFilter)}, {"tracks.enabled",boolean(s.trailsEnabled)},
 		{"tracks.keymode",track}, {"hotkey.trigger",SS::TriggerName(s.trigger)}, {"hotkey.holdtime",number(s.holdTime)},
+		{"tracks.style",s.trailStyle == SS::TrailStyle::kFootprints ? "footprints" : "chevrons"},
+		{"tracks.printtexture",s.trailPrintTexture}, {"tracks.guideline",boolean(s.trailGuideLine)},
 		{"self.overhead",boolean(s.selfBarsOverhead)}, {"vitals.actors",boolean(s.vitalsActors)},
 		{"vitals.combat",boolean(s.combatBars)}, {"vitals.combatwhen",combat}, {"sound.enabled",boolean(s.soundEnabled)},
 		{"player.weaponicons",boolean(s.weaponIcons)}, {"player.weaponenchant",boolean(s.weaponEnchant)},

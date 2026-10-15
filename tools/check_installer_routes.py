@@ -32,7 +32,8 @@ def ini_values(path):
 
 
 required_preset_keys = {'effects.screenenabled', 'effects.screenstrength',
-                        'vision.glowenabled', 'labels.smoothingactorsonly'}
+                        'vision.glowenabled', 'labels.smoothingactorsonly',
+                        'tracks.style', 'tracks.printtexture', 'tracks.guideline'}
 for name in ('KShakes Choice.ini', 'Only Sensing.ini', 'Sensing and Tracking.ini'):
     values = ini_values(ROOT / 'mod/SKSE/Plugins/ScavengerSense/presets' / name)
     assert required_preset_keys <= values.keys(), f'{name} omits the current display settings'
@@ -152,6 +153,8 @@ def simulate(language, preset, controls, override=None):
             '感知期间的画面效果': ('effects.screenenabled', ('true', 'true', 'true', 'false')),
             'Sweep chime': ('sound.enabled', ('true', 'false')),
             '感知提示音': ('sound.enabled', ('true', 'false')),
+            'Track appearance': ('tracks.style', ('chevrons', 'footprints')),
+            '足迹外观': ('tracks.style', ('chevrons', 'footprints')),
         }
         for name, (key, expected) in contracts.items():
             if override and override[0] == name:

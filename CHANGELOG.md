@@ -8,6 +8,21 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+## 0.10.1 beta — consolidated release candidate, 2026-10-15
+
+- Include all feedback, framework ABI, lighting, actor-only stabilisation,
+  equipment and installer/preset work listed in the local development entries
+  below. Internal 0.10.2–0.10.4 numbers were never published; the author selected
+  0.10.1 beta for this combined package. No features were removed.
+- Add an optional footprint PNG (right print, toes up; left mirrored), rotated
+  along the trail with existing print size/spacing and colour/fade. Empty or
+  unreadable files fall back to the existing procedural footprints.
+- Add a connecting-glow-line switch for separate marks. Offer chevrons or
+  footprints in the custom installer; update both languages and every preset.
+- Compile Release x64 and run native/offline package checks. Gameplay and
+  actual runtime startup remain unverified; regeneration-rate numbers remain
+  outside this release. See the dated release report for exact evidence.
+
 ## 0.10.4 beta — presets and installation guide, 2026-10-15 (not published)
 
 - Synchronise lighting/glow/actor-smoothing keys in all three shipped presets;

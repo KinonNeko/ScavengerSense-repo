@@ -25,7 +25,8 @@
     "Font for non-Latin item names / 非拉丁文字体": "非拉丁文字体",
     "Add-ons that install files": "需要安装文件的扩展",
     "Add-ons already built in - nothing to install": "内置扩展（无需安装额外文件）",
-    "Display settings and upgrades": "显示设置与升级"
+    "Display settings and upgrades": "显示设置与升级",
+    "Track appearance": "足迹外观"
   },
   "options": {
     "How would you like to begin / KShakes's Choice - everything, tuned": {
@@ -218,11 +219,19 @@
     },
     "Display settings and upgrades / Brightness, stabilisation and equipment": {
       "name": "光效、标签稳定与双持图标",
-      "description": "外观 → 光效调节：屏幕光效总开关、0–1 强度和“保持原始明暗”；视觉组另有物体发光开关。\n\n名牌 → 名称标签：“仅平滑人物和动物”默认开启。作者预设为 0.26 秒，两个感知预设为 0（不平滑）；需要时可增加人物平滑时间，物品直接跟随镜头。\n\n名牌 → 关于所有人可开启装备图标，左右手武器、法术、法杖、盾牌和火把分别显示；双手武器只显示一个。状态条页可调整玩家/NPC 各条布局、数字与 PNG 皮肤。"
+      "description": "外观 → 光效调节：屏幕光效总开关、0–1 强度和“保持原始明暗”；视觉组另有物体发光开关。\n\n名牌 → 名称标签：“仅平滑人物和动物”默认开启。作者预设为 0.26 秒，两个感知预设为 0（不平滑）；需要时可增加人物平滑时间，物品直接跟随镜头。\n\n名牌 → 关于所有人可开启装备图标，左右手武器、法术、法杖、盾牌和火把分别显示；双手武器只显示一个。状态条页可调整玩家/NPC 各条布局、数字与 PNG 皮肤。\n\n追踪 → 绘制：可选箭头或脚印，脚印支持自定义靴印/爪印 PNG、大小与间距，连接光线可关闭。作者预设已使用脚印；两个感知预设保留箭头。"
     },
     "Display settings and upgrades / Existing settings and loading presets": {
       "name": "升级、已有设置与加载预设",
       "description": "安装器只提供初始值，已有个人 ScavengerSense.ini 优先，重新安装不会覆盖它。更换安装选项时请替换旧安装内容，避免合并后残留未选中的 setup 配置；放在模组目录内的自定义规则/图片需先备份。\n\n在设置 → 预设中加载预设，会先恢复内置默认值，再应用预设文件。未写入的项目不会保留之前的设置或安装选择；加载后检查语言和按键，再保存到 INI。\n\n中文显示还需要在框架配置中设置 MainFont.ttf 与 EnableChinese=true；勾选字体只安装文件，不自动修改框架配置。语言包和 PNG 自定义方法见随包 README 与 docs。"
+    },
+    "Track appearance / Directional chevrons": {
+      "name": "方向箭头",
+      "description": "用指向行进方向的箭头显示路线。这是内置默认样式。"
+    },
+    "Track appearance / Alternating footprints": {
+      "name": "左右交替脚印",
+      "description": "用左右交替的脚印替代箭头，在追踪 → 绘制中调整大小和间距。\n\n可将透明 PNG 放入 SKSE/Plugins/ScavengerSense/icons，在“脚印 PNG”填写相对路径，使用靴底、爪印或自己的图案。画布为正方形，绘制脚尖朝上的右脚，左脚自动镜像。关闭“连接发光足迹”可去掉连接光线。\n\n这是追踪显示层，并非永久地面贴花；未附带自定义图片。"
     }
   }
 }

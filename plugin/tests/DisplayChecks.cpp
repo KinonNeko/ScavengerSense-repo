@@ -1,5 +1,6 @@
 #include "../src/AnchorSmoother.h"
 #include "../src/WeaponIconDrawing.h"
+#include "../src/TrailDrawing.h"
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -82,6 +83,19 @@ int main() try {
 	for (unsigned k=1;k<static_cast<unsigned>(WeaponKind::kCount);++k) {
 		const int before=primitives; DrawWeaponIcon(nullptr,static_cast<WeaponKind>(k),{50,50},20,0xFFFFFFFF);
 		Check(primitives>before,"every supported kind has drawable geometry");
+	}
+	for (const auto direction : { ImVec2{1,0}, ImVec2{0,1}, ImVec2{-1,0}, ImVec2{0,-1}, ImVec2{.6f,.8f} }) {
+		const auto right = FootprintQuad({100,200}, direction, 20, false);
+		const auto left = FootprintQuad({100,200}, direction, 20, true);
+		for (int i = 0; i < 4; ++i) {
+			Check(right.points[i].x == left.points[i].x && right.points[i].y == left.points[i].y &&
+				right.uv[i].x == 1-left.uv[i].x && right.uv[i].y == left.uv[i].y, "left footprint mirrors art without changing quad");
+		}
+		const ImVec2 top{(right.points[0].x+right.points[1].x)*.5f, (right.points[0].y+right.points[1].y)*.5f};
+		Check(std::abs(top.x-100-direction.x*13)<.001f && std::abs(top.y-200-direction.y*13)<.001f,
+			"image toes point along travel for every tested direction");
+		const float dx=right.points[1].x-right.points[0].x, dy=right.points[1].y-right.points[0].y;
+		Check(std::abs(dx*dx+dy*dy-26*26)<.01f, "footprint square preserves artwork aspect");
 	}
 	svg.str(""); svg.clear();
 	svg << "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"960\" height=\"760\" viewBox=\"0 0 960 760\">\n<rect width=\"960\" height=\"760\" fill=\"#161c26\"/>\n";

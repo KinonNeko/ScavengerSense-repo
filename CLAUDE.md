@@ -2,9 +2,9 @@
 
 ## 2026-10-15 handoff update
 
-The following older notes remain useful historical context. The current local
-development version is **0.10.4 beta**, not yet published. Read
-`reports/2026-10-15-0.10.4-preset-installer.md` for current dependencies, corrections,
+The following older notes remain useful historical context. The current release candidate
+is **0.10.1 beta** (all local 0.10.2–0.10.4 work consolidated). Read
+`reports/2026-10-15-release-0.10.1-beta.md` for current dependencies, corrections,
 validation and limits; the 0.10.0 report is historical.
 `AGENTS.md` is the Codex entrypoint. `tools/build.ps1 -Test` uses the installed
 VS toolchain and preserves the build cache. Deployment now detects the selected

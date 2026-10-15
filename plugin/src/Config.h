@@ -706,6 +706,8 @@ namespace SS
 		// door.
 		bool         trailsForgetMarked{ false };
 		TrailStyle   trailStyle{ TrailStyle::kChevrons };
+		std::string  trailPrintTexture;  // optional right footprint PNG under icons/, toes up
+		bool         trailGuideLine{ true };
 		// The trail key for the single-key layout. 258 is the middle mouse
 		// button in SKSE's macro space - ready the moment someone switches
 		// away from the all-in-one default, where the sweep key does it all.

@@ -219,6 +219,9 @@ autoCapture = true
 enabled = true
 """),
 
+    "61 Tracks - chevrons": ("77-trail-style.ini", "directional chevrons", "[Tracks]\nstyle = chevrons"),
+    "62 Tracks - footprints": ("77-trail-style.ini", "alternating footprints", "[Tracks]\nstyle = footprints"),
+
     # The quick-start presets are only bundles of the same answers the
     # detailed pages give one at a time. (KShakes's Choice is special: its
     # fragment is the author's whole INI, written by write_payload from
@@ -673,6 +676,19 @@ def build_xml():
                "58 Tracking - off"),
     ])
 
+    track_style = group("Track appearance", "SelectExactlyOne", [
+        plugin("Directional chevrons",
+               "Arrow-shaped marks pointing along the trail. This is the built-in default.",
+               "61 Tracks - chevrons", type_="Recommended"),
+        plugin("Alternating footprints",
+               "Left and right prints instead of arrows. Tracks -> Drawing controls print size and spacing. "
+               "For boot soles, paws or your own design, put a transparent PNG under "
+               "SKSE/Plugins/ScavengerSense/icons and enter its relative path in Footprint PNG. "
+               "Use a square right print with toes pointing up; left prints are mirrored. "
+               "Disable Connect lit tracks to remove the connecting glow. These are projected tracking marks, "
+               "not permanent ground decals. No custom artwork is bundled.", "62 Tracks - footprints"),
+    ])
+
     capture = group("Who leaves footprints", "SelectExactlyOne", [
         plugin("Anyone the sense has touched",
                "Recording starts when the sense first sees somebody - sweep-lit, fought, "
@@ -742,7 +758,10 @@ button.""",
                "characters if wanted; static items follow the camera directly.\n\n"
                "Equipment icons show left/right weapons, spells, staves, shield or torch separately; "
                "two-handed weapons use one icon. Enable them in Names -> About everyone. Bars -> Bar style offers "
-               "separate player/NPC layouts, numbers and optional PNG skins.", type_="NotUsable"),
+               "separate player/NPC layouts, numbers and optional PNG skins.\n\n"
+               "Tracks -> Drawing: choose Chevrons or Footprints. Footprints support your own boot/paw PNG "
+               "and size/spacing controls; Connect lit tracks can remove the joining glow. "
+               "KShakes already uses footprints; the two sensing presets retain chevrons.", type_="NotUsable"),
         plugin("Existing settings and loading presets",
                "Installer answers are starting values. Existing ScavengerSense.ini settings take precedence; "
                "reinstalling does not overwrite them. When changing installer answers, use a clean replacement "
@@ -755,7 +774,7 @@ button.""",
                "and docs for translation packs and custom PNGs.", type_="NotUsable"),
     ])
     xml += step("Controls / 按键", [activation, display_guide]) + "\n"
-    xml += step("Tracking / 足迹追踪", [tracking, capture, trailkey], when=("custom", "on")) + "\n"
+    xml += step("Tracking / 足迹追踪", [tracking, track_style, capture, trailkey], when=("custom", "on")) + "\n"
     xml += step("How it should look / 外观",
         [tags, effect, lights, people, hidehud], when=("custom", "on")) + "\n"
     xml += step("Vitals bars and sound / 状态条与提示音",

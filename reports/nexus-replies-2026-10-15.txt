@@ -67,3 +67,15 @@ shared-key layout reserved those gestures for tracking. The next build adds
 “Single press sense” and “Hold to sense” shortcuts on the Keys page to select
 a separate tracking layout. Single press then starts sensing without waiting
 for a double tap.
+
+9. Medieval tracks / footprint texture replacers
+
+Yes. Tracks -> Drawing -> Drawn as -> Footprints already offers alternating
+prints instead of arrows; KShakes Choice uses them. In 0.10.1 beta I've also
+added an optional Footprint PNG, so you can use boot soles, paws or your own
+artwork. Put a transparent square PNG under SKSE/Plugins/ScavengerSense/icons
+and enter its relative path. Draw a right print pointing up; the left print
+is mirrored automatically. Size and spacing are adjustable, and Connect lit
+tracks can turn off the joining glow. No custom boot artwork is bundled.
+These are projected tracking marks rather than permanent ground decals.
+The menu and bundled customisation guide explain the setup.

@@ -7,6 +7,7 @@
 #include "Timing.h"
 #include "AnchorSmoother.h"
 #include "WeaponIconDrawing.h"
+#include "TrailDrawing.h"
 
 #include "ImGuiCompat.h"
 
@@ -1844,6 +1845,8 @@ namespace SS
 		// Chevron size comes from the screen-space gap between samples, which
 		// is perspective for free - far marks sit close together on screen.
 		if (!trailSnapshot.empty()) {
+			void* printTexture = settings->trailStyle == TrailStyle::kFootprints ?
+				Marks::GetSingleton()->IconTexture(settings->trailPrintTexture) : nullptr;
 			auto* trailFont = igGetFont();
 			const auto trailFontSize = std::max(10.0f,
 				(settings->labelFontSize > 0.0f ? settings->labelFontSize : igGetFontSize() * 0.5f) * 0.8f);
@@ -1902,7 +1905,7 @@ namespace SS
 
 							// A sweep lights the scent itself - and a marked
 							// quarry's trail carries its own light always.
-							if (lit) {
+							if (lit && settings->trailGuideLine) {
 								ImDrawList_AddLine(draw, prev, at,
 									PackColour(trail.colour, a * 0.20f), s * 0.6f);
 							}
@@ -1922,28 +1925,36 @@ namespace SS
 									const float ny = ux * side;
 									const ImVec2 pad{ at.x + nx * ps * 0.45f,
 										at.y + ny * ps * 0.45f };
-									const float la = ps * 0.42f;  // half length, along travel
-									const float wa = ps * 0.26f;  // half width, across
+									if (printTexture) {
+										const auto image = FootprintQuad(pad, { ux, uy }, ps, side < 0);
+										ImDrawList_AddImageQuad(draw, printTexture,
+											image.points[0], image.points[1], image.points[2], image.points[3],
+											image.uv[0], image.uv[1], image.uv[2], image.uv[3],
+											PackColour(trail.colour, a));
+									} else {
+										const float la = ps * 0.42f;  // half length, along travel
+										const float wa = ps * 0.26f;  // half width, across
 
-									ImVec2 sole[6];
-									for (int k = 0; k < 6; ++k) {
-										const float t = 6.2831853f * static_cast<float>(k) / 6.0f;
-										const float along = std::cos(t) * la;
-										// Wider toward the toes, pinched at the heel.
-										const float w = wa * (0.75f + 0.25f * (along / la));
-										const float across = std::sin(t) * w;
-										sole[k] = ImVec2{ pad.x + ux * along + nx * across,
-											pad.y + uy * along + ny * across };
-									}
-									ImDrawList_AddConvexPolyFilled(draw, sole, 6,
-										PackColour(trail.colour, a));
-									for (int toe = -1; toe <= 1; ++toe) {
-										const float across = static_cast<float>(toe) * wa * 0.6f;
-										ImDrawList_AddCircleFilled(draw,
-											ImVec2{ pad.x + ux * la * 1.4f + nx * across,
-												pad.y + uy * la * 1.4f + ny * across },
-											std::max(1.0f, ps * 0.09f),
-											PackColour(trail.colour, a * 0.9f), 6);
+										ImVec2 sole[6];
+										for (int k = 0; k < 6; ++k) {
+											const float t = 6.2831853f * static_cast<float>(k) / 6.0f;
+											const float along = std::cos(t) * la;
+											// Wider toward the toes, pinched at the heel.
+											const float w = wa * (0.75f + 0.25f * (along / la));
+											const float across = std::sin(t) * w;
+											sole[k] = ImVec2{ pad.x + ux * along + nx * across,
+												pad.y + uy * along + ny * across };
+										}
+										ImDrawList_AddConvexPolyFilled(draw, sole, 6,
+											PackColour(trail.colour, a));
+										for (int toe = -1; toe <= 1; ++toe) {
+											const float across = static_cast<float>(toe) * wa * 0.6f;
+											ImDrawList_AddCircleFilled(draw,
+												ImVec2{ pad.x + ux * la * 1.4f + nx * across,
+													pad.y + uy * la * 1.4f + ny * across },
+												std::max(1.0f, ps * 0.09f),
+												PackColour(trail.colour, a * 0.9f), 6);
+										}
 									}
 								}
 							} else {

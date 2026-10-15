@@ -937,6 +937,8 @@ namespace SS
 		Get(table, "tracks", "clearOnTransition", trailsClearOnTransition);
 		Get(table, "tracks", "forgetMarked", trailsForgetMarked);
 		Get(table, "tracks", "style", trailStyle);
+		Get(table, "tracks", "printTexture", trailPrintTexture);
+		Get(table, "tracks", "guideLine", trailGuideLine);
 		Get(table, "tracks", "key", trailKey);
 		Get(table, "tracks", "gamepad", trailGamepad);
 		Get(table, "tracks", "range", trackRange);
@@ -1750,6 +1752,11 @@ namespace SS
 		file << "forgetMarked = " << boolean(trailsForgetMarked) << "\n";
 		file << "; chevrons or footprints.\n";
 		file << "style = " << kTrailStyleNames[static_cast<std::size_t>(trailStyle)] << "\n";
+		file << "; Optional right footprint PNG under ScavengerSense/icons, toes up.\n";
+		file << "; Footprints style only; blank/missing uses the built-in print.\n";
+		file << "printTexture = " << trailPrintTexture << "\n";
+		file << "; Connect illuminated marks with a faint guide line.\n";
+		file << "guideLine = " << boolean(trailGuideLine) << "\n";
 		file << "; A key of its own: press to hide or show every trail; press while\n";
 		file << "; aiming at somebody to start or stop tracking them.\n";
 		file << "key = " << trailKey << "\n";

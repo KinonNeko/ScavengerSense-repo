@@ -1443,6 +1443,8 @@ namespace SS::Menu
 		}
 
 		// Breadcrumbs behind anyone the sense has touched.
+		void PngSetting(const char* a_label, std::string& a_value);
+
 		void DrawTracks(Settings& a_settings)
 		{
 			if (!Header(T("Tracks"))) {
@@ -1481,6 +1483,12 @@ namespace SS::Menu
 					"Chevrons point the way they went. Footprints alternate left and\n"
 					"right like real tracks, with the toes ahead.");
 				if (a_settings.trailStyle == TrailStyle::kFootprints) {
+					PngSetting(T("Footprint PNG"), a_settings.trailPrintTexture);
+					Help("Optional PNG under SKSE/Plugins/ScavengerSense/icons.\n"
+						"Draw a right boot or paw print pointing UP on a transparent\n"
+						"square canvas; the left print is mirrored automatically. White\n"
+						"art takes the trail colour. Blank or missing uses built-in prints.\n"
+						"Restart the game after replacing an image that was already loaded.");
 					igSliderFloat(T("Print size"), &a_settings.trailPrintScale, 0.5f, 2.5f, "%.2fx", 0);
 					int printEvery = a_settings.trailPrintEvery;
 					if (igSliderInt(T("Print spacing"), &printEvery, 1, 4, "%d", 0)) {
@@ -1491,6 +1499,9 @@ namespace SS::Menu
 						"every mark; higher spreads the prints out.");
 				}
 
+				igCheckbox(T("Connect lit tracks"), &a_settings.trailGuideLine);
+				Help("Turn this off for separate prints without the connecting glow.\n"
+					"Tracks are a projected overlay, not permanent ground decals.");
 				igCheckbox(T("Name the trails"), &a_settings.trailNames);
 				Help(
 					"A small label at the fresh end of the trail - whose footprints\n"
