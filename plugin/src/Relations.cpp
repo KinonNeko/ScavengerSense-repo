@@ -64,7 +64,7 @@ namespace SS
 		}
 
 		auto* vm = RE::SkyrimVM::GetSingleton();
-		auto* impl = vm ? vm->impl.get() : nullptr;
+		auto* impl = vm ? vm->GetVMRuntimeData().impl.get() : nullptr;
 		if (!impl) {
 			logger::warn("relations: no script VM, cannot set a rank");
 			return false;

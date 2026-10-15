@@ -1,0 +1,39 @@
+SCAVENGER SENSE 0.10 — DEPENDENCIES AND STARTUP ERRORS
+
+Requires the included ScavengerSense.esp enabled, a matching SKSE64 build,
+Address Library for the exact Skyrim executable, SKSE Menu Framework 3.13+
+with the HUD exports, and the Microsoft Visual C++ x64 runtime.
+TrueHUD and SLO Aroused NG integrations are optional.
+
+1.7.104:
+The old CommonLib classified minor version 7 as SE and requested
+version-1-7-104-0.bin. CommonLib 12.1.0 classifies 1.6+ as AE, requests
+versionlib-1-7-104-0.bin and supports Address Library format 5. The plugin
+has been rebuilt with that library, including the newer SkyrimVM accessor.
+You still need the actual Address Library file and a matching SKSE install.
+
+1.6.1170:
+The exact “DLL failed” message matters. An absent/old SKSE Menu Framework
+can fail Windows DLL import resolution before this plugin can write a log.
+An Address Library error is a separate failure. The 0.10 development build
+was checked against the installed Menu Framework 3.14 and all 73 imported
+functions, plus HUD registration, were found. Do not install the framework's
+legacy 2024 1.x files merely because an old repository has that name.
+
+Use these primary references to select runtime downloads:
+SKSE: https://skse.silverlock.org/
+Address Library: https://www.nexusmods.com/skyrimspecialedition/mods/32444
+Menu Framework: https://www.nexusmods.com/skyrimspecialedition/mods/120352
+CommonLib: https://github.com/alandtse/CommonLibSSE-NG/releases/tag/v12.1.0
+
+If startup still fails, attach the complete message, skse64.log and, if
+created, ScavengerSense.log or Data/SKSE/Plugins/ScavengerSense-diag.log.
+Under MO2 the latter is normally in overwrite.
+
+Verification on 2026-10-15:
+Release x64 compiled. Offline native tests passed for executable versions
+1.5.97, 1.6.1170 and 1.7.104: runtime classification and VM member offsets.
+The 1.7.104 probe also used the production filename selection and format-5
+loader with a synthetic address file in an isolated test directory.
+Those tests do not launch Skyrim, SKSE or an actual user load order. Full
+in-game compatibility, HUD visibility and appearance remain to be tested.

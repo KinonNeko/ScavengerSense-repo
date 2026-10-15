@@ -1,0 +1,51 @@
+SCAVENGER SENSE 0.10 — TRANSLATION PACKS
+
+No C++ build or ESP edit is needed to translate the settings menu.
+
+1. Copy ../translations/ScavengerSense_english.ini next to ScavengerSense.dll.
+2. Rename it ScavengerSense_french.ini, ScavengerSense_german.ini, etc.
+   The identifier uses lowercase a-z, digits, underscore or hyphen.
+3. Keep [Translation]. Save as UTF-8; a UTF-8 BOM is accepted.
+4. Translate the RIGHT side of each English text=translation line only.
+   Keep the English key, including punctuation, spaces and any ## widget ID.
+   Write a literal \n for a newline, \t for a tab, \\ for a backslash,
+   and \= for an equals sign inside an English key.
+5. In Setup, press “Rescan language files”, then choose the new identifier
+   in “Menu language”. Rescan also reloads the selected language's text.
+   Save to INI to keep the selection. Alternatively set [General]
+   language = french in your personal ScavengerSense.ini and restart.
+
+Example:
+[Translation]
+Menu language=Langue du menu
+Save to INI=Enregistrer dans le fichier INI
+
+Missing or blank translations fall back to English. Existing Chinese packs
+still work. Rule files, presets and the English template in its subfolder
+are not offered as languages. Do not translate filenames or INI setting keys.
+
+Item/NPC names come from the game. Titles and custom marker names belong
+to their own rule INIs. Diagnostic logs are intended for troubleshooting.
+This menu translation does not replace Skyrim's game translation.
+
+FONT SUPPORT
+The framework must load a font containing the language's glyphs and enable
+the corresponding glyph ranges. Choosing a language cannot add missing glyphs.
+The optional Noto Sans SC font covers Latin and GB2312 Chinese; it is not a
+universal Japanese/Korean/Cyrillic/Thai font. Configure SKSE Menu Framework
+with an appropriate font for those scripts. Font replacement needs a restart.
+
+UPDATING A TRANSLATION (SOURCE REPOSITORY)
+python tools/check_translations.py --merge path/to/ScavengerSense_french.ini
+    Appends missing keys once, with blank values. Existing translations and
+    comments remain intact; fill in the new right-hand sides.
+python tools/check_translations.py --language path/to/ScavengerSense_french.ini
+    Reports missing/blank translations. Old keys can remain for compatibility.
+python tools/check_translations.py --template path/to/new-English-template.ini
+    Generates all current English keys from the source.
+
+INSTALLER TRANSLATION
+The installer asks for English or Chinese on its first page. Its Chinese
+copy is maintained in fomod/installer_chinese.json and reused every build.
+New options without a Chinese entry fail the build. The installer language
+also selects the initial menu language, but a saved personal INI still wins.

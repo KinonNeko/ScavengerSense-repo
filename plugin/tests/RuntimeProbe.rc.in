@@ -1,0 +1,20 @@
+#include <winver.h>
+1 VERSIONINFO
+ FILEVERSION @PROBE_MAJOR@,@PROBE_MINOR@,@PROBE_PATCH@,0
+ PRODUCTVERSION @PROBE_MAJOR@,@PROBE_MINOR@,@PROBE_PATCH@,0
+ FILETYPE VFT_APP
+BEGIN
+ BLOCK "StringFileInfo"
+ BEGIN
+  BLOCK "040904B0"
+  BEGIN
+   VALUE "FileDescription", "Scavenger Sense runtime classification test\0"
+   VALUE "FileVersion", "@PROBE_MAJOR@.@PROBE_MINOR@.@PROBE_PATCH@.0\0"
+   VALUE "ProductVersion", "@PROBE_MAJOR@.@PROBE_MINOR@.@PROBE_PATCH@.0\0"
+  END
+ END
+ BLOCK "VarFileInfo"
+ BEGIN
+  VALUE "Translation", 0x409, 1200
+ END
+END

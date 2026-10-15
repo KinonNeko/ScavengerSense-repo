@@ -16,6 +16,8 @@ namespace SS
 		[[nodiscard]] const char* T(const char* a_english);
 
 		[[nodiscard]] std::size_t Count();
+		// Discover installed language files, including user-created packs.
+		[[nodiscard]] std::vector<std::string> Languages();
 	}
 
 	// Converts a game string to UTF-8, which is what ImGui expects. Chinese and

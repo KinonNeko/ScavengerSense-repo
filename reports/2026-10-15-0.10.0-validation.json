@@ -1,0 +1,60 @@
+{
+  "inspection_date": "2026-10-15",
+  "base_commit": "662f3e46fd7dae3d6913b8b838edae9f47d45be7",
+  "package": {
+    "version": "0.10.0.0",
+    "archive": "E:\\dev\\ScavengerSense\\ScavengerSense-0.10.0-beta.zip",
+    "archive_bytes": 16614240,
+    "archive_sha256": "0dd314072115b150ba5b9e880c256598ea96c11366656816cb1fdb85463ae8f9",
+    "archive_files": 64,
+    "dll_sha256": "39b4f276b1b22e2a02ef7613136e9bf364e21a80c8f1876177e461f1310bd723",
+    "esp_sha256": "b9b6c75f39a8ac58379c39d7fd8f5c029a97f6fe6bb980d0c360992e11b249bf"
+  },
+  "deployment": {
+    "changed_existing_files": [
+      "meta.ini",
+      "SKSE/Plugins/ScavengerSense.dll",
+      "SKSE/Plugins/ScavengerSense_chinese.ini"
+    ],
+    "original_files_checked": 25,
+    "personal_ini_preserved": true,
+    "profile_files_preserved": true,
+    "installed_dll_matches_build": true
+  },
+  "binary": {
+    "version": "0.10.0.0",
+    "x64": true,
+    "framework_imports_checked": 73,
+    "imports": [
+      "KERNEL32.dll",
+      "MSVCP140.dll",
+      "SHELL32.dll",
+      "SKSEMenuFramework.dll",
+      "USER32.dll",
+      "VCRUNTIME140.dll",
+      "VCRUNTIME140_1.dll",
+      "VERSION.dll",
+      "api-ms-win-crt-convert-l1-1-0.dll",
+      "api-ms-win-crt-filesystem-l1-1-0.dll",
+      "api-ms-win-crt-heap-l1-1-0.dll",
+      "api-ms-win-crt-locale-l1-1-0.dll",
+      "api-ms-win-crt-math-l1-1-0.dll",
+      "api-ms-win-crt-runtime-l1-1-0.dll",
+      "api-ms-win-crt-stdio-l1-1-0.dll",
+      "api-ms-win-crt-string-l1-1-0.dll",
+      "api-ms-win-crt-time-l1-1-0.dll",
+      "ole32.dll"
+    ]
+  },
+  "checks": {
+    "ctest_passed": 4,
+    "ctest_total": 4,
+    "native_feature_assertions": 32,
+    "installer_routes": 102,
+    "current_translation_keys": 626,
+    "xsd_passed": true,
+    "zip_crc_and_member_bytes_passed": true,
+    "in_game_verified": false
+  },
+  "schema_sha256": "4d7d7deeaf013d4626cb365328fc09ffce78315cf1fc128a497c82516fb6b157"
+}

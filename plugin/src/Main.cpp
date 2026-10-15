@@ -381,7 +381,7 @@ namespace SS
 // had counted, saying 0.8 while the plugin declared 0.9.
 namespace
 {
-	constexpr REL::Version kVersion{ 0, 9, 6, 0 };
+	constexpr REL::Version kVersion{ 0, 10, 0, 0 };
 }
 
 SKSEPluginInfo(
@@ -398,7 +398,8 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	SKSE::Init(a_skse, false);
 	SS::InitLogging();
 
-	logger::info("Scavenger Sense {}.{} beta loading", kVersion.major(), kVersion.minor());
+	logger::info("Scavenger Sense {}.{}.{} beta loading; runtime {}", kVersion.major(), kVersion.minor(),
+		kVersion.patch(), REL::Module::get().version().string());
 
 	if (auto* messaging = SKSE::GetMessagingInterface()) {
 		messaging->RegisterListener(SS::OnMessage);

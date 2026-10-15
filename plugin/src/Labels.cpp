@@ -67,29 +67,29 @@ namespace SS
 		//   neutral  hollow circle                  - present, not your problem
 		//   friendly filled diamond                 - distinct at a glance
 		//   dead     saltire                        - unmistakably not standing
-		// A flame. Twelve points up one side and back down the other, pinched at
-		// the tip and belled at the base - enough to read as fire at tag size,
-		// and it needs no picture file, so the add-on stays code-only.
+		// A flame with distinct tongues, or an optional PNG from the icon cache.
 		void DrawFlame(ImDrawList* a_draw, ImVec2 a_centre, float a_size, ImU32 a_colour)
 		{
-			constexpr int kHalf = 9;
-			ImVec2        pts[kHalf * 2]{};
-			const auto    r = a_size * 0.5f;
-
-			for (int i = 0; i < kHalf; ++i) {
-				const auto t = static_cast<float>(i) / static_cast<float>(kHalf - 1);
-				// y runs from the tip down to the base
-				const auto y = -1.0f + 2.0f * t;
-				// width swells low and pinches to nothing at the tip
-				const auto w = std::sin(t * 3.14159265f * 0.92f) * (0.30f + 0.62f * t);
-				pts[i] = ImVec2{ a_centre.x + w * r, a_centre.y + y * r };
-				pts[kHalf * 2 - 1 - i] = ImVec2{ a_centre.x - w * r, a_centre.y + y * r };
+			const auto& icon = Settings::GetSingleton()->arousalIcon;
+			if (auto* texture = Marks::GetSingleton()->IconTexture(icon)) {
+				const float r = a_size * 0.5f;
+				ImDrawList_AddImage(a_draw, texture, ImVec2{ a_centre.x - r, a_centre.y - r },
+					ImVec2{ a_centre.x + r, a_centre.y + r }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 }, a_colour);
+				return;
 			}
-
-			for (const auto& p : pts) {
-				ImDrawList_PathLineTo(a_draw, p);
+			// Three asymmetric tongues. Triangle fan from an interior point avoids
+			// submitting a concave flame to ImGui's convex-only path fill.
+			constexpr ImVec2 outline[] = {
+				{ -.75f, .35f }, { -.55f, -.20f }, { -.28f, .10f }, { -.10f, -.95f },
+				{ .25f, -.42f }, { .36f, -.02f }, { .64f, -.36f }, { .82f, .20f },
+				{ .66f, .64f }, { .28f, .91f }, { -.20f, .94f }, { -.58f, .72f }
+			};
+			const float r = a_size * .5f;
+			const auto point = [&](ImVec2 p) { return ImVec2{ a_centre.x + p.x * r, a_centre.y + p.y * r }; };
+			for (std::size_t i = 0; i < std::size(outline); ++i) {
+				ImDrawList_AddTriangleFilled(a_draw, point(ImVec2{ 0, .55f }), point(outline[i]),
+					point(outline[(i + 1) % std::size(outline)]), a_colour);
 			}
-			ImDrawList_PathFillConvex(a_draw, a_colour);
 		}
 
 		// One vitals bar, drawn as a sheared quad rather than a rectangle.
@@ -256,11 +256,15 @@ namespace SS
 			if (!font) {
 				return;
 			}
-			const float size = std::max(9.0f, a_thick * 1.8f);
+			const auto* settings = Settings::GetSingleton();
+			const float size = std::max(9.0f, a_thick * 1.8f) * settings->barNumberScale;
 			ImVec2      extent{};
 			ImFont_CalcTextSizeA(&extent, font, size, FLT_MAX, 0.0f,
 				text.c_str(), nullptr, nullptr);
-			const ImVec2 at = a_upright
+			const ImVec2 at = settings->barNumbersInside
+				? ImVec2{ a_origin.x + (a_upright ? a_thick : a_length) * .5f - extent.x * .5f,
+					a_origin.y + (a_upright ? -a_length : a_thick) * .5f - extent.y * .5f }
+				: a_upright
 				? ImVec2{ a_origin.x + a_thick * 0.5f - extent.x * 0.5f,
 						a_origin.y - a_length - extent.y }
 				: ImVec2{ a_origin.x + a_length + a_thick * 0.6f,
@@ -270,6 +274,48 @@ namespace SS
 				text.c_str(), nullptr, 0.0f, nullptr);
 			ImDrawList_AddText_FontPtr(a_draw, font, size, at,
 				PackColour(a_colour, a_alpha), text.c_str(), nullptr, 0.0f, nullptr);
+		}
+
+		// Single drawing path for tags, overhead combat bars and the corner HUD.
+		void DrawStyledVital(ImDrawList* draw, ImVec2 origin, float length, float thick,
+			float shear, bool upright, float value, float cap, int vital, float now,
+			std::uint32_t colour, std::uint32_t frame, float alpha, int segments, bool glow,
+			const VitalStyle& style, float peak, BarNumbers numbers)
+		{
+			origin.x += style.x;
+			origin.y += style.y;
+			length *= style.width;
+			thick = std::max(1.0f, thick * style.height);
+			shear *= style.height;
+			auto* marks = Marks::GetSingleton();
+			auto* fill = marks->IconTexture(style.fillTexture);
+			auto* empty = marks->IconTexture(style.emptyTexture);
+			auto* border = marks->IconTexture(style.frameTexture);
+			DrawVitalBar(draw, origin, length, thick, shear, upright, fill ? 0.0f : value,
+				cap, vital, now, colour, frame, alpha, segments, glow);
+			const auto corner = [&](float d, float t) {
+				const float lean = shear * t / thick;
+				return upright ? ImVec2{ origin.x + t, origin.y - d + lean } :
+					ImVec2{ origin.x + d + lean, origin.y + t };
+			};
+			const auto image = [&](void* texture, float from, float to) {
+				if (!texture || to <= from) { return; }
+				ImDrawList_AddImageQuad(draw, texture, corner(length * from, 0), corner(length * to, 0),
+					corner(length * to, thick), corner(length * from, thick),
+					ImVec2{ from, 0 }, ImVec2{ to, 0 }, ImVec2{ to, 1 }, ImVec2{ from, 1 },
+					PackColour(0xFFFFFF, alpha));
+			};
+			if (fill) {
+				image(empty, 0, 1);
+				image(fill, 0, std::clamp(std::min(value, cap), 0.0f, 1.0f));
+				if (cap < .995f) {
+					const ImVec2 dead[]{ corner(length * cap, 0), corner(length, 0),
+						corner(length, thick), corner(length * cap, thick) };
+					ImDrawList_AddConvexPolyFilled(draw, dead, 4, PackColour(0x000000, alpha * .5f));
+				}
+			}
+			image(border, 0, 1);
+			DrawBarNumber(draw, origin, length, thick, upright, value, peak, numbers, colour, alpha);
 		}
 
 		// What is in someone's hands, as geometry - same reasoning as the
@@ -1200,14 +1246,12 @@ namespace SS
 			                    ? a_height - settings->selfHudY - step * static_cast<float>(r) - thick
 			                    : settings->selfHudY + step * static_cast<float>(r);
 
-			DrawVitalBar(draw, ImVec2{ x, y }, length, thick, shear, false, _selfHud[i],
+			DrawStyledVital(draw, ImVec2{ x, y }, length, thick, shear, false, _selfHud[i],
 				settings->barsLostMax ? _selfHudCap[i] : 1.0f,
 				settings->barsLostFx ? i : -1, a_now,
 				colours[i], settings->selfBarFrameColour, alpha,
-				static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
-
-			DrawBarNumber(draw, ImVec2{ x, y }, length, thick, false, _selfHud[i],
-				_selfHudPeak[i], settings->selfBarNumbers, colours[i], alpha);
+				static_cast<int>(settings->selfBarSegments), settings->selfBarGlow,
+				settings->playerBarStyles[i], _selfHudPeak[i], settings->selfBarNumbers);
 		}
 
 		// The stats row: what is in hand, the level, the purse, the pack and
@@ -2270,13 +2314,13 @@ namespace SS
 					origin.x += settings->overheadOffsetX * c.scale;
 					origin.y += settings->overheadOffsetY * c.scale;
 
-					DrawVitalBar(draw, origin, length, thick, shear, false, c.vitals[i],
+					DrawStyledVital(draw, origin, length, thick, shear, false, c.vitals[i],
 						settings->barsLostMax ? c.vitalsCap[i] : 1.0f,
 						settings->barsLostFx ? i : -1, now,
 						colours[i], settings->selfBarFrameColour, alpha,
-						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
-					DrawBarNumber(draw, origin, length, thick, false, c.vitals[i],
-						c.vitalsPeak[i], numbers, colours[i], alpha);
+						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow,
+						c.vitalsSelf ? settings->playerBarStyles[i] : settings->actorBarStyles[i],
+						c.vitalsPeak[i], numbers);
 				}
 
 				// The full-glance HUD: your stats ride directly under your own
@@ -2832,18 +2876,13 @@ namespace SS
 					origin.x += settings->selfBarOffsetX * entry.scale;
 					origin.y += settings->selfBarOffsetY * entry.scale;
 
-					DrawVitalBar(draw, origin, length, thick, shear, upright, entry.vitals[i],
+					DrawStyledVital(draw, origin, length, thick, shear, upright, entry.vitals[i],
 						settings->barsLostMax ? entry.vitalsCap[i] : 1.0f,
 						settings->barsLostFx ? i : -1, now,
 						colours[i], settings->selfBarFrameColour, alpha,
-						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow);
-
-					// Your own bars answer to your own setting, wherever they are
-					// drawn - the entry already knows which it is.
-					DrawBarNumber(draw, origin, length, thick, upright, entry.vitals[i],
-						entry.vitalsPeak[i],
-						entry.vitalsSelf ? settings->selfBarNumbers : settings->barNumbers,
-						colours[i], alpha);
+						static_cast<int>(settings->selfBarSegments), settings->selfBarGlow,
+						entry.vitalsSelf ? settings->playerBarStyles[i] : settings->actorBarStyles[i],
+						entry.vitalsPeak[i], entry.vitalsSelf ? settings->selfBarNumbers : settings->barNumbers);
 
 					barsBottom = std::max(barsBottom, origin.y + thick);
 				}

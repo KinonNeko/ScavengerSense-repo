@@ -1,4 +1,5 @@
 #pragma once
+#include "HudMask.h"
 
 namespace SS
 {
@@ -71,7 +72,7 @@ namespace SS
 		// True while anything is still hidden or moved, so the tick keeps
 		// running long enough to put it back after the setting is switched
 		// off.
-		[[nodiscard]] bool HasHidden() const { return !_hidden.empty() || _shifted; }
+		[[nodiscard]] bool HasHidden() const { return !_hidden.empty() || _hudMask.Active() || _shifted; }
 
 		RE::BSEventNotifyControl ProcessEvent(
 			const RE::MenuOpenCloseEvent*             a_event,
@@ -82,6 +83,8 @@ namespace SS
 
 		// Menus we actually hid, so only those get put back.
 		std::vector<std::string> _hidden;
+		HudMask _hudMask;
+		void ApplyHudParts(bool a_hide);
 
 		// Where the activation prompt's pieces sit in the HUD file, captured
 		// the first time we move them, so they can be put back exactly. One

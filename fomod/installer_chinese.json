@@ -1,0 +1,219 @@
+{
+  "names": {
+    "Scavenger Sense / 快速开始": "Scavenger Sense — 快速开始",
+    "Controls / 按键": "按键与触发方式",
+    "Tracking / 足迹追踪": "足迹追踪",
+    "How it should look / 外观": "外观",
+    "Vitals bars and sound / 状态条与提示音": "状态条与提示音",
+    "Optional extras / 可选内容": "可选内容",
+    "How would you like to begin": "选择安装方案",
+    "Default keys": "默认按键",
+    "Sense activation": "感知触发方式",
+    "Footprint tracking": "足迹追踪",
+    "Who leaves footprints": "记录谁的足迹",
+    "The trail key": "追踪按键",
+    "Name tags over what lights up": "高亮目标的名称标签",
+    "Screen effect while a sweep runs": "感知期间的画面效果",
+    "What lights up": "高亮哪些物体",
+    "People": "人物",
+    "The game's own interface": "游戏原版界面",
+    "Vitals bars during a sweep": "感知期间的人物状态条",
+    "Bars over people you fight": "战斗目标状态条",
+    "Bars over your own head": "玩家头顶状态条",
+    "When a survival mod lowers your maximum": "生存模组降低属性上限时",
+    "Sweep chime": "感知提示音",
+    "Font for non-Latin item names / 非拉丁文字体": "非拉丁文字体",
+    "Add-ons that install files": "需要安装文件的扩展",
+    "Add-ons already built in - nothing to install": "内置扩展（无需安装额外文件）"
+  },
+  "options": {
+    "How would you like to begin / KShakes's Choice - everything, tuned": {
+      "name": "KShakes 的完整预设",
+      "description": "请先阅读：此预设会开启战斗状态条，隐藏 TrueHUD 覆盖层并将原版敌人血条移出屏幕。取消战斗状态条或关闭“接管敌人血条”即可归还。玩家状态条也由本模组绘制。\n\n包含感知、追踪、头顶状态条、属性信息及作者调好的所有设置。各项均可在游戏菜单调整。\n\n如果你已经满意当前的 TrueHUD、目标锁定或 HUD 替换方案，请选下方的感知方案，或自行选择。"
+    },
+    "How would you like to begin / Only sensing": {
+      "name": "仅感知",
+      "description": "按键后，战利品与人物随着向外扩散的波纹高亮并显示名称，画面暂时褪色。\n\n不开启足迹追踪，也不改动你的 HUD 或战斗界面。"
+    },
+    "How would you like to begin / Sensing and tracking": {
+      "name": "感知与追踪",
+      "description": "包含感知与足迹追踪：先蹲下再感知，被感知到的人会留下足迹。标记人物或足迹后，可以跨区域追踪。\n\n默认感知键单击标记、双击感知、长按清除。可在按键页改成独立追踪键（鼠标中键）。不改动 HUD。"
+    },
+    "How would you like to begin / Choose everything myself": {
+      "name": "逐项自行选择",
+      "description": "依次设置追踪、画面效果、高亮对象、状态条、提示音及原版界面。预设只是这些设置的组合，所有项目仍可在游戏菜单里修改。"
+    },
+    "Default keys / Y sweeps, F1 opens the settings": {
+      "name": "Y 控制感知；F1 打开设置",
+      "description": "默认共用按键：\n\nY 双击：感知。\nY 单击：在可读取足迹时标记或释放准星指向的人物／足迹；会等待双击间隔后再执行。\nY 长按：清除全部标记与足迹。\n手柄 A：相同的三种手势。\nF1：打开 SKSE Menu Framework，选择 Scavenger Sense 设置。\n\n下一页可改成单击或短暂长按感知，并将追踪放到独立按键。游戏内“按键”页可修改所有绑定和触发方式。\n\n手柄 A 同时是原版交互键，建议按个人习惯换成空闲键。F1 属于 SKSE Menu Framework；如无法打开，请检查该框架的配置。"
+    },
+    "Sense activation / Shared key gestures": {
+      "name": "共用按键：双击感知",
+      "description": "默认布局：双击感知，单击标记，长按清除足迹。可在游戏内的按键页修改。"
+    },
+    "Sense activation / Single press - instant sense": {
+      "name": "单击：立即感知",
+      "description": "按下一次立即感知，无双击等待。键鼠追踪改用鼠标中键；手柄追踪先不绑定，之后可在菜单设置。\n\n已有个人 ScavengerSense.ini 的设置优先于安装器选项。"
+    },
+    "Sense activation / Hold - quick sense": {
+      "name": "短暂长按：快速感知",
+      "description": "按住感知键 0.35 秒即可触发，追踪使用独立按键。长按时间可在游戏内调整。\n\n已有个人 ScavengerSense.ini 的设置优先于安装器选项。"
+    },
+    "Footprint tracking / Crouch and sense - the hunt": {
+      "name": "蹲下后感知：狩猎模式",
+      "description": "先蹲下再感知，被感知到的人会留下指向行进方向的足迹，持续到本次感知结束；中途站起也仍可读取。站立时开始感知则不会显示普通足迹。\n\n瞄准人物或足迹并使用标记手势后，其足迹会变亮，可跨区域追踪，不受站姿限制；默认长按共用键可清除全部追踪。\n\n推荐选项。"
+    },
+    "Footprint tracking / Trails without the crouch": {
+      "name": "始终显示已有足迹",
+      "description": "已有足迹始终可见，无需蹲下或感知。被标记目标按标记颜色显示。画面会更繁忙，但不会因姿态隐藏足迹。"
+    },
+    "Footprint tracking / No footprints": {
+      "name": "关闭足迹",
+      "description": "不记录足迹，追踪键不执行操作。其余感知功能保持。之后可在游戏菜单重新开启。"
+    },
+    "Who leaves footprints / Anyone the sense has touched": {
+      "name": "从首次感知到目标时开始",
+      "description": "目标首次被感知、交战或标记时开始记录，不会生成此前的路线。这是默认方式。"
+    },
+    "Who leaves footprints / Everyone around, always": {
+      "name": "持续记录周围所有目标",
+      "description": "场景中所有已加载目标都会记录足迹，包括到达时已有的目标和途中加载的目标。无需感知，记录更完整，也会多用一些内存。"
+    },
+    "The trail key / The sweep key does it all - nothing to tick": {
+      "name": "默认共用感知键（说明）",
+      "description": "本项仅供说明，无需勾选。\n\n默认双击感知、单击标记或释放目标、长按清除足迹；单击先等待双击间隔，避免感知的第一次点击误标记。\n\n如需更快感知，可在前面的按键页选择单击或短暂长按，追踪则使用独立按键。游戏内还可为标记、显隐、清除分别设置按键和手势。手柄同样支持这些布局。"
+    },
+    "Name tags over what lights up / Names, titles and icons": {
+      "name": "名称、称号与图标",
+      "description": "完整显示物品／人物名称、称号和侧边小图标，如迪贝拉标记、婚戒或唤起火焰。这是默认外观。"
+    },
+    "Name tags over what lights up / Names and titles, no icons": {
+      "name": "名称与称号，不显示图标",
+      "description": "显示名称与称号，隐藏侧边图标。适合希望减少符号，或没有安装相关扩展的玩家。"
+    },
+    "Name tags over what lights up / Names only": {
+      "name": "仅名称",
+      "description": "只显示目标名称，不显示人物称号或图标。"
+    },
+    "Name tags over what lights up / No name tags at all": {
+      "name": "不显示名称标签",
+      "description": "保留高亮、地面波纹及画面效果，不绘制目标名称与图标，也可减少标签绘制开销。"
+    },
+    "Screen effect while a sweep runs / Full - colour drains and the edges darken": {
+      "name": "完整效果：褪色与暗角",
+      "description": "感知期间画面接近灰色，边缘变暗，高亮颜色更加突出。这是默认效果。"
+    },
+    "Screen effect while a sweep runs / Subtle": {
+      "name": "柔和效果",
+      "description": "大约半强度的褪色与暗角，画面只稍微变暗。完整效果过强时可以选择。"
+    },
+    "Screen effect while a sweep runs / Darkened edges only": {
+      "name": "只保留暗角",
+      "description": "保留原有色彩，仅让屏幕边缘变暗。适合希望保留 ENB 或天气模组调色的玩家。"
+    },
+    "Screen effect while a sweep runs / Nothing - leave my screen alone": {
+      "name": "关闭画面效果",
+      "description": "不褪色也不增加暗角，只保留物体高亮与地面波纹。"
+    },
+    "What lights up / Everything worth picking up": {
+      "name": "全部可搜寻对象",
+      "description": "包括容器、门、植物与矿石、装备、原料与药水、书籍、钱币与宝石，以及拉杆、书架等可交互物体。之后均可在菜单分别开关。"
+    },
+    "What lights up / Skip the scenery": {
+      "name": "跳过场景交互物",
+      "description": "保留可拾取物和容器，关闭门、植物及场景交互物高亮，减少城镇里的杂乱。"
+    },
+    "What lights up / Containers and valuables only": {
+      "name": "仅容器与贵重物品",
+      "description": "只高亮箱子、木桶、袋子、骨灰瓮等容器，以及金币、宝石和首饰。"
+    },
+    "People / Leave people alone": {
+      "name": "不高亮人物",
+      "description": "只感知物体，不为人物显示轮廓或名称。"
+    },
+    "People / Light up living people": {
+      "name": "高亮活着的人物",
+      "description": "按关系颜色显示恋人、朋友、对手、敌人的轮廓、名称、称号与相关标记。尸体不高亮。"
+    },
+    "People / Light up everyone, bodies included": {
+      "name": "高亮人物与尸体",
+      "description": "活人按关系显示，尸体也以独立颜色高亮，方便在草丛等环境搜寻战利品。"
+    },
+    "The game's own interface / Keep it": {
+      "name": "保留原版界面",
+      "description": "罗盘、准星及原版状态条保持现状。"
+    },
+    "The game's own interface / Hide bars, keep compass and messages": {
+      "name": "隐藏状态条，保留罗盘与消息",
+      "description": "隐藏所选原版 HUD 部件，但保留罗盘、系统消息、任务提示与字幕。游戏内设置页可分别开关每一个部件。"
+    },
+    "The game's own interface / Hide it - the sense is the interface": {
+      "name": "隐藏原版界面",
+      "description": "默认隐藏已知的原版 HUD 部件，改用感知及本模组的状态条。现在每个部件都可在设置页分别恢复；关闭总开关即可归还被本模组压制的部分。"
+    },
+    "Vitals bars during a sweep / None": {
+      "name": "不显示",
+      "description": "感知只显示人物名称和轮廓，不增加头顶状态条。这是默认设置。"
+    },
+    "Vitals bars during a sweep / Over hostiles the wave reaches": {
+      "name": "仅被感知到的敌人",
+      "description": "感知期间，范围内被波纹触及的敌人会显示状态条，可以隔墙查看。"
+    },
+    "Vitals bars during a sweep / Over everyone lit": {
+      "name": "所有被感知的人物",
+      "description": "敌人、朋友及陌生人都显示状态条。"
+    },
+    "Bars over people you fight / Off": {
+      "name": "关闭",
+      "description": "除感知期间显示的状态条外，不增加持续战斗状态条。已有 TrueHUD 等战斗 HUD 时可选此项，避免重复显示。"
+    },
+    "Bars over people you fight / On - from your first hit to the end of the fight": {
+      "name": "开启战斗状态条",
+      "description": "为战斗目标显示头顶状态条，无需感知；尸体短暂保留空血条表示死亡。\n\n默认只显示生命，菜单里可开启魔法与耐力、NPC 数值及不同的目标触发规则。"
+    },
+    "Bars over your own head / Off": {
+      "name": "关闭",
+      "description": "不持续显示玩家头顶状态条。玩家状态仍可在感知标签上显示，也可在菜单开启屏幕角落状态条。"
+    },
+    "Bars over your own head / On - third person, no sweep needed": {
+      "name": "第三人称持续状态条",
+      "description": "第三人称下为玩家显示头顶状态条，无需感知。默认在数值变化后保留几秒，可在菜单调整显示条件。第一人称请使用屏幕角落状态条。"
+    },
+    "When a survival mod lowers your maximum / Show it, dressed in frost and smoke": {
+      "name": "保留损失区段及霜冻／烟雾效果",
+      "description": "状态条保留完整长度，生存模组降低的属性上限显示为不可用区段。生命损失区有霜冻，魔法与耐力损失区显示对应颜色的烟雾。\n\n没有生存模组时不会出现损失区段。"
+    },
+    "When a survival mod lowers your maximum / Show it plainly": {
+      "name": "仅显示暗色损失区段",
+      "description": "仍显示属性上限损失，但不添加霜冻或烟雾。"
+    },
+    "When a survival mod lowers your maximum / Do not show it": {
+      "name": "不显示上限损失",
+      "description": "状态条按当前降低后的上限重新缩放，不显示损失区段。"
+    },
+    "Sweep chime / A quiet two-note chime": {
+      "name": "轻柔的双音提示",
+      "description": "感知开始时播放短提示音，音量受游戏 UI 音频设置影响。声音文件是可替换的 WAV，旁边有替换说明。游戏菜单中可调音量或关闭。"
+    },
+    "Sweep chime / Silence": {
+      "name": "静音",
+      "description": "感知开始时不播放提示音。声音文件仍会安装，之后可在菜单里开启。"
+    },
+    "Font for non-Latin item names / 非拉丁文字体 / 中文字体 Noto Sans SC (Chinese font)": {
+      "name": "中文字体：Noto Sans SC",
+      "description": "安装名为 MainFont.ttf 的 Noto Sans SC 字体，覆盖拉丁字符与 6763 个 GB2312 汉字。\n\n标签使用 SKSE Menu Framework 载入的字体；字体缺字时会显示问号。安装后还需在 SKSE/Plugins/SKSEMenuFramework.ini 设置：\n\nPrimaryFont = MainFont.ttf\nEnableChinese = true\n\n不会自动改动框架的个人设置。本字体不能保证覆盖俄文、日文、韩文或泰文，其他语言请使用相应字体和字形范围。\n\nSIL Open Font License 1.1，随附 OFL.txt。"
+    },
+    "Add-ons that install files / OStim Standalone": {
+      "name": "OStim Standalone 扩展",
+      "description": "读取 OStim 已记录的关系与共同经历，以迪贝拉符号和填充心形计数显示。只读取数据，无需补丁。\n\n未安装此扩展文件时，不会出现 OStim 相关标记、计数和菜单项目。仅在已安装 OStim Standalone 时选择。"
+    },
+    "Add-ons already built in - nothing to install / SLO Aroused NG - already included": {
+      "name": "SLO Aroused NG（已内置）",
+      "description": "此扩展已包含在 DLL 中，无需额外安装文件。\n\n检测到 SLO Aroused NG 后，会在人物名称旁显示唤起程度的火焰；现在可以选择自定义 PNG 图标。没有检测到该模组时，扩展默认隐藏，不影响其余功能。"
+    },
+    "Add-ons already built in - nothing to install / Floating subtitles - already included": {
+      "name": "悬浮字幕兼容（已内置）",
+      "description": "此兼容功能已内置，无需额外文件。\n\n当其他模组把字幕放在说话者头顶时，可以隐藏或抬高说话者的名称标签，避免重叠。请在扩展菜单选择对应方式。"
+    }
+  }
+}

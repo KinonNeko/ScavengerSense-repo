@@ -3,6 +3,7 @@
 #include <Windows.h>
 
 #include <fstream>
+#include <filesystem>
 #include <unordered_map>
 
 namespace SS
@@ -169,6 +170,12 @@ namespace SS
 			logger::info("locale: english (no translation file needed)");
 			return;
 		}
+		if (!std::ranges::all_of(a_language, [](unsigned char c) {
+			return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+		})) {
+			logger::warn("locale: invalid language identifier - using English");
+			return;
+		}
 
 		const std::string path =
 			std::string{ "Data/SKSE/Plugins/ScavengerSense_" } + std::string{ a_language } + ".ini";
@@ -233,5 +240,32 @@ namespace SS
 	std::size_t Locale::Count()
 	{
 		return g_strings.size();
+	}
+
+	std::vector<std::string> Locale::Languages()
+	{
+		std::vector<std::string> languages{ "english" };
+		std::error_code error;
+		for (const auto& file : std::filesystem::directory_iterator("Data/SKSE/Plugins", error)) {
+			const auto name = file.path().filename().string();
+			constexpr std::string_view prefix = "ScavengerSense_";
+			if (!name.starts_with(prefix) || !name.ends_with(".ini")) { continue; }
+			auto id = name.substr(prefix.size(), name.size() - prefix.size() - 4);
+			// Rule files are not translations; packs identify themselves with [Translation].
+			std::ifstream input{ file.path() };
+			std::string line;
+			bool translation = id == "chinese";
+			while (!translation && std::getline(input, line)) {
+				if (line.starts_with("\xEF\xBB\xBF")) { line.erase(0, 3); }
+				translation = Trim(line) == "[Translation]";
+			}
+			if (translation && !id.empty() && id != "english" &&
+				std::ranges::all_of(id, [](unsigned char c) {
+					return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+				})) { languages.push_back(std::move(id)); }
+		}
+		std::sort(languages.begin() + 1, languages.end());
+		languages.erase(std::unique(languages.begin(), languages.end()), languages.end());
+		return languages;
 	}
 }

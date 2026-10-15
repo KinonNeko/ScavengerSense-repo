@@ -502,6 +502,20 @@ namespace SS::Menu
 				"hunt onto one button, and that button then sets its own gestures.");
 
 			const bool sharesOneKey = a_settings.trailMode == TrailKeyMode::kAllInOne;
+			const auto quickSense = [&](Trigger trigger) {
+				a_settings.trailMode = TrailKeyMode::kSingle;
+				a_settings.trigger = trigger;
+				if (a_settings.trailKey == a_settings.keyboard) {
+					a_settings.trailKey = a_settings.keyboard == 258 ? -1 : 258;
+				}
+				if (a_settings.trailGamepad == a_settings.gamepad) { a_settings.trailGamepad = -1; }
+			};
+			if (igButton(T("Single press sense"), ImVec2{ 0, 0 })) { quickSense(Trigger::kPress); }
+			igSameLine(0, -1);
+			if (igButton(T("Hold to sense"), ImVec2{ 0, 0 })) { quickSense(Trigger::kHold); }
+			Help("These shortcuts give tracking its own key and activate the existing\n"
+				"single-press or hold trigger. Single press has no double-tap delay.\n"
+				"Tracking bindings that conflict with the sense key are moved or unbound.");
 
 			igSpacing();
 			igSeparatorText(sharesOneKey ? T("The one key") : T("Sweep"));
@@ -1153,14 +1167,20 @@ namespace SS::Menu
 			// ASCII whatever language the menu is in. The second is only ever
 			// shown, and each name is written in its own script - a language
 			// picker you cannot read is not much use for getting back out.
-			static const char* kLanguages[] = { "english", "chinese" };
-			static const char* kLanguageNames[] = { "English", "Chinese" };
-
-			int language = a_settings.language == "chinese" ? 1 : 0;
-			if (igCombo_Str_arr(T("Menu language"), &language,
-					Translated(kLanguageNames, static_cast<int>(std::size(kLanguageNames))),
-					static_cast<int>(std::size(kLanguageNames)), -1)) {
-				a_settings.language = kLanguages[language];
+			static auto languages = Locale::Languages();
+			std::vector<const char*> names;
+			int language = 0;
+			for (std::size_t i = 0; i < languages.size(); ++i) {
+				if (languages[i] == a_settings.language) { language = static_cast<int>(i); }
+				names.push_back(languages[i] == "english" ? "English" :
+					languages[i] == "chinese" ? "简体中文" : languages[i].c_str());
+			}
+			if (igCombo_Str_arr(T("Menu language"), &language, names.data(), static_cast<int>(names.size()), -1)) {
+				a_settings.language = languages[language];
+				Locale::Load(a_settings.language);
+			}
+			if (igButton(T("Rescan language files"), ImVec2{ 0, 0 })) {
+				languages = Locale::Languages();
 				Locale::Load(a_settings.language);
 			}
 			Help(
@@ -1635,6 +1655,13 @@ namespace SS::Menu
 
 		// How a bar looks, wherever it is drawn. Stated once: the same shape and
 		// timing serve the tag, the corner readout and other people.
+		void PngSetting(const char* a_label, std::string& a_value)
+		{
+			char value[256]{};
+			std::snprintf(value, sizeof(value), "%s", a_value.c_str());
+			if (igInputText(a_label, value, sizeof(value), 0, nullptr, nullptr)) { a_value = value; }
+		}
+
 		void DrawBarStyle(Settings& a_settings)
 		{
 			if (!Header(T("Bar style"))) {
@@ -1642,6 +1669,30 @@ namespace SS::Menu
 			}
 
 			igTextDisabled("%s", T("Applies to every bar below."));
+			igCheckbox(T("Centre numbers inside bars"), &a_settings.barNumbersInside);
+			igSliderFloat(T("Bar number size"), &a_settings.barNumberScale, 0.5f, 3.0f, "%.2fx", 0);
+			igSeparatorText(T("Individual bars and PNG skins"));
+			static int owner = 0, vital = 0;
+			static const char* const kOwners[] = { "Player", "Other people" };
+			static const char* const kVitals[] = { "Health", "Magicka", "Stamina" };
+			igCombo_Str_arr(T("Customise bars for"), &owner, Translated(kOwners, 2), 2, -1);
+			igCombo_Str_arr(T("Which vital"), &vital, Translated(kVitals, 3), 3, -1);
+			igPushID_Int(owner * 3 + vital);
+			auto& style = owner == 0 ? a_settings.playerBarStyles[vital] : a_settings.actorBarStyles[vital];
+			igSliderFloat(T("Bar width multiplier"), &style.width, 0.1f, 5.0f, "%.2fx", 0);
+			igSliderFloat(T("Bar height multiplier"), &style.height, 0.1f, 5.0f, "%.2fx", 0);
+			igDragFloat(T("Individual bar across"), &style.x, 1.0f, -4000.0f, 4000.0f, "%.0f px", 0);
+			igDragFloat(T("Individual bar down"), &style.y, 1.0f, -4000.0f, 4000.0f, "%.0f px", 0);
+			PngSetting(T("Fill PNG"), style.fillTexture);
+			PngSetting(T("Empty bar PNG"), style.emptyTexture);
+			PngSetting(T("Frame PNG"), style.frameTexture);
+			Help("PNG paths are relative to SKSE/Plugins/ScavengerSense/icons.\n"
+				"Blank or missing images use the built-in bar. The fill is cropped\n"
+				"with the value; empty and frame images keep their full size.\n"
+				"Changes apply to tags, overhead bars and the player's corner HUD.");
+			if (igButton(T("Reset this bar"), ImVec2{ 0, 0 })) { style = VitalStyle{}; }
+			igPopID();
+			igSeparatorText(T("Shared bar shape"));
 			igSpacing();
 
 			ColourPicker(T("Health"), a_settings.selfHealthColour);
@@ -1935,23 +1986,20 @@ namespace SS::Menu
 			int combatWhen = static_cast<int>(a_settings.combatBarsWhen);
 			if (igCombo_Str_arr(T("Raise a bar"), &combatWhen, Translated(kCombatWhen, 3), 3, -1)) {
 				a_settings.combatBarsWhen = static_cast<CombatBarsWhen>(std::clamp(combatWhen, 0, 2));
-
-				static const char* const kBarNumbersHere[] = { "No numbers", "Current",
-					"Current / max", "Percent" };
-				int barNums = static_cast<int>(a_settings.barNumbers);
-				if (igCombo_Str_arr(T("Numbers on their bars"), &barNums, Translated(kBarNumbersHere, 4), 4, -1)) {
-					a_settings.barNumbers = static_cast<BarNumbers>(std::clamp(barNums, 0, 3));
-				}
-				Help(
-					"Written past the end of each bar, in that bar's own colour.\n"
-					"Other people only - your own bars have the same choice on the\n"
-					"My vitals page.");
 			}
+
 			Help(
 				"Landing a hit was once the only way in, which left the archer on\n"
 				"the ridge with no bar until you reached them. Each choice keeps\n"
 				"the one above it. Looking at somebody is not combat, so that bar\n"
 				"fades on the linger below once you look away.");
+			static const char* const kBarNumbersHere[] = { "No numbers", "Current", "Current / max", "Percent" };
+			int barNums = static_cast<int>(a_settings.barNumbers);
+			if (igCombo_Str_arr(T("Numbers on their bars"), &barNums, Translated(kBarNumbersHere, 4), 4, -1)) {
+				a_settings.barNumbers = static_cast<BarNumbers>(std::clamp(barNums, 0, 3));
+			}
+			Help("Applies to NPC sweep and combat bars. Choose the number position\n"
+				"and size under Bar style. Your own bars have a separate number setting.");
 
 			if (a_settings.combatBars) {
 				igCheckbox(T("Also their magicka and stamina"), &a_settings.combatBarsAll);
@@ -2060,6 +2108,9 @@ namespace SS::Menu
 			}
 
 			ColourPicker(T("Flame colour"), a_settings.arousalColour);
+			PngSetting(T("Arousal icon PNG"), a_settings.arousalIcon);
+			Help("Optional PNG in ScavengerSense/icons. Blank uses the built-in flame;\n"
+				"a missing image also falls back to that flame. Restart after replacing a loaded PNG.");
 			igSliderInt(T("Hide below"), &a_settings.arousalMin, 0, 100, "%d", 0);
 			Help(
 				"Raise this so only people worth noticing carry a flame.");
@@ -2411,14 +2462,37 @@ namespace SS::Menu
 
 			igCheckbox(T("Hide the game's HUD"), &a_settings.hideGameHud);
 			Help(
-				"Hides the compass, health bars, crosshair, subtitles and the\n"
-				"activation prompt. They are all one piece as far as the game is\n"
-				"concerned, so they go together or not at all.\n"
-				"\n"
-				"Pairs with the corner readout on the People page: no permanent\n"
-				"interface, and a sweep when you want to know how you are doing.");
+				"Choose each hidden part below. Untick compass, system messages or\n"
+				"subtitles to keep them. The HUD movie stays running, so messages\n"
+				"and compass updates still work. Other named menus are hidden whole.");
 
 			if (a_settings.hideGameHud) {
+				igPushID_Str("hudparts");
+				igCheckbox(T("Hide compass"), &a_settings.hideCompass);
+				igCheckbox(T("Hide system messages"), &a_settings.hideMessages);
+				igCheckbox(T("Hide quest and level notifications"), &a_settings.hideQuestUpdates);
+				igCheckbox(T("Hide vanilla health"), &a_settings.hideHealth);
+				igCheckbox(T("Hide vanilla magicka"), &a_settings.hideMagicka);
+				igCheckbox(T("Hide vanilla stamina"), &a_settings.hideStamina);
+				igCheckbox(T("Hide shout meter"), &a_settings.hideShout);
+				igCheckbox(T("Hide crosshair"), &a_settings.hideCrosshair);
+				igCheckbox(T("Hide stealth meter"), &a_settings.hideStealth);
+				igCheckbox(T("Hide subtitles"), &a_settings.hideSubtitles);
+				igCheckbox(T("Hide activation prompt"), &a_settings.hideActivation);
+				igCheckbox(T("Hide ammo counter"), &a_settings.hideAmmo);
+				igCheckbox(T("Hide weapon charge"), &a_settings.hideCharge);
+				igCheckbox(T("Hide location names"), &a_settings.hideLocation);
+				igCheckbox(T("Hide tutorial hints"), &a_settings.hideTutorial);
+				igCheckbox(T("Hide vanilla enemy health"), &a_settings.hideEnemyHealth);
+				igCheckbox(T("Hide floating quest markers"), &a_settings.hideQuestMarkers);
+				igCheckbox(T("Hide follower command prompt"), &a_settings.hideFavorPrompt);
+				char parts[1024]{};
+				std::snprintf(parts, sizeof(parts), "%s", a_settings.hideHudParts.c_str());
+				if (igInputText(T("Extra HUD clips to hide"), parts, sizeof(parts), 0, nullptr, nullptr)) {
+					a_settings.hideHudParts = parts;
+				}
+				Help("Optional comma-separated clip paths under HUDMovieBaseInstance, for HUD replacers.");
+				igPopID();
 				static char buffer[256]{};
 				if (buffer[0] == '\0') {
 					std::snprintf(buffer, sizeof(buffer), "%s", a_settings.hideMenus.c_str());
@@ -2427,13 +2501,10 @@ namespace SS::Menu
 					a_settings.hideMenus = buffer;
 				}
 				Help(
-					"Comma separated, and case sensitive. \"HUD Menu\" is the game's own,\n"
-					"and carries anything drawn into it - moreHUD among them.\n"
-					"\n"
-					"Other mods own their own menus, so add their names here to take\n"
-					"those too. What cannot be reached this way at all is a mod drawing\n"
-					"through ImGui rather than Scaleform - including this one. There is\n"
-					"no general switch for those, by anyone.");
+					"Comma separated and case sensitive. HUD Menu uses the individual\n"
+					"switches above. Other named Scaleform menus are hidden whole.\n"
+					"Custom widgets inside the HUD need their clip paths in Extra HUD\n"
+					"clips. ImGui overlays belong to their mods and are not hidden here.");
 
 				igTextDisabled("%s", T("Currently hidden: see the log"));
 			}
@@ -2462,7 +2533,7 @@ namespace SS::Menu
 			igDragFloat(T("Value line down"), &a_settings.activateInfoY, 1.0f, -400.0f, 400.0f, "%.0f", 0);
 			Help("The weight and value line, and the bar drawn behind it.");
 			if (a_settings.hideGameHud) {
-				igTextDisabled("%s", T("Hidden with the rest of the HUD while the switch above is on"));
+				igTextDisabled("%s", T("The activation prompt has its own hide switch above"));
 			}
 
 			igSpacing();

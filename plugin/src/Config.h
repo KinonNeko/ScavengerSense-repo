@@ -327,6 +327,12 @@ namespace SS
 		kCount
 	};
 
+	struct VitalStyle
+	{
+		float width{ 1.0f }, height{ 1.0f }, x{ 0.0f }, y{ 0.0f };
+		std::string fillTexture, emptyTexture, frameTexture;
+	};
+
 	struct Settings
 	{
 		// [General]
@@ -346,13 +352,18 @@ namespace SS
 		// flags go - talking does not pause the game - but a pulse going off
 		// mid-dialogue breaks the scene more than any inventory screen does.
 		bool        muteInDialogue{ true };
-		// Hide the game's own interface. "HUD Menu" is the vanilla one and also
-		// carries anything drawn into it, moreHUD included. Other mods own their
-		// own menus, so the list is editable rather than hard coded - add a name
-		// and it goes too. Menus drawn through ImGui rather than Scaleform
-		// cannot be reached this way at all.
+		// HUD Menu uses [HUD]'s individual clip switches. Other named Scaleform
+		// menus are hidden whole. ImGui overlays belong to their own mods.
 		bool        hideGameHud{ false };
 		std::string hideMenus{ "HUD Menu" };
+		// [HUD]: suppress individual clips, leaving the HUD movie running.
+		bool hideCompass{ true }, hideMessages{ true }, hideQuestUpdates{ true };
+		bool hideHealth{ true }, hideMagicka{ true }, hideStamina{ true }, hideShout{ true };
+		bool hideCrosshair{ true }, hideStealth{ true }, hideSubtitles{ true };
+		bool hideActivation{ true }, hideAmmo{ true }, hideCharge{ true }, hideLocation{ true }, hideTutorial{ true };
+		bool hideEnemyHealth{ true };
+		bool hideQuestMarkers{ true }, hideFavorPrompt{ true };
+		std::string hideHudParts;
 		// Move the game's activation prompt - the "Talk  Lydia" line that
 		// sits on the crosshair, which is to say on the face of whoever you
 		// are about to talk to. In the HUD file's own units: the screen is
@@ -815,6 +826,10 @@ namespace SS
 		// Numbers beside the bars. Off by default: three bars over everyone in a
 		// fight is already a lot to read, and six digits per person is more.
 		BarNumbers barNumbers{ BarNumbers::kOff };
+		bool barNumbersInside{ false };
+		float barNumberScale{ 1.0f };
+		// Health, magicka, stamina; player and NPC layouts are independent.
+		VitalStyle playerBarStyles[3], actorBarStyles[3];
 		// Deliberately its own switch, not vitalsActorsAll: mid-fight you want
 		// different information than mid-sweep. Health-only in combat with all
 		// three on a sweep is a perfectly sensible pairing.
@@ -864,6 +879,7 @@ namespace SS
 		std::uint32_t arousalColour{ 0xFF5A7A };
 		int           arousalMin{ 20 };  // hide below this, so calm people stay clean
 		bool          arousalNumber{ false };
+		std::string   arousalIcon;  // PNG under ScavengerSense/icons, empty = built-in flame
 
 		// [Bonds] - the only settings here that write to your save
 		bool ostimPromote{ false };

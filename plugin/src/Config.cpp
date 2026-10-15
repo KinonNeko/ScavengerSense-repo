@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
@@ -218,7 +219,9 @@ namespace SS
 		{
 			std::string raw;
 			if (Lookup(a_table, a_section, a_key, raw) && !raw.empty()) {
-				a_value = std::strtof(raw.c_str(), nullptr);
+				char* end = nullptr;
+				const float value = std::strtof(raw.c_str(), &end);
+				if (end != raw.c_str() && std::isfinite(value)) { a_value = value; }
 			}
 		}
 
@@ -744,11 +747,30 @@ namespace SS
 		Get(table, "general", "stopOnMenu", stopOnMenu);
 		Get(table, "general", "muteInDialogue", muteInDialogue);
 		Get(table, "general", "hideGameHud", hideGameHud);
+		Get(table, "hud", "hideCompass", hideCompass);
+		Get(table, "hud", "hideMessages", hideMessages);
+		Get(table, "hud", "hideQuestUpdates", hideQuestUpdates);
+		Get(table, "hud", "hideHealth", hideHealth);
+		Get(table, "hud", "hideMagicka", hideMagicka);
+		Get(table, "hud", "hideStamina", hideStamina);
+		Get(table, "hud", "hideShout", hideShout);
+		Get(table, "hud", "hideCrosshair", hideCrosshair);
+		Get(table, "hud", "hideStealth", hideStealth);
+		Get(table, "hud", "hideSubtitles", hideSubtitles);
+		Get(table, "hud", "hideActivation", hideActivation);
+		Get(table, "hud", "hideAmmo", hideAmmo);
+		Get(table, "hud", "hideCharge", hideCharge);
+		Get(table, "hud", "hideLocation", hideLocation);
+		Get(table, "hud", "hideTutorial", hideTutorial);
+		Get(table, "hud", "hideEnemyHealth", hideEnemyHealth);
+		Get(table, "hud", "hideQuestMarkers", hideQuestMarkers);
+		Get(table, "hud", "hideFavorPrompt", hideFavorPrompt);
+		Lookup(table, "hud", "extraParts", hideHudParts);
 		// NOT through Get: that overload lower-cases, and a Scaleform menu is
 		// looked up by an exact, case-sensitive name. "hud menu" finds nothing.
 		{
 			std::string raw;
-			if (Lookup(table, "general", "hideMenus", raw) && !raw.empty()) {
+			if (Lookup(table, "general", "hideMenus", raw)) {
 				hideMenus = raw;
 			}
 		}
@@ -956,6 +978,29 @@ namespace SS
 		Get(table, "vitals", "combat", combatBars);
 		Get(table, "vitals", "combatWhen", combatBarsWhen);
 		Get(table, "vitals", "numbers", barNumbers);
+		Get(table, "vitals", "numbersInside", barNumbersInside);
+		Get(table, "vitals", "numberScale", barNumberScale);
+		constexpr const char* barSections[2][3] = {
+			{ "playerbarhealth", "playerbarmagicka", "playerbarstamina" },
+			{ "actorbarhealth", "actorbarmagicka", "actorbarstamina" }
+		};
+		for (int owner = 0; owner < 2; ++owner) {
+			for (int i = 0; i < 3; ++i) {
+				auto& style = owner == 0 ? playerBarStyles[i] : actorBarStyles[i];
+				const auto* section = barSections[owner][i];
+				Get(table, section, "width", style.width);
+				Get(table, section, "height", style.height);
+				Get(table, section, "x", style.x);
+				Get(table, section, "y", style.y);
+				Get(table, section, "fillTexture", style.fillTexture);
+				Get(table, section, "emptyTexture", style.emptyTexture);
+				Get(table, section, "frameTexture", style.frameTexture);
+				style.width = std::clamp(style.width, 0.1f, 5.0f);
+				style.height = std::clamp(style.height, 0.1f, 5.0f);
+				style.x = std::clamp(style.x, -4000.0f, 4000.0f);
+				style.y = std::clamp(style.y, -4000.0f, 4000.0f);
+			}
+		}
 		Get(table, "vitals", "combatAll", combatBarsAll);
 		Get(table, "vitals", "combatLinger", combatLinger);
 		Get(table, "vitals", "pushTrueHUD", pushTrueHUDAside);
@@ -981,6 +1026,7 @@ namespace SS
 		Get(table, "arousal", "color", arousalColour);
 		Get(table, "arousal", "min", arousalMin);
 		Get(table, "arousal", "number", arousalNumber);
+		Get(table, "arousal", "icon", arousalIcon);
 
 		Get(table, "bonds", "promote", ostimPromote);
 		Get(table, "bonds", "promoteRank", ostimPromoteRank);
@@ -1129,6 +1175,7 @@ namespace SS
 		selfHudX = std::clamp(selfHudX, 0.0f, 4000.0f);
 		selfHudY = std::clamp(selfHudY, 0.0f, 4000.0f);
 		arousalMin = std::clamp(arousalMin, 0, 100);
+		barNumberScale = std::clamp(barNumberScale, 0.5f, 3.0f);
 		titleScale = std::clamp(titleScale, 0.3f, 1.5f);
 		labelSpeakerMode = std::clamp(labelSpeakerMode, 0, 2);
 		labelSpeakerLift = std::clamp(labelSpeakerLift, 0.0f, 400.0f);
@@ -1268,6 +1315,27 @@ namespace SS
 		file << "; Scaleform cannot be reached this way at all.\n";
 		file << "hideGameHud = " << boolean(hideGameHud) << "\n";
 		file << "hideMenus = " << hideMenus << "\n\n";
+		file << "[HUD]\n; Each true value hides that part when hideGameHud is enabled.\n";
+		file << "hideCompass = " << boolean(hideCompass) << "\n";
+		file << "hideMessages = " << boolean(hideMessages) << "\n";
+		file << "hideQuestUpdates = " << boolean(hideQuestUpdates) << "\n";
+		file << "hideHealth = " << boolean(hideHealth) << "\n";
+		file << "hideMagicka = " << boolean(hideMagicka) << "\n";
+		file << "hideStamina = " << boolean(hideStamina) << "\n";
+		file << "hideShout = " << boolean(hideShout) << "\n";
+		file << "hideCrosshair = " << boolean(hideCrosshair) << "\n";
+		file << "hideStealth = " << boolean(hideStealth) << "\n";
+		file << "hideSubtitles = " << boolean(hideSubtitles) << "\n";
+		file << "hideActivation = " << boolean(hideActivation) << "\n";
+		file << "hideAmmo = " << boolean(hideAmmo) << "\n";
+		file << "hideCharge = " << boolean(hideCharge) << "\n";
+		file << "hideLocation = " << boolean(hideLocation) << "\n";
+		file << "hideTutorial = " << boolean(hideTutorial) << "\n";
+		file << "hideEnemyHealth = " << boolean(hideEnemyHealth) << "\n";
+		file << "hideQuestMarkers = " << boolean(hideQuestMarkers) << "\n";
+		file << "hideFavorPrompt = " << boolean(hideFavorPrompt) << "\n";
+		file << "; Optional comma-separated clip paths relative to HUDMovieBaseInstance.\n";
+		file << "extraParts = " << hideHudParts << "\n\n[General]\n";
 		file << "; Move the game's activation prompt - the \"Talk  Lydia\" line on the\n";
 		file << "; crosshair, over the face of whoever you are about to talk to. In\n";
 		file << "; the HUD's own units: the screen is 1280 across and 720 tall, and\n";
@@ -1720,6 +1788,8 @@ namespace SS
 		file << "; Numbers beside every vitals bar: off, current, outofmax\n";
 		file << "; (320/450) or percent.\n";
 		file << "numbers = " << kBarNumbersNames[static_cast<std::size_t>(barNumbers)] << "\n";
+		file << "numbersInside = " << boolean(barNumbersInside) << "\n";
+		file << "numberScale = " << barNumberScale << "\n";
 		file << "; Magicka and stamina on the combat bars too. Its own switch, not\n";
 		file << "; actorsAll: mid-fight can want different information than a sweep.\n";
 		file << "combatAll = " << boolean(combatBarsAll) << "\n";
@@ -1763,6 +1833,8 @@ namespace SS
 		file << "min = " << arousalMin << "\n\n";
 		file << "; Print the figure beside the flame as well.\n";
 		file << "number = " << boolean(arousalNumber) << "\n\n";
+		file << "; PNG filename under ScavengerSense/icons; empty uses the built-in flame.\n";
+		file << "icon = " << arousalIcon << "\n\n";
 		file << "color = " << ColourText(arousalColour) << "\n\n\n";
 
 		file << "[Bonds]\n\n";
@@ -1888,6 +1960,22 @@ namespace SS
 			file << "\n";
 		}
 
+		constexpr const char* sections[2][3] = {
+			{ "PlayerBarHealth", "PlayerBarMagicka", "PlayerBarStamina" },
+			{ "ActorBarHealth", "ActorBarMagicka", "ActorBarStamina" }
+		};
+		for (int owner = 0; owner < 2; ++owner) {
+			for (int i = 0; i < 3; ++i) {
+				const auto& style = owner == 0 ? playerBarStyles[i] : actorBarStyles[i];
+				file << "\n[" << sections[owner][i] << "]\n";
+				file << "; Multipliers of the shared bar dimensions; offsets in screen pixels.\n";
+				file << "width = " << style.width << "\nheight = " << style.height;
+				file << "\nx = " << style.x << "\ny = " << style.y << "\n";
+				file << "; PNG paths relative to ScavengerSense/icons. Empty uses the built-in style.\n";
+				file << "fillTexture = " << style.fillTexture << "\nemptyTexture = " << style.emptyTexture;
+				file << "\nframeTexture = " << style.frameTexture << "\n";
+			}
+		}
 		logger::info("settings written to {}", a_path);
 		return true;
 	}

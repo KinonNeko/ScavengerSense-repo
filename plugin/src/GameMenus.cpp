@@ -3,6 +3,7 @@
 #include "Config.h"
 
 #include <cmath>
+#include <sstream>
 
 namespace SS
 {
@@ -39,14 +40,9 @@ namespace SS
 		// exactly the wrong thing.
 		constexpr std::string_view kDialogue = "Dialogue Menu";
 
-		// The vanilla HUD's main clip. Hiding the HUD Menu's movie is what the
-		// setting asks for, and it is also what the game undoes: a menu that
-		// pauses the game hides the HUD on the way in and shows it again on
-		// the way out, at the movie level. Every element the HUD draws hangs
-		// off this clip, its script never writes the clip's own _visible,
-		// and so the clip stays hidden across that hand-back where the movie
-		// did not. The movie is still hidden as well, for anything a mod has
-		// attached to the movie beside the clip.
+		// Keep the parent movie alive: hiding it would also hide any compass,
+		// messages or subtitles that the player chose to retain. Suppression
+		// operates on individual child clips and is reasserted after menu changes.
 		constexpr auto kHudBase = "_root.HUDMovieBaseInstance";
 
 		// The activation prompt, in pieces: the name line, the key glyph, the
@@ -73,13 +69,6 @@ namespace SS
 			return menu && menu->uiMovie ? menu->uiMovie.get() : nullptr;
 		}
 
-		void SetBaseVisible(bool a_visible)
-		{
-			if (auto* movie = HudMovie()) {
-				movie->SetVariable((std::string{ kHudBase } + "._visible").c_str(),
-					RE::GFxValue{ a_visible });
-			}
-		}
 	}
 
 	GameMenus* GameMenus::GetSingleton()
@@ -286,14 +275,15 @@ namespace SS
 			}
 		}
 
+		const bool hideHud = std::find(wanted.begin(), wanted.end(), RE::HUDMenu::MENU_NAME) != wanted.end();
+		std::erase(wanted, std::string{ RE::HUDMenu::MENU_NAME });
+		ApplyHudParts(hideHud);
+
 		// Anything we hid that is no longer wanted goes back.
 		for (const auto& name : _hidden) {
 			if (std::find(wanted.begin(), wanted.end(), name) == wanted.end()) {
 				if (auto menu = ui->GetMenu(name); menu && menu->uiMovie) {
 					menu->uiMovie->SetVisible(true);
-					if (name == RE::HUDMenu::MENU_NAME) {
-						SetBaseVisible(true);
-					}
 				}
 			}
 		}
@@ -305,12 +295,60 @@ namespace SS
 				continue;  // not open right now - retried next time this runs
 			}
 			menu->uiMovie->SetVisible(false);
-			if (name == RE::HUDMenu::MENU_NAME) {
-				// The clip as well as the movie: see kHudBase.
-				SetBaseVisible(false);
-			}
 			_hidden.push_back(name);
 		}
+	}
+
+	void GameMenus::ApplyHudParts(bool a_hide)
+	{
+		auto* movie = HudMovie();
+		const auto* s = Settings::GetSingleton();
+		std::set<std::string> wanted;
+		const auto add = [&](bool hide, const char* part) {
+			if (a_hide && hide) { wanted.emplace(std::string{ kHudBase } + "." + part + "._alpha"); }
+		};
+		add(s->hideCompass, "CompassShoutMeterHolder.Compass");
+		add(s->hideMessages, "MessagesBlock");
+		add(s->hideQuestUpdates, "QuestUpdateBaseInstance");
+		add(s->hideHealth, "HealthMeterAnim");
+		add(s->hideEnemyHealth, "EnemyHealth_mc");
+		add(s->hideMagicka, "MagickaMeterAnim");
+		add(s->hideStamina, "StaminaMeterAnim");
+		add(s->hideShout, "CompassShoutMeterHolder.ShoutMeterInstance");
+		add(s->hideShout, "CompassShoutMeterHolder.ShoutWarningInstance");
+		add(s->hideCrosshair, "CrosshairInstance");
+		add(s->hideCrosshair, "CrosshairAlert");
+		add(s->hideStealth, "StealthMeterInstance");
+		add(s->hideSubtitles, "SubtitleTextHolder");
+		add(s->hideActivation, "RolloverNameInstance");
+		add(s->hideActivation, "ActivateButton_tf");
+		add(s->hideActivation, "RolloverInfoInstance");
+		add(s->hideActivation, "GrayBarInstance");
+		add(s->hideAmmo, "ArrowInfoInstance");
+		add(s->hideCharge, "LeftChargeMeterAnim");
+		add(s->hideCharge, "RightChargeMeterAnim");
+		add(s->hideLocation, "LocationLockBase");
+		add(s->hideTutorial, "TutorialLockInstance");
+		add(s->hideQuestMarkers, "FloatingQuestMarkerInstance");
+		add(s->hideFavorPrompt, "FavorBackButtonBase");
+		// Additional relative clip paths for HUD replacers, no guessed memory offsets.
+		std::istringstream extra{ s->hideHudParts };
+		std::string part;
+		while (std::getline(extra, part, ',')) {
+			const auto first = part.find_first_not_of(" \t\r");
+			if (first == std::string::npos) { continue; }
+			part = part.substr(first, part.find_last_not_of(" \t\r") - first + 1);
+			add(true, part.c_str());
+		}
+		_hudMask.Apply(movie, wanted,
+			[&](const std::string& path) -> std::optional<double> {
+				RE::GFxValue value;
+				if (!movie->GetVariable(&value, path.c_str()) || !value.IsNumber()) { return std::nullopt; }
+				return value.GetNumber();
+			},
+			[&](const std::string& path, double alpha) {
+				movie->SetVariable(path.c_str(), RE::GFxValue{ alpha });
+			});
 	}
 
 	void GameMenus::ApplyHudLayout()
@@ -416,6 +454,7 @@ namespace SS
 
 	void GameMenus::RestoreHud()
 	{
+		ApplyHudParts(false);
 		auto* ui = RE::UI::GetSingleton();
 		if (!ui) {
 			_hidden.clear();
@@ -424,9 +463,6 @@ namespace SS
 		for (const auto& name : _hidden) {
 			if (auto menu = ui->GetMenu(name); menu && menu->uiMovie) {
 				menu->uiMovie->SetVisible(true);
-				if (name == RE::HUDMenu::MENU_NAME) {
-					SetBaseVisible(true);
-				}
 			}
 		}
 		if (!_hidden.empty()) {

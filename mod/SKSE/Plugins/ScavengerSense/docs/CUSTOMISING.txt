@@ -1,0 +1,102 @@
+SCAVENGER SENSE 0.10 — HUD, BARS AND QUICK ACTIVATION
+
+KEEP THE COMPASS OR SYSTEM MESSAGES
+Setup -> Hide the interface -> Hide the game's HUD enables suppression.
+Untick “Hide compass”, “Hide system messages” and any other parts to keep.
+There are separate controls for notifications, subtitles, crosshair, stealth,
+activation prompt, each vanilla vital, shout cooldown, enemy health, ammo,
+weapon charge, location names, tutorial hints, quest markers and follower commands.
+The HUD movie stays running; visible parts keep receiving game updates.
+Switches restore only the alpha captured from the current HUD movie.
+
+“Menus to hide” is comma separated and case sensitive. HUD Menu uses those
+individual switches. Other named Scaleform menus are hidden as complete movies.
+For HUD replacers, “Extra HUD clips to hide” accepts comma-separated paths
+relative to HUDMovieBaseInstance. Unrecognised clips are left alone.
+Custom ImGui overlays must be controlled by the mod which draws them.
+Other mods that hide the entire HUD can still prevent these parts appearing.
+
+Example personal INI:
+[General]
+hideGameHud = true
+hideMenus = HUD Menu
+[HUD]
+hideCompass = false
+hideMessages = false
+hideSubtitles = false
+hideQuestUpdates = false
+
+NPC NUMBERS
+People -> Other people -> Numbers on their bars offers current, current/max,
+percent, or off. It applies to NPC sweep bars AND combat bars. It is available
+without changing the “Raise a bar” dropdown. Enable the relevant bars as usual.
+Player numbers have their own setting under Mine.
+Bar style -> Centre numbers inside bars / Bar number size controls placement.
+This release displays the resource values, not regeneration-per-second rates.
+
+EACH BAR'S SIZE, POSITION AND PNG SKIN
+Bar style -> Individual bars and PNG skins:
+Choose Player or Other people, then Health, Magicka or Stamina. Every choice
+has independent width/height multipliers and X/Y offsets. They apply wherever
+that owner's bar appears: sweep tags, overhead bars, or the player corner HUD.
+Positive X moves right; positive Y moves down. Offsets are screen pixels.
+The shared bar dimensions, tag scaling and corner size still provide the base.
+Positioning is freeform; large bars/offsets may require adjusting surrounding HUD.
+
+Put your PNGs under Data/SKSE/Plugins/ScavengerSense/icons, including subfolders.
+Enter their relative paths into Fill PNG, Empty bar PNG and Frame PNG.
+For example: skins/health-fill.png, skins/empty.png, skins/frame.png.
+Use transparent RGBA PNGs, at most 4096 x 4096. Images are loaded on the render
+thread and cached. Changing a filename applies on its next draw; replacing a
+file already loaded, or fixing a previously missing file, needs a restart.
+Artwork is drawn in its original colours; health/magicka/stamina colours still
+apply to the built-in fallback and the numbers. The custom frame draws last.
+
+Fill art represents a FULL horizontal bar. Its UVs are cropped with the value,
+not squeezed to fit; upright bars rotate the same artwork to fill upward.
+Empty/frame art keeps the full bar size. Shear follows the shared bar style;
+set shared Slant to zero for a rectangular skin.
+Missing fill art falls back to the built-in bar; missing optional layers are
+skipped. Custom PNG fills respect the reduced maximum and dim the lost span.
+The full built-in frost/smoke appearance remains on the default geometric skin.
+
+Example:
+[PlayerBarHealth]
+width = 1.2
+height = 1.0
+x = 0
+y = 0
+fillTexture = skins/health-fill.png
+emptyTexture = skins/empty.png
+frameTexture = skins/frame.png
+
+Other sections: PlayerBarMagicka, PlayerBarStamina, ActorBarHealth,
+ActorBarMagicka and ActorBarStamina. Width/height range: 0.1..5.0.
+
+AROUSAL ICON
+The old icon was drawn in code, so no flame image existed to replace.
+The built-in shape now has multiple flame tongues. Add-ons -> Arousal icon PNG
+accepts a relative PNG path from the same icons folder. Empty/missing artwork
+uses the built-in flame. The icon still fills from below with arousal.
+[Arousal]
+icon = my-flame.png
+
+SINGLE PRESS OR HOLD INSTEAD OF DOUBLE TAP
+These triggers already existed. The default shared-key layout reserves single
+press for marking and hold for clearing, so it cannot also use those gestures
+for sensing. Keys -> Single press sense or Hold to sense switches tracking to
+its own key and selects the existing trigger. Conflicting tracking bindings
+are moved to middle mouse or unbound; check your controller binding afterwards.
+The installer offers the same layouts. You can tune the hold time in Keys.
+
+Manual example:
+[Hotkey]
+trigger = press
+[Tracks]
+keyMode = single
+key = 258
+gamepad = -1
+
+Save to INI after menu changes. Existing personal settings override installer
+answers; reinstalling does not overwrite ScavengerSense.ini. No new game,
+BodySlide build or animation/behaviour generation is needed for these changes.

@@ -1,5 +1,17 @@
 # Scavenger Sense — working notes
 
+## 2026-10-15 handoff update
+
+The following older notes remain useful historical context. The current local
+development version is **0.10.0 beta**, not yet published. Read
+`reports/2026-10-15-0.10.0.md` for dependencies, changes, validation and limits.
+`AGENTS.md` is the Codex entrypoint. `tools/build.ps1 -Test` uses the installed
+VS toolchain and preserves the build cache. Deployment now detects the selected
+MO2 profile and the first enabled owner of ScavengerSense.dll; on this inspection
+that is `Scavenger Sense`, while `Scavenger Sense - SKSE` is disabled.
+Use `-PreserveRules` for a DLL/UI-only deploy. Never overwrite the live personal
+INI, overwrite settings or assigned titles as part of these feedback changes.
+
 Context for whoever picks this up, human or otherwise. Written at the end of the
 session that built 0.5 beta, then the vitals work and 0.6 on top of it.
 

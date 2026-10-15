@@ -15,6 +15,8 @@ Exit code 1 when anything is missing, so it can gate a release.
 import os
 import re
 import sys
+import argparse
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "plugin", "src")
@@ -70,11 +72,11 @@ def collect() -> set:
     return {w for w in wanted if w and not w.startswith("##") and "%" not in w}
 
 
-def ini_keys() -> set:
+def ini_keys(path=INI, include_empty=False) -> set:
     keys = set()
-    if not os.path.exists(INI):
+    if not os.path.exists(path):
         return keys
-    for line in open(INI, encoding="utf-8-sig"):
+    for line in open(path, encoding="utf-8-sig"):
         line = line.rstrip("\n")
         if not line or line.lstrip().startswith((";", "#", "[")):
             continue
@@ -87,7 +89,7 @@ def ini_keys() -> set:
                 eq = i
                 break
             i += 1
-        if eq > 0:
+        if eq > 0 and (include_empty or line[eq + 1:].strip()):
             keys.add(unescape(line[:eq].strip()))
     return keys
 
@@ -97,8 +99,33 @@ def as_key(a_text: str) -> str:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--language', default=INI, help='Translation INI to validate')
+    parser.add_argument('--template', help='Write a complete English translation template')
+    parser.add_argument('--merge', help='Append missing keys without changing existing translations or comments')
+    args = parser.parse_args()
     wanted = collect()
-    have = ini_keys()
+    if args.template:
+        path = Path(args.template)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        header = '; UTF-8. Copy next to ScavengerSense.dll as ScavengerSense_<language>.ini.\n'
+        header += '; Translate only the right side. Keep the English keys and escapes unchanged.\n[Translation]\n'
+        path.write_text(header + ''.join(f'{as_key(s)}={as_key(s)}\n' for s in sorted(wanted)), encoding='utf-8')
+        print(f'Wrote {len(wanted)} strings to {path}')
+        sys.exit(0)
+    if args.merge:
+        path = Path(args.merge)
+        original = path.read_text(encoding='utf-8-sig') if path.exists() else '[Translation]\n'
+        missing = sorted(wanted - ini_keys(path, include_empty=True))
+        # Empty values are left empty: the loader falls back to English until translated.
+        with path.open('a', encoding='utf-8') as output:
+            if not path.stat().st_size: output.write(original)
+            if '[Translation]' not in original: output.write('\n[Translation]\n')
+            output.write('\n; New untranslated entries\n')
+            output.writelines(f'{as_key(s)}=\n' for s in missing)
+        print(f'Appended {len(missing)} entries; existing text preserved: {path}')
+        sys.exit(0)
+    have = ini_keys(args.language)
 
     missing = sorted(wanted - have)
     stale = sorted(have - wanted)

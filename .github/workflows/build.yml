@@ -45,7 +45,8 @@ jobs:
         shell: pwsh
         run: |
           cmake -S plugin -B plugin/build -G "Visual Studio 17 2022" -A x64 `
-                -Ddirectxtk_DIR="${{ github.workspace }}/cmake-pkgs/directxtk"
+                -Ddirectxtk_DIR="${{ github.workspace }}/cmake-pkgs/directxtk" `
+                -DCOMMONLIB_PREBUILT=OFF -DSCAVENGER_BUILD_TESTS=ON
 
       - name: Build
         shell: pwsh
@@ -55,11 +56,24 @@ jobs:
         shell: pwsh
         run: |
           python tools/make_esp.py
+          python tools/check_translations.py --template mod/SKSE/Plugins/ScavengerSense/translations/ScavengerSense_english.ini
           python tools/build_fomod.py
+
+      - name: Offline regression checks
+        shell: pwsh
+        run: |
+          ctest --test-dir plugin/build -C Release --output-on-failure
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/check_translations.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/check_menu_ids.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/check_binary.py plugin/build/Release/ScavengerSense.dll
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/check_installer_routes.py
 
       - name: Validate the installer
         shell: pwsh
-        continue-on-error: true
         run: python tools/validate_fomod.py
 
       # The tree itself, not a zip of it: GitHub hands an artifact back as a

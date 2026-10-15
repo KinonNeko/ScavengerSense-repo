@@ -11,6 +11,16 @@ too — relationships, titles, and who is a merchant.
 This repository is the source. Release builds are attached to the Nexus page as
 a FOMOD; you do not need to build anything to play the mod.
 
+The local **0.10.0 beta development build** adds individual vanilla HUD switches,
+discoverable translation packs, separate player/NPC bar layouts and PNG skins,
+and quick single-press/hold controls. It updates CommonLibSSE-NG to 12.1.0 for
+the newer AE runtime and address-library format. This is not a claim that the
+development build has been published or verified in every game runtime.
+
+User guides ship in [the docs folder](mod/SKSE/Plugins/ScavengerSense/docs),
+including Chinese instructions. The full English translation template is in
+`mod/SKSE/Plugins/ScavengerSense/translations`.
+
 ## Licence
 
 **GPL-3.0-or-later.** See [LICENSE](LICENSE).
@@ -60,13 +70,19 @@ CMake project expects the dependencies as sibling directories at the repository
 root, which is what the submodules provide.
 
 ```sh
-git clone --recursive https://github.com/<you>/ScavengerSense
+git clone --recursive https://github.com/KinonNeko/ScavengerSense-repo.git ScavengerSense
 cd ScavengerSense
 cmake -S plugin -B plugin/build -G Ninja \
       -DCMAKE_BUILD_TYPE=Release \
       -Ddirectxtk_DIR=$PWD/cmake-pkgs/directxtk
 cmake --build plugin/build
 ```
+
+For this Windows checkout, `./tools/build.ps1 -Test` configures MSVC, builds
+Release and runs native offline checks. It reuses the existing build cache.
+The tests cover settings persistence, HUD restoration, translation discovery,
+runtime classification and 1.7.104 format-5 address lookup with a synthetic file.
+They do not launch Skyrim. See `reports/2026-10-15-0.10.0.md` for the inspection.
 
 If you already cloned without `--recursive`:
 

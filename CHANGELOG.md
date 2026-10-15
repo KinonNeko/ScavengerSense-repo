@@ -1,12 +1,37 @@
 # Changelog
 
-Every published version, newest first. Versions are the ones that reached
-Nexus; the numbering skips where a build was cut but never shipped.
+Published releases and explicitly marked local development builds, newest
+first. A development entry does not mean that version has reached Nexus.
 
 The version lives in three places that must agree, and a release is not a
 release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
+
+## 0.10.0 beta — development, 2026-10-15 (not published)
+
+- Keep the compass, system messages, subtitles or other vanilla HUD parts
+  independently. Added 18 suppression controls and custom clip paths; restore
+  captured alpha values per HUD movie instead of hiding the entire HUD movie.
+- Discover installed translation packs; ship a complete English template,
+  translator guide, rescan/reload control and a merge tool preserving old text.
+- Update CommonLibSSE-NG 6.2.0 -> 12.1.0, spdlog -> 1.17.0 and DirectXTK.
+  New AE runtimes use AE classification and the format-5 loader; use the
+  version-aware SkyrimVM accessor. This still requires matching runtime mods.
+- The installer starts with English/Chinese selection and translated pages.
+  Maintain Chinese installer copy once in JSON; missing entries fail the build.
+- Fix the NPC numbers control being nested inside the “Raise a bar” change
+  handler. Add centred numbers, number scale, six independent bar layouts and
+  optional PNG fill/empty/frame layers, shared by all three draw contexts.
+- Replace the droplet-like arousal glyph with multiple flame tongues and
+  support a user PNG override. Existing press/hold triggers get one-click
+  shortcuts that switch away from the shared-key layout; installer options too.
+- Add native regression checks, executable version probes, PE/import checks
+  and installer route checks. CI validation failures now block artifact upload.
+
+Release compiled and offline tests passed. Actual Skyrim startup/appearance
+and user feedback on all supported runtimes remain pending. Regeneration-rate
+numbers and the full set of TrueHUD features are not added in this build.
 
 ## 0.9.6 beta
 

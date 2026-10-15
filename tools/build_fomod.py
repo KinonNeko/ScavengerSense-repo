@@ -8,6 +8,10 @@ asked the moment the game starts - nothing has to be loaded from the menu.
 Fragments carry only the keys their answer changes.
 """
 import os, re, shutil, sys
+try:
+    from .localize_fomod import localize
+except ImportError:
+    from localize_fomod import localize
 
 ROOT  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOD   = os.path.join(ROOT, "mod")
@@ -33,6 +37,34 @@ def fragment(title, body):
 # folder -> (fragment filename, title, body).  A folder of None means the answer
 # is the built-in default and installs nothing at all.
 FRAGMENTS = {
+    "01 English menu": ("99-language.ini", "English menu", "[General]\nlanguage = english"),
+    "01 Chinese menu": ("99-language.ini", "Chinese menu", "[General]\nlanguage = chinese"),
+    "08 Quick press": ("98-controls.ini", "single press sensing", """
+[Hotkey]
+trigger = press
+[Tracks]
+keyMode = single
+key = 258
+gamepad = -1
+"""),
+    "08 Quick hold": ("98-controls.ini", "hold sensing", """
+[Hotkey]
+trigger = hold
+holdTime = 0.35
+[Tracks]
+keyMode = single
+key = 258
+gamepad = -1
+"""),
+    "09 Keep essentials": ("21-hidehud.ini", "keep compass and messages", """
+[General]
+hideGameHud = true
+[HUD]
+hideCompass = false
+hideMessages = false
+hideSubtitles = false
+hideQuestUpdates = false
+"""),
     "10 Tags - no icons": ("30-tags.ini", "name tags without icons", """
 [Labels]
 icons = false
@@ -223,8 +255,13 @@ def sync_payload():
     put(os.path.join(plugins, "ScavengerSense_titles.ini"),
         "00 Core/SKSE/Plugins/ScavengerSense_titles.ini")
     icons = os.path.join(plugins, "ScavengerSense/icons")
-    for icon in sorted(os.listdir(icons)):
-        put(os.path.join(icons, icon), f"00 Core/SKSE/Plugins/ScavengerSense/icons/{icon}")
+    for folder in ("icons", "translations", "docs"):
+        source = os.path.join(plugins, "ScavengerSense", folder)
+        for directory, _, files in os.walk(source):
+            for name in sorted(files):
+                path = os.path.join(directory, name)
+                rel = os.path.relpath(path, source).replace('\\', '/')
+                put(path, f"00 Core/SKSE/Plugins/ScavengerSense/{folder}/{rel}")
     put(os.path.join(MOD, "Sound/FX/ScavengerSense/sweep.wav"),
         "00 Core/Sound/FX/ScavengerSense/sweep.wav")
     put(os.path.join(MOD, "Sound/FX/ScavengerSense/README-sound.txt"),
@@ -541,6 +578,10 @@ def build_xml():
         plugin("Keep it",
                "The game's own HUD - compass, crosshair, your bars - stays as it is.",
                type_="Recommended"),
+        plugin("Hide bars, keep compass and messages",
+               "Hide the selected vanilla HUD parts, but keep the compass, system messages, "
+               "quest notifications and subtitles. Every part has its own checkbox on the Setup page.",
+               "09 Keep essentials"),
         plugin("Hide it - the sense is the interface",
                "The vanilla HUD goes. Sweeps, the corner readout and the over-head "
                "bars become the only interface; the hidden menus come back the moment "
@@ -678,16 +719,26 @@ button.""",
            '    <folder source="00 Core" destination="" priority="0" />\n'
            "  </requiredInstallFiles>\n\n"
            '  <installSteps order="Explicit">\n\n')
+    activation = group("Sense activation", "SelectExactlyOne", [
+        plugin("Shared key gestures", "Double tap senses, a single press marks, and holding clears trails. "
+               "The default layout. You can change it in the Keys menu.", type_="Recommended"),
+        plugin("Single press - instant sense", "One press starts sensing immediately. Tracking uses middle mouse "
+               "on the keyboard; its controller binding starts unbound. Existing personal INI settings take precedence.",
+               "08 Quick press"),
+        plugin("Hold - quick sense", "Hold the sense key for 0.35 seconds to start a sweep. Tracking uses its own "
+               "key. The hold time can be changed in the Keys menu. Existing personal INI settings take precedence.",
+               "08 Quick hold"),
+    ])
     xml += step("Scavenger Sense / 快速开始", [start, keys]) + "\n"
+    xml += step("Controls / 按键", [activation]) + "\n"
     xml += step("Tracking / 足迹追踪", [tracking, capture, trailkey], when=("custom", "on")) + "\n"
     xml += step("How it should look / 外观",
         [tags, effect, lights, people, hidehud], when=("custom", "on")) + "\n"
     xml += step("Vitals bars and sound / 状态条与提示音",
         [sweepbars, combat, overhead, survival, chime], when=("custom", "on")) + "\n"
-    xml += step("Menu language / 菜单语言", [language]) + "\n"
     xml += step("Optional extras / 可选内容", [font, addons, builtin])
     xml += "\n  </installSteps>\n\n</config>\n"
-    return xml
+    return localize(xml)
 
 
 if __name__ == "__main__":

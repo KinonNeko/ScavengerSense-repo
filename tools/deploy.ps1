@@ -12,12 +12,31 @@
         .\tools\deploy.ps1 -WhatIf
 #>
 param(
-    [string] $Target = "E:\iniRePather-Skyrim\mods\Scavenger Sense - SKSE",
+    [string] $Target = "",
+    [string] $MO2Instance = "E:\iniRePather-Skyrim",
+    [switch] $PreserveRules,
     [switch] $WhatIf
 )
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
+
+if (-not $Target) {
+    $organizer = Get-Content (Join-Path $MO2Instance 'ModOrganizer.ini') -Raw
+    if ($organizer -notmatch '(?m)^selected_profile=@ByteArray\(([^\r\n]*)\)') { throw 'Cannot determine the selected MO2 profile. Pass -Target explicitly.' }
+    $profileName = $matches[1]
+    $modlist = Join-Path $MO2Instance "profiles\$profileName\modlist.txt"
+    foreach ($line in Get-Content $modlist -Encoding UTF8) {
+        if (-not $line.StartsWith('+')) { continue }
+        $candidate = Join-Path $MO2Instance ('mods\' + $line.Substring(1))
+        if (Test-Path -LiteralPath (Join-Path $candidate 'SKSE\Plugins\ScavengerSense.dll')) { $Target = $candidate; break }
+    }
+    if (-not $Target) { throw "No enabled ScavengerSense.dll in profile $profileName. Pass -Target explicitly." }
+    if (Test-Path -LiteralPath (Join-Path $MO2Instance 'overwrite\SKSE\Plugins\ScavengerSense.dll')) {
+        throw 'An overwrite DLL would mask this deployment. Inspect and back it up before deploying.'
+    }
+    Write-Host "Selected profile $profileName -> $Target"
+}
 
 if (-not (Test-Path $Target)) {
     throw "Target does not exist: $Target`nPass -Target with your own path."
@@ -47,9 +66,13 @@ foreach ($f in Get-ChildItem "$repo\mod\SKSE\Plugins" -Filter "ScavengerSense*.i
     $jobs += @{ From = $f.FullName; To = "SKSE\Plugins\$($f.Name)" }
 }
 
-# The marker pictures, every one of them: a new icon is a new file.
-foreach ($f in Get-ChildItem "$repo\mod\SKSE\Plugins\ScavengerSense\icons" -Filter "*.png" -ErrorAction SilentlyContinue) {
-    $jobs += @{ From = $f.FullName; To = "SKSE\Plugins\ScavengerSense\icons\$($f.Name)" }
+# Pictures, translation templates and documentation; preserve relative subfolders.
+foreach ($folder in @('icons', 'translations', 'docs')) {
+    $source = "$repo\mod\SKSE\Plugins\ScavengerSense\$folder"
+    foreach ($f in Get-ChildItem $source -File -Recurse -ErrorAction SilentlyContinue) {
+        $relative = $f.FullName.Substring($source.Length).TrimStart('\')
+        $jobs += @{ From = $f.FullName; To = "SKSE\Plugins\ScavengerSense\$folder\$relative" }
+    }
 }
 
 # Every preset, not just the one that shipped first: presets are added over
@@ -63,6 +86,11 @@ $skipped = 0
 foreach ($job in $jobs) {
     if (-not (Test-Path $job.From)) { continue }
     $dest = Join-Path $Target $job.To
+
+    if ($PreserveRules -and $job.To -match 'ScavengerSense_(marks.*|titles)\.ini$' -and (Test-Path -LiteralPath $dest)) {
+        $skipped++
+        continue
+    }
 
     # Titles carry an [Assigned] block written in game. Overwriting it would
     # throw away every title typed onto somebody by hand, so it is merged.

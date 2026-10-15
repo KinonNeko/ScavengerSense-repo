@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Validate the FOMOD tree before packaging."""
-import io, os, sys, re
+import io, os, sys, re, itertools
 import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -43,6 +43,11 @@ if not cfg.findtext("moduleName"):
 
 # --- 3. every referenced source folder exists, and is referenced once ----
 refs = {}
+ref_conditions = {}
+for step in cfg.iter("installStep"):
+    conditions = {(d.get("flag"), d.get("value")) for d in step.findall("visible//flagDependency")}
+    for folder in step.iter("folder"):
+        ref_conditions[id(folder)] = conditions
 for folder in cfg.iter("folder"):
     src = folder.get("source")
     if src is None:
@@ -67,7 +72,12 @@ for d in payload:
     if n == 0:
         err(f"payload folder {d!r} exists on disk but nothing installs it")
     elif n > 1:
-        err(f"payload folder {d!r} referenced {n} times")
+        instances = [ref_conditions.get(id(f), set()) for f in cfg.iter('folder') if f.get('source') == d]
+        # English and Chinese pages deliberately reference the same payload.
+        # Every duplicate must be guarded by contradictory route conditions.
+        if not all(any(ka == kb and va != vb for ka, va in a for kb, vb in b)
+                   for a, b in itertools.combinations(instances, 2)):
+            err(f"payload folder {d!r} referenced {n} times on compatible routes")
 for src in refs:
     if src not in payload:
         err(f"reference to {src!r} which is not a payload folder")
