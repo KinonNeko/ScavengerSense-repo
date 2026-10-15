@@ -1,0 +1,69 @@
+NEXUS REPLY DRAFTS — 2026-10-15
+
+These are drafts for the upcoming 0.10.1 beta, not posted replies. The local
+build is not yet published. Do not claim that all runtimes were game-tested.
+
+1. Compass and system messages
+
+Yes. I've implemented separate HUD visibility switches for the next build,
+including the compass, system messages, subtitles and notifications. You can
+keep those visible while hiding the other vanilla HUD elements.
+
+2. Other translations
+
+Yes. The next build includes an English translation template and automatically
+detects ScavengerSense_<language>.ini packs. Translate the values in UTF-8;
+no code or ESP edits are needed. Missing entries fall back to English. The
+framework also needs a font and glyph ranges suitable for your language.
+
+3. “Doesn't work on 1.7.104”
+
+I've updated CommonLib and rebuilt the plugin to correct 1.7.x runtime
+detection and support the newer Address Library format. The filename and
+loader path pass offline checks for 1.7.104, but full in-game confirmation
+is still pending. Please use SKSE and Address Library matching your executable.
+
+4. “1.6.1170 / SKSE 2.2.8: issue with the DLL”
+
+Please attach the exact startup error and skse64.log, plus ScavengerSense.log
+if it was created, and tell me your SKSE Menu Framework version. A general
+DLL error can have several causes; I can't confirm its cause from that
+description alone. I've added stronger framework compatibility checks in
+the next build and verified the updated local 3.14 framework's imports/layouts.
+
+5. Technical diagnosis of the pinned CommonLib / wrong address-library filename
+
+Thanks for the detailed diagnosis. You're right about the pinned library's
+runtime classification. I've moved to CommonLib 12.1.0 and rebuilt, including
+its newer address-library loader. I also changed the VM access to its
+version-aware accessor. Offline probes now classify 1.7.104 as AE and resolve
+IDs through the versionlib filename and format-5 loader. Actual game testing
+on that runtime is still pending.
+
+6. Chinese FOMOD descriptions
+
+I've added an English/Chinese choice at the beginning of the installer, with
+the following pages translated accordingly. The Chinese installer text is
+maintained in one reusable file, so it is preserved when I rebuild the package.
+The selected language also sets the initial menu language for a fresh install;
+an existing personal INI still takes precedence.
+
+7. NPC numbers, bar layout and PNG skins / replacing TrueHUD
+
+I've implemented the main parts for the next build: NPC bars can show current
+values, current/max or percentages; player and NPC health/magicka/stamina bars
+have separate size/position controls; and you can supply PNG fill, background
+and frame images. Numbers can also be centred inside the bars. The NPC number
+setting already existed, but its menu control was accidentally hidden inside
+another control's change handler; that is fixed. Regeneration-rate figures
+and complete TrueHUD feature parity are still outside this build.
+
+8. Arousal flame looks like a waterdrop / faster activation
+
+The old icon was drawn in code, which is why you couldn't find an image file.
+I've given the built-in flame a clearer outline and added an optional PNG
+override. Single-press and hold sensing already existed, but the default
+shared-key layout reserved those gestures for tracking. The next build adds
+“Single press sense” and “Hold to sense” shortcuts on the Keys page to select
+a separate tracking layout. Single press then starts sensing without waiting
+for a double tap.

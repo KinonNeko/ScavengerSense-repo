@@ -19,3 +19,6 @@
 [submodule "SMF-SDK"]
 	path = SMF-SDK
 	url = https://github.com/Thiago099/SKSE-Menu-Framework-SDK
+[submodule "extern/imgui-abi"]
+	path = extern/imgui-abi
+	url = https://github.com/ocornut/imgui.git

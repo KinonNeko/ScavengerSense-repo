@@ -67,7 +67,7 @@ namespace SS
 
 		// Puts back anything we hid or moved. Called on unload so a crash or
 		// a disabled setting never leaves somebody with no interface.
-		void RestoreHud();
+		void RestoreHud(bool a_restoreLayout = true);
 
 		// True while anything is still hidden or moved, so the tick keeps
 		// running long enough to put it back after the setting is switched

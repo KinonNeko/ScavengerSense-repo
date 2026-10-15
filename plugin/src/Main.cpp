@@ -4,6 +4,7 @@
 #include "Locale.h"
 #include "Marks.h"
 #include "FontCheck.h"
+#include "FrameworkABI.h"
 #include "Perks.h"
 #include "Titles.h"
 #include "Menu.h"
@@ -381,7 +382,7 @@ namespace SS
 // had counted, saying 0.8 while the plugin declared 0.9.
 namespace
 {
-	constexpr REL::Version kVersion{ 0, 10, 0, 0 };
+	constexpr REL::Version kVersion{ 0, 10, 1, 0 };
 }
 
 SKSEPluginInfo(
@@ -397,6 +398,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	// logger away. Opt out, then install ours.
 	SKSE::Init(a_skse, false);
 	SS::InitLogging();
+	if (!SS::CheckFrameworkABI()) { return false; }
 
 	logger::info("Scavenger Sense {}.{}.{} beta loading; runtime {}", kVersion.major(), kVersion.minor(),
 		kVersion.patch(), REL::Module::get().version().string());

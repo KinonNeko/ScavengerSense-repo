@@ -8,6 +8,25 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+## 0.10.1 beta — recheck, 2026-10-15 (not published)
+
+- Correct the ImGui header configuration to match the updated Menu Framework:
+  1.90.8 docking with legacy key IO. Keep C API calls in the host; do not link
+  another ImGui implementation. The prior export-only audit did not detect
+  the generated C struct mismatch (IO 2968 vs 14616; Style 1104 vs 1140).
+- Add a runtime version/layout guard, native ABI tests and a static inspection
+  tool comparing compiled sizes with the host's own check without loading it.
+- Keep activation-prompt placement independent of vanilla HUD suppression;
+  hiding off no longer restores/reapplies its position on every tick.
+- Recheck the user's updated 3.14 DLL, all 75 imports and the full package.
+  Restore Chinese font support locally with user approval, keeping all other
+  framework settings and the plugin's English menu language.
+- Correct two Chinese aiming-text typos; all 911 distinct translation
+  ideographs are covered by the bundled font.
+
+This supersedes the local 0.10.0 package. No Skyrim session was run; actual
+gameplay/runtime verification and regeneration-rate numbers remain pending.
+
 ## 0.10.0 beta — development, 2026-10-15 (not published)
 
 - Keep the compass, system messages, subtitles or other vanilla HUD parts

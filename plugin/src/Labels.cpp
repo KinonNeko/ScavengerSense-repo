@@ -6,9 +6,7 @@
 #include "PostFX.h"
 #include "Timing.h"
 
-#define CIMGUI_NO_EXPORT
-#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include <cimgui.h>
+#include "ImGuiCompat.h"
 
 namespace SS
 {

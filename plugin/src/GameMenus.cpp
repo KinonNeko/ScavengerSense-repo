@@ -245,7 +245,7 @@ namespace SS
 
 		// Turned off, or turned off since last time: put everything back first.
 		if (!settings->hideGameHud) {
-			RestoreHud();
+			RestoreHud(false);  // hiding and prompt positioning are independent settings
 			return;
 		}
 
@@ -452,7 +452,7 @@ namespace SS
 		_shifted = shifted;
 	}
 
-	void GameMenus::RestoreHud()
+	void GameMenus::RestoreHud(bool a_restoreLayout)
 	{
 		ApplyHudParts(false);
 		auto* ui = RE::UI::GetSingleton();
@@ -470,7 +470,7 @@ namespace SS
 		}
 		_hidden.clear();
 
-		if (_shifted) {
+		if (_shifted && a_restoreLayout) {
 			if (auto* movie = HudMovie()) {
 				for (std::size_t i = 0; i < kRolloverCount; ++i) {
 					if (!_rolloverKnown[i]) {

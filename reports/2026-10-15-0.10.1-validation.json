@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-15",
+  "version": "0.10.1 beta",
+  "profile": "J61-BFCO",
+  "framework_version_label": "3.14.0",
+  "framework_sha256": "0c107ad4c471c904186b68e1b50b10a66311affb40eb0ba2b8fcca36735d55a2",
+  "native_tests_passed": 6,
+  "installer_routes_passed": 102,
+  "translation_keys": 626,
+  "framework_imports_checked": 75,
+  "framework_abi": {
+    "host": {
+      "version": "1.90.8",
+      "io": 14616,
+      "style": 1140,
+      "vec2": 8,
+      "vec4": 16,
+      "drawvert": 20,
+      "drawidx": 2
+    },
+    "compiled": {
+      "version": "1.90.8",
+      "io": 14616,
+      "style": 1140,
+      "vec2": 8,
+      "vec4": 16,
+      "drawvert": 20,
+      "drawidx": 2
+    },
+    "matches": true
+  },
+  "font": {
+    "font": "E:\\iniRePather-Skyrim\\mods\\Scavenger Sense\\SKSE\\Plugins\\fonts\\MainFont.ttf",
+    "characters_checked": 54,
+    "missing": []
+  },
+  "font_config": {
+    "changed_lines": [
+      [
+        "PrimaryFont = Futura Condensed (EN)\n",
+        "PrimaryFont = MainFont.ttf\n"
+      ],
+      [
+        "EnableChinese = false\r\n",
+        "EnableChinese = true\r\n"
+      ]
+    ],
+    "sha256_before": "59ca116fe0cf352ed7b5f144d66b4593cbf43c3c0fec0cd1ff2188df7b28afa0",
+    "sha256_after": "f97f2e18cec1fc77d3eb0a648a71e4c070cbaaa039fc1ec7b9dc1894d7a04e9f"
+  },
+  "archive": {
+    "path": "E:\\dev\\ScavengerSense\\ScavengerSense-0.10.1-beta.zip",
+    "bytes": 16616387,
+    "members": 65,
+    "sha256": "62e596537a9e5aa512f55bf04f2bc396c4092d9021bf39ef4d20a7f20b544a5c",
+    "crc_and_all_member_bytes_verified": true
+  },
+  "dll_sha256": "c19f9aa5fc25cd2ccaed36d8a39957dce6541461d2acf6e7c8f4b2a4c20db089",
+  "esp_sha256": "b9b6c75f39a8ac58379c39d7fd8f5c029a97f6fe6bb980d0c360992e11b249bf",
+  "deployment": {
+    "changed": [
+      "meta.ini",
+      "SKSE/Plugins/ScavengerSense.dll",
+      "SKSE/Plugins/ScavengerSense_chinese.ini",
+      "SKSE/Plugins/ScavengerSense/docs/DEPENDENCIES.txt",
+      "SKSE/Plugins/ScavengerSense/docs/中文说明.txt"
+    ],
+    "added": [
+      "SKSE/Plugins/ScavengerSense/docs/LICENSE-imgui.txt"
+    ],
+    "unchanged_file_count": 25,
+    "preserved": {
+      "modlist.txt": "8dc503d4c7da8dc064908ca5d40bebc1d18a49340541ee6161fba7bbb49b87ab",
+      "plugins.txt": "7cd67eb13dde871a53866f49ac08fe863c0c29cab2db354d13c18f50c3052289",
+      "ScavengerSense-personal.ini": "a0e348e9818d9326008f9aeec0caf49d6b3917900b57b127bb4685c50d83e8f2",
+      "SKSEMenuFramework.dll": "0c107ad4c471c904186b68e1b50b10a66311affb40eb0ba2b8fcca36735d55a2"
+    }
+  },
+  "xsd": "ModConfig5.0 PASS",
+  "gameplay_verified": false,
+  "unresolved": [
+    "Actual Skyrim startup and gameplay not tested",
+    "Generic 1.6.1170 DLL report needs exact logs",
+    "Per-second regeneration values not implemented"
+  ],
+  "chinese_translation_font": {
+    "font": "E:\\iniRePather-Skyrim\\mods\\Scavenger Sense\\SKSE\\Plugins\\fonts\\MainFont.ttf",
+    "text_file": "mod/SKSE/Plugins/ScavengerSense_chinese.ini",
+    "cjk_only": true,
+    "characters_checked": 911,
+    "missing": []
+  }
+}

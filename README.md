@@ -11,7 +11,7 @@ too — relationships, titles, and who is a merchant.
 This repository is the source. Release builds are attached to the Nexus page as
 a FOMOD; you do not need to build anything to play the mod.
 
-The local **0.10.0 beta development build** adds individual vanilla HUD switches,
+The local **0.10.1 beta development build** adds individual vanilla HUD switches,
 discoverable translation packs, separate player/NPC bar layouts and PNG skins,
 and quick single-press/hold controls. It updates CommonLibSSE-NG to 12.1.0 for
 the newer AE runtime and address-library format. This is not a claim that the
@@ -82,7 +82,7 @@ For this Windows checkout, `./tools/build.ps1 -Test` configures MSVC, builds
 Release and runs native offline checks. It reuses the existing build cache.
 The tests cover settings persistence, HUD restoration, translation discovery,
 runtime classification and 1.7.104 format-5 address lookup with a synthetic file.
-They do not launch Skyrim. See `reports/2026-10-15-0.10.0.md` for the inspection.
+They do not launch Skyrim. See `reports/2026-10-15-0.10.1-recheck.md` for the current inspection.
 
 If you already cloned without `--recursive`:
 
@@ -94,9 +94,11 @@ Cross-compiling from Linux additionally needs an MSVC sysroot; pass
 `-DCMAKE_TOOLCHAIN_FILE=msvc-toolchain.cmake`.
 
 `extern/lib/` holds the SKSE Menu Framework import library and its `.def`. The
-framework re-exports the cimgui C API and is linked statically, so a missing or
-too-old SKSE Menu Framework means the plugin fails to load rather than
-degrading — 3.13 or newer is required.
+framework re-exports the cimgui C API; the plugin imports those functions from
+its DLL. A missing or too-old framework prevents loading. Version 3.13 or newer
+with the HUD exports and matching ImGui ABI is required; the updated local 3.14
+DLL has been checked. The plugin uses pinned ImGui 1.90.8 docking headers and
+checks the host's version and data layouts before registering callbacks.
 
 ### Producing a release
 

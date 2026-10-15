@@ -17,12 +17,10 @@
 // binary, no second context. CIMGUI_NO_EXPORT strips the dllexport attribute
 // from the declarations; we link against an import library generated from the
 // framework DLL's export table.
-#define CIMGUI_NO_EXPORT
-#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include <cimgui.h>
+#include "ImGuiCompat.h"
 
 // The framework's own export. Declared here rather than including
-// SKSEMenuFramework.h, which pulls in the C++ imgui.h we do not ship.
+// SKSEMenuFramework.h, which pulls in its own older C++ ImGui headers.
 extern "C" __declspec(dllimport) void AddSectionItem(const char* a_path, void(__stdcall* a_render)());
 
 namespace SS::Menu

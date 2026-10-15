@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(ScavengerSense VERSION 0.10.0 LANGUAGES CXX)
+project(ScavengerSense VERSION 0.10.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -45,6 +45,9 @@ add_library(${PROJECT_NAME} SHARED
     src/Timing.h
     src/Marks.cpp
     src/FontCheck.cpp
+    src/FrameworkABI.cpp
+    src/FrameworkABI.h
+    src/ImGuiCompat.h
     src/Perks.cpp
     src/Marks.h
     src/Menu.cpp
@@ -65,7 +68,9 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE src/PCH.h)
 # src/Locale.h would shadow the CRT's <locale.h> for angle-bracket includes.
 # Sources include their own headers with quotes, which search the file's
 # directory first and need no -I entry.
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../cimgui)
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cimgui
+    ${CMAKE_CURRENT_SOURCE_DIR}/../extern/imgui-abi)
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 # SKSE Menu Framework re-exports the cimgui C API from its own DLL; this import
 # library is generated from that DLL's export table (see extern/lib/*.def).
@@ -86,6 +91,18 @@ option(SCAVENGER_BUILD_TESTS "Build offline config, HUD policy and runtime probe
 if(SCAVENGER_BUILD_TESTS)
     enable_testing()
     enable_language(RC)
+    add_executable(FrameworkAbiProbe tests/FrameworkAbiProbe.cpp)
+    target_include_directories(FrameworkAbiProbe PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../cimgui ${CMAKE_CURRENT_SOURCE_DIR}/../extern/imgui-abi)
+    add_test(NAME framework_abi_layout COMMAND FrameworkAbiProbe)
+    add_executable(FrameworkAbiGuard tests/FrameworkAbiGuard.cpp src/FrameworkABI.cpp)
+    target_precompile_headers(FrameworkAbiGuard PRIVATE src/PCH.h)
+    target_compile_definitions(FrameworkAbiGuard PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_options(FrameworkAbiGuard PRIVATE /utf-8 /Zc:preprocessor)
+    target_include_directories(FrameworkAbiGuard PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../cimgui ${CMAKE_CURRENT_SOURCE_DIR}/../extern/imgui-abi)
+    target_link_libraries(FrameworkAbiGuard PRIVATE CommonLibSSE::CommonLibSSE)
+    add_test(NAME framework_abi_guard COMMAND FrameworkAbiGuard)
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-fixtures/features")
     add_executable(ScavengerSenseFeatures tests/Features.cpp src/Config.cpp src/Locale.cpp)
     target_precompile_headers(ScavengerSenseFeatures PRIVATE src/PCH.h)

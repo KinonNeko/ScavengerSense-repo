@@ -2,7 +2,7 @@ SCAVENGER SENSE 0.10 — DEPENDENCIES AND STARTUP ERRORS
 
 Requires the included ScavengerSense.esp enabled, a matching SKSE64 build,
 Address Library for the exact Skyrim executable, SKSE Menu Framework 3.13+
-with the HUD exports, and the Microsoft Visual C++ x64 runtime.
+with the HUD exports and matching ImGui ABI, and the Microsoft Visual C++ x64 runtime.
 TrueHUD and SLO Aroused NG integrations are optional.
 
 1.7.104:
@@ -16,8 +16,12 @@ You still need the actual Address Library file and a matching SKSE install.
 The exact “DLL failed” message matters. An absent/old SKSE Menu Framework
 can fail Windows DLL import resolution before this plugin can write a log.
 An Address Library error is a separate failure. The 0.10 development build
-was checked against the installed Menu Framework 3.14 and all 73 imported
-functions, plus HUD registration, were found. Do not install the framework's
+was rechecked against the updated Menu Framework 3.14: all 75 imported
+functions and HUD registration exist, and the compiled ImGui 1.90.8 docking
+layouts match the host's own layout-check constants. 0.10.1 also validates
+the version/layout at startup before registering callbacks. Merely finding
+matching function names is insufficient to establish full ABI compatibility.
+Do not install the framework's
 legacy 2024 1.x files merely because an old repository has that name.
 
 Use these primary references to select runtime downloads:
@@ -31,7 +35,8 @@ created, ScavengerSense.log or Data/SKSE/Plugins/ScavengerSense-diag.log.
 Under MO2 the latter is normally in overwrite.
 
 Verification on 2026-10-15:
-Release x64 compiled. Offline native tests passed for executable versions
+0.10.1 Release x64 compiled. Six native offline suites passed, including
+layout and guard checks, plus executable version probes for
 1.5.97, 1.6.1170 and 1.7.104: runtime classification and VM member offsets.
 The 1.7.104 probe also used the production filename selection and format-5
 loader with a synthetic address file in an isolated test directory.
