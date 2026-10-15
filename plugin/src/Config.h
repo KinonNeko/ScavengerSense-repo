@@ -89,6 +89,8 @@ namespace SS
 		kCrossbow,
 		kStaff,
 		kSpell,
+		kShield,
+		kTorch,
 
 		kCount
 	};
@@ -873,6 +875,8 @@ namespace SS
 		// frame. Zero is off; a tenth of a second is a good deal steadier
 		// without visible lag.
 		float anchorSmoothing{ 0.0f };
+		bool  anchorActorsOnly{ true };  // includes animals/creatures; never infer from relationship icons
+		[[nodiscard]] float AnchorSmoothingFor(bool a_isActor) const;
 		// off / hide / lift, for getting out of the way of a subtitle mod
 		int  labelSpeakerMode{ 1 };
 		float labelSpeakerLift{ 90.0f };

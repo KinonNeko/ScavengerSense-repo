@@ -5,6 +5,8 @@
 #include "Locale.h"
 #include "PostFX.h"
 #include "Timing.h"
+#include "AnchorSmoother.h"
+#include "WeaponIconDrawing.h"
 
 #include "ImGuiCompat.h"
 
@@ -319,106 +321,6 @@ namespace SS
 		// What is in someone's hands, as geometry - same reasoning as the
 		// disposition shapes: a font can be missing a glyph, a few lines
 		// cannot.
-		void DrawWeaponIcon(ImDrawList* a_draw, WeaponKind a_kind, ImVec2 a_c, float a_size, ImU32 a_colour)
-		{
-			const float r = a_size * 0.5f;
-			const float stroke = std::max(a_size * 0.13f, 1.2f);
-
-			const auto line = [&](float x1, float y1, float x2, float y2, float a_width) {
-				ImDrawList_AddLine(a_draw, ImVec2{ a_c.x + x1 * r, a_c.y + y1 * r },
-					ImVec2{ a_c.x + x2 * r, a_c.y + y2 * r }, a_colour, a_width);
-			};
-
-			switch (a_kind) {
-			case WeaponKind::kFists:
-				// A closed hand: a solid knuckle with a flat top.
-				ImDrawList_AddCircleFilled(a_draw, ImVec2{ a_c.x, a_c.y + r * 0.15f },
-					r * 0.55f, a_colour, 12);
-				line(-0.55f, -0.30f, 0.55f, -0.30f, stroke);
-				break;
-
-			case WeaponKind::kDagger:
-			case WeaponKind::kSword:
-			case WeaponKind::kGreatsword:
-				{
-					// A blade on the diagonal; the guard says which weight.
-					const float reach = a_kind == WeaponKind::kDagger ? 0.55f
-										: a_kind == WeaponKind::kSword ? 0.85f
-																	   : 1.0f;
-					const float guard = a_kind == WeaponKind::kGreatsword ? 0.55f : 0.38f;
-					line(-reach, reach, reach * 0.92f, -reach * 0.92f, stroke);
-					// Crossguard, perpendicular to the blade near the grip.
-					const float gx = -reach * 0.55f;
-					const float gy = reach * 0.55f;
-					line(gx - guard * 0.7f, gy - guard * 0.7f, gx + guard * 0.7f, gy + guard * 0.7f,
-						stroke);
-				}
-				break;
-
-			case WeaponKind::kAxe:
-			case WeaponKind::kBattleaxe:
-				{
-					// Haft on the diagonal, a filled fan for the edge - two for
-					// the double bit.
-					line(-0.8f, 0.9f, 0.55f, -0.65f, stroke);
-					const ImVec2 head[3]{
-						ImVec2{ a_c.x + 0.25f * r, a_c.y - 0.95f * r },
-						ImVec2{ a_c.x + 0.95f * r, a_c.y - 0.25f * r },
-						ImVec2{ a_c.x + 0.45f * r, a_c.y - 0.55f * r }
-					};
-					ImDrawList_AddConvexPolyFilled(a_draw, head, 3, a_colour);
-					if (a_kind == WeaponKind::kBattleaxe) {
-						const ImVec2 back[3]{
-							ImVec2{ a_c.x - 0.15f * r, a_c.y - 0.55f * r },
-							ImVec2{ a_c.x + 0.15f * r, a_c.y - 1.0f * r },
-							ImVec2{ a_c.x + 0.35f * r, a_c.y - 0.75f * r }
-						};
-						ImDrawList_AddConvexPolyFilled(a_draw, back, 3, a_colour);
-					}
-				}
-				break;
-
-			case WeaponKind::kMace:
-				line(-0.6f, 0.9f, 0.35f, -0.35f, stroke);
-				ImDrawList_AddCircleFilled(a_draw, ImVec2{ a_c.x + 0.5f * r, a_c.y - 0.55f * r },
-					r * 0.42f, a_colour, 10);
-				break;
-
-			case WeaponKind::kBow:
-				// The stave as an arc, the string straight across its ends.
-				ImDrawList_PathArcTo(a_draw, a_c, r * 0.85f, -0.6f, 2.2f, 14);
-				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
-				line(0.85f * std::cos(-0.6f), 0.85f * std::sin(-0.6f),
-					0.85f * std::cos(2.2f), 0.85f * std::sin(2.2f), stroke * 0.7f);
-				break;
-
-			case WeaponKind::kCrossbow:
-				// A bolt upright through a horizontal stave.
-				line(0.0f, 0.95f, 0.0f, -0.85f, stroke);
-				ImDrawList_PathArcTo(a_draw, ImVec2{ a_c.x, a_c.y - 0.15f * r }, r * 0.8f,
-					3.6f, 5.8f, 12);
-				ImDrawList_PathStroke(a_draw, a_colour, 0, stroke);
-				break;
-
-			case WeaponKind::kStaff:
-				line(-0.1f, 0.95f, 0.25f, -0.55f, stroke);
-				ImDrawList_AddCircle(a_draw, ImVec2{ a_c.x + 0.35f * r, a_c.y - 0.75f * r },
-					r * 0.28f, a_colour, 10, stroke * 0.8f);
-				break;
-
-			case WeaponKind::kSpell:
-				// A spark: crossing rays and a bright core.
-				line(-0.7f, 0.0f, 0.7f, 0.0f, stroke * 0.8f);
-				line(0.0f, -0.7f, 0.0f, 0.7f, stroke * 0.8f);
-				line(-0.45f, -0.45f, 0.45f, 0.45f, stroke * 0.6f);
-				line(-0.45f, 0.45f, 0.45f, -0.45f, stroke * 0.6f);
-				ImDrawList_AddCircleFilled(a_draw, a_c, r * 0.22f, a_colour, 8);
-				break;
-
-			default:
-				break;
-			}
-		}
 
 		// The racial emblems. Each lives in the same box as a weapon glyph and
 		// leans on one recognisable silhouette per race - a horned helm, a
@@ -844,46 +746,13 @@ namespace SS
 	// chased with a time constant rather than taken as it comes, so a head
 	// bob becomes a sway and a stumble a drift. A jump too large to be
 	// motion - a new entry, a camera cut - snaps. Render thread only.
-	struct Eased
-	{
-		ImVec2 at{};
-		float  seen{ -1000.0f };
-	};
-	static std::unordered_map<std::uint32_t, Eased> g_eased;
+	static AnchorSmoother g_eased;
 
-	static ImVec2 Steady(std::uint32_t a_owner, ImVec2 a_at, float a_now)
+	static ImVec2 Steady(std::uint32_t owner, ImVec2 at, float now, bool isActor)
 	{
-		const float tau = Settings::GetSingleton()->anchorSmoothing;
-		if (tau <= 0.001f || a_owner == 0) {
-			return a_at;
-		}
-		auto&       e = g_eased[a_owner];
-		const float dt = a_now - e.seen;
-		e.seen = a_now;
-		const float dx = a_at.x - e.at.x;
-		const float dy = a_at.y - e.at.y;
-		if (dt <= 0.0f || dt > 0.5f || dx * dx + dy * dy > 240.0f * 240.0f) {
-			e.at = a_at;
-			return e.at;
-		}
-		const float k = 1.0f - std::exp(-dt / tau);
-		e.at.x += dx * k;
-		e.at.y += dy * k;
-		return e.at;
-	}
-
-	// Owners not seen for a while are let go, so the map does not grow with
-	// every person ever tagged.
-	static void PruneEased(float a_now)
-	{
-		static float last = -1000.0f;
-		if (a_now - last < 5.0f) {
-			return;
-		}
-		last = a_now;
-		for (auto it = g_eased.begin(); it != g_eased.end();) {
-			it = a_now - it->second.seen > 3.0f ? g_eased.erase(it) : std::next(it);
-		}
+		const auto point = g_eased.Update(owner, { at.x, at.y }, now,
+			Settings::GetSingleton()->AnchorSmoothingFor(isActor));
+		return { point.x, point.y };
 	}
 
 	// The light sources gathered while the HUD is drawn, for the shader glow
@@ -1037,12 +906,25 @@ namespace SS
 		ImDrawList_PopClipRect(a_draw);
 	}
 
+	static void DrawEquipmentIcons(ImDrawList* draw, const EquipmentIcons& equipment, ImVec2 centre,
+		float size, ImU32 base, float alpha, bool shadow = false)
+	{
+		ForEachEquipmentIcon(equipment, centre.x, centre.y, size,
+			[&](const HandIcon& icon, float x, float y, float iconSize) {
+				const auto colour = shadow ? 0 : icon.colour;
+				DrawWeaponIconEnchanted(draw, icon.kind, { x, y }, iconSize, base,
+					icon.kind == WeaponKind::kSpell ? 0 : colour, icon.fill, alpha,
+					icon.kind == WeaponKind::kSpell ? colour : 0, 0);
+			});
+	}
+
 	void Labels::SetCombatBars(std::vector<Entry> a_entries)
 	{
 		// Main thread, so this is the place to trade the handle for its number
 		// and let the handle go. What crosses to the render thread must not
 		// carry anything whose copy touches engine state.
 		for (auto& entry : a_entries) {
+			if (auto owner = entry.owner.get()) { entry.isActor = owner->As<RE::Actor>() != nullptr; }
 			entry.ownerId = entry.owner.native_handle();
 			entry.owner = {};
 		}
@@ -1301,6 +1183,7 @@ namespace SS
 			constexpr std::uint8_t kGlyphFlake = 202;
 			constexpr std::uint8_t kGlyphPower = 203;
 			constexpr std::uint8_t kGlyphShout = 204;
+			constexpr std::uint8_t kGlyphEquipment = 205;
 
 			// The level's mark is the Thu'um, not the race: the race already
 			// rides on the overhead chip, and the voice has nowhere else to be.
@@ -1319,7 +1202,7 @@ namespace SS
 			}
 			if (!settings->raceIcons && stats.weapon != 0) {
 				Piece piece;
-				piece.glyph = stats.weapon;
+				piece.glyph = kGlyphEquipment;
 				pieces.push_back(std::move(piece));
 			}
 			if (stats.power != 0) {
@@ -1357,7 +1240,8 @@ namespace SS
 					ImFont_CalcTextSizeA(&sizeOf, font, fontSize,
 						std::numeric_limits<float>::max(), 0.0f, piece.text.c_str(), nullptr, nullptr);
 				}
-				const float w = (piece.glyph ? fontSize + fontSize * 0.2f : 0.0f) + sizeOf.x;
+				const float glyphWidth = piece.glyph == kGlyphEquipment ? stats.equipment.Width(fontSize) : fontSize;
+				const float w = (piece.glyph ? glyphWidth + fontSize * 0.2f : 0.0f) + sizeOf.x;
 				widths.push_back(w);
 				total += w + pad;
 			}
@@ -1372,7 +1256,8 @@ namespace SS
 				const auto& piece = pieces[i];
 				float       x = statsX;
 				if (piece.glyph) {
-					const ImVec2 centre{ x + fontSize * 0.5f, statsY + fontSize * 0.52f };
+					const float glyphWidth = piece.glyph == kGlyphEquipment ? stats.equipment.Width(fontSize) : fontSize;
+					const ImVec2 centre{ x + glyphWidth * 0.5f, statsY + fontSize * 0.52f };
 					const auto   tint = piece.tint ? PackColour(piece.tint, alpha * 0.92f) : ink;
 
 					// A cooldown just back: the glyph that came back bursts, in
@@ -1539,13 +1424,12 @@ namespace SS
 							}
 						}
 						break;
-					default:
-						DrawWeaponIconEnchanted(draw, static_cast<WeaponKind>(piece.glyph), centre,
-							fontSize * 0.95f, tint, stats.weaponColour, stats.weaponFill, alpha * 0.92f,
-							stats.spellColourL, stats.spellColourR);
+					case kGlyphEquipment:
+						DrawEquipmentIcons(draw, stats.equipment, centre, fontSize, tint, alpha * .92f);
 						break;
+					default: break;
 					}
-					x += fontSize + fontSize * 0.2f;
+					x += glyphWidth + fontSize * 0.2f;
 				}
 				if (!piece.text.empty()) {
 					const auto tint = piece.tint ? PackColour(piece.tint, alpha * 0.92f) : ink;
@@ -1805,6 +1689,7 @@ namespace SS
 		// and let the handle go. What crosses to the render thread must not
 		// carry anything whose copy touches engine state.
 		for (auto& entry : a_entries) {
+			if (auto owner = entry.owner.get()) { entry.isActor = owner->As<RE::Actor>() != nullptr; }
 			entry.ownerId = entry.owner.native_handle();
 			entry.owner = {};
 		}
@@ -1943,7 +1828,7 @@ namespace SS
 			return;
 		}
 		g_glow.clear();
-		PruneEased(now);
+		g_eased.Prune(now);
 
 		{
 			std::scoped_lock guard{ _lock };
@@ -2203,7 +2088,7 @@ namespace SS
 				if (!Project(c.world, width, height, at)) {
 					continue;
 				}
-				at = Steady(c.ownerId, at, now);
+				at = Steady(c.ownerId, at, now, true);
 
 				// The last stretch of the linger fades on the shared Fading
 				// over time, mirroring the corner readout, so the stack leaves
@@ -2257,7 +2142,7 @@ namespace SS
 					const float race = c.race != 0 ? chipSize : 0.0f;
 					const float raceMark = c.raceMark != 0 ? chipSize * 0.78f : 0.0f;
 					const float raceGap = race > 0.0f ? chipSize * 0.25f : 0.0f;
-					const float glyph = c.weapon != 0 ? chipSize : 0.0f;
+					const float glyph = c.equipment.Width(chipSize);
 					const float gap = glyph > 0.0f && !levelText.empty() ? chipSize * 0.25f : 0.0f;
 					const float total = race + raceMark + raceGap + glyph + gap + textSize.x;
 					float       x = at.x - total * 0.5f + settings->overheadOffsetX * c.scale;
@@ -2277,10 +2162,9 @@ namespace SS
 						x += raceGap;
 					}
 					if (glyph > 0.0f) {
-						DrawWeaponIconEnchanted(draw, static_cast<WeaponKind>(c.weapon),
-							ImVec2{ x + glyph * 0.5f, y + chipSize * 0.5f }, glyph,
-							PackColour(0xE8E8E8, alpha * 0.9f), c.weaponColour, c.weaponFill, alpha,
-							c.spellColourL, c.spellColourR);
+						DrawEquipmentIcons(draw, c.equipment,
+							ImVec2{ x + glyph * .5f, y + chipSize * .5f }, chipSize,
+							PackColour(0xE8E8E8, alpha * .9f), alpha);
 						x += glyph + gap;
 					}
 					if (!levelText.empty()) {
@@ -2466,7 +2350,7 @@ namespace SS
 			// can hang from different points (a speaker lift, a stale anchor),
 			// and one eased state fed two points a frame would snap on the
 			// second and drag the first toward it.
-			at = Steady(entry.ownerId ^ 0x80000000u, at, now);
+			at = Steady(entry.ownerId ^ 0x80000000u, at, now, entry.isActor);
 			if (at.x < 0.0f || at.y < 0.0f || at.x > width || at.y > height) {
 				if (probe) {
 					logger::info("TAG '{}' dropped: off screen at {:.0f},{:.0f}",
@@ -2526,6 +2410,7 @@ namespace SS
 			                      (entry.icon != Disposition::kNone || entry.mark >= 0 ||
 									  entry.weapon != 0);
 			const float iconSize = hasIcon ? thisSize * 0.78f : 0.0f;
+			const float iconWidth = entry.mark < 0 && entry.equipment.count ? entry.equipment.Width(iconSize) : iconSize;
 			const float iconGap = hasIcon ? thisSize * 0.28f : 0.0f;
 
 			// The tally a marker rule can carry, drawn small and tight against
@@ -2577,7 +2462,7 @@ namespace SS
 				heatTextSize.x += thisSize * 0.10f;
 			}
 
-			const float totalWidth = starSize + starGap + raceW + iconSize + tallySize.x + iconGap +
+			const float totalWidth = starSize + starGap + raceW + iconWidth + tallySize.x + iconGap +
 			                         size.x + heatGap + heatSize + heatTextSize.x;
 
 			// The title sits on its own line above the name, smaller and
@@ -2643,7 +2528,7 @@ namespace SS
 			}
 
 			const ImVec2 textAt{
-				topLeft.x + starSize + starGap + raceW + iconSize + tallySize.x + iconGap, topLeft.y
+				topLeft.x + starSize + starGap + raceW + iconWidth + tallySize.x + iconGap, topLeft.y
 			};
 
 			if (settings->labelBackdrop) {
@@ -2682,7 +2567,7 @@ namespace SS
 			}
 
 			if (hasIcon) {
-				const ImVec2 centre{ topLeft.x + starSize + starGap + raceW + iconSize * 0.5f,
+				const ImVec2 centre{ topLeft.x + starSize + starGap + raceW + iconWidth * 0.5f,
 					topLeft.y + size.y * 0.5f };
 
 				// A user-supplied picture wins over the built-in shape. It is
@@ -2744,15 +2629,10 @@ namespace SS
 						iconSize, PackColour(0x000000, alpha * 0.7f));
 					DrawIcon(draw, Disposition::kLover, centre, iconSize,
 						PackColour(entry.markColour, alpha));
-				} else if (entry.weapon != 0) {
-					// The drawn weapon wins the slot: what they can do to you
-					// beats what they think of you. The colour still carries
-					// the relationship.
-					const auto kind = static_cast<WeaponKind>(entry.weapon);
-					DrawWeaponIcon(draw, kind, ImVec2{ centre.x + 1.0f, centre.y + 1.0f },
-						iconSize, PackColour(0x000000, alpha * 0.7f));
-					DrawWeaponIconEnchanted(draw, kind, centre, iconSize, PackColour(entry.colour, alpha),
-						entry.weaponColour, entry.weaponFill, alpha, entry.spellColourL, entry.spellColourR);
+				} else if (entry.equipment.count != 0) {
+					DrawEquipmentIcons(draw, entry.equipment, { centre.x + 1.f, centre.y + 1.f },
+						iconSize, PackColour(0x000000, alpha * .7f), alpha, true);
+					DrawEquipmentIcons(draw, entry.equipment, centre, iconSize, PackColour(entry.colour, alpha), alpha);
 				} else {
 					DrawIcon(draw, entry.icon, ImVec2{ centre.x + 1.0f, centre.y + 1.0f }, iconSize,
 						PackColour(0x000000, alpha * 0.7f));
@@ -2761,7 +2641,7 @@ namespace SS
 
 				if (!tally.empty()) {
 					const ImVec2 tallyAt{
-						topLeft.x + starSize + starGap + raceW + iconSize + thisSize * 0.06f,
+						topLeft.x + starSize + starGap + raceW + iconWidth + thisSize * 0.06f,
 						topLeft.y + (size.y - tallySize.y) * 0.5f
 					};
 					ImDrawList_AddText_FontPtr(draw, font, tallyFontSize,

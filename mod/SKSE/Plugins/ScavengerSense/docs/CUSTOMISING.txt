@@ -121,3 +121,21 @@ tags and bars. Positive glow-strength changes affect newly highlighted objects.
 The legacy image-space-modifier route applies tint sliders on the next sweep;
 its active modifier is stopped when the screen master is disabled or zero.
 Save to INI after adjusting. Upgrading preserves existing personal settings.
+
+Actor-only smoothing and dual equipment (0.10.3)
+-----------------------------------------------
+Names -> Name tags -> Smooth characters and creatures only defaults ON.
+People, animals and creatures retain your smoothing duration; static objects
+follow the camera immediately. Turn it OFF to restore smoothing for every
+target. A smoothing duration of 0 disables it for everyone.
+
+[Labels]
+smoothing = 0.26
+smoothingActorsOnly = true
+
+Equipment icons now show left hand then right hand, with independent weapon
+charge/enchantment or spell colours. Dual weapons (including identical types),
+weapon/spell, dual spells, dual staves, shield/weapon and torch/weapon are
+represented separately. A two-handed weapon remains one icon. Names, combat
+chips and the player stats row reserve the paired width. Existing marker-icon
+priority and race-emblem placement rules are retained.

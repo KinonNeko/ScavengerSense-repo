@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-15",
+  "version": "0.10.3 beta",
+  "base_commit": "4b4e345",
+  "branch": "codex/0.10.3-display-controls",
+  "profile": "J61-BFCO",
+  "native_suites_passed": 7,
+  "feature_checks": 45,
+  "display_checks": 773,
+  "ordered_equipment_type_combinations": 196,
+  "production_geometry_examples": 15,
+  "preview_is_game_screenshot": false,
+  "framework_imports_checked": 75,
+  "framework_abi": {
+    "host": {
+      "version": "1.90.8",
+      "io": 14616,
+      "style": 1140,
+      "vec2": 8,
+      "vec4": 16,
+      "drawvert": 20,
+      "drawidx": 2
+    },
+    "compiled": {
+      "version": "1.90.8",
+      "io": 14616,
+      "style": 1140,
+      "vec2": 8,
+      "vec4": 16,
+      "drawvert": 20,
+      "drawidx": 2
+    },
+    "matches": true
+  },
+  "framework_sha256": "0c107ad4c471c904186b68e1b50b10a66311affb40eb0ba2b8fcca36735d55a2",
+  "translation_keys": 638,
+  "chinese_ideographs_covered": 918,
+  "installer_routes": 102,
+  "xsd": "ModConfig 5.0 PASS",
+  "archive": {
+    "path": "E:\\dev\\ScavengerSense\\ScavengerSense-0.10.3-beta.zip",
+    "members": 65,
+    "bytes": 16622100,
+    "sha256": "f3a99995a415ffae8b21da23ef76108f71b1f8f0d3858700a0fedda650561438",
+    "all_member_bytes_and_crc_verified": true
+  },
+  "dll_sha256": "7b44ac4b1817a671441b83ebe9e97949bc6906de8a0d0b57140e8bc1bf186614",
+  "esp_sha256": "b9b6c75f39a8ac58379c39d7fd8f5c029a97f6fe6bb980d0c360992e11b249bf",
+  "deployment": {
+    "changed": [
+      "meta.ini",
+      "SKSE/Plugins/ScavengerSense.dll",
+      "SKSE/Plugins/ScavengerSense_chinese.ini",
+      "SKSE/Plugins/ScavengerSense/docs/CUSTOMISING.txt",
+      "SKSE/Plugins/ScavengerSense/docs/DEPENDENCIES.txt",
+      "SKSE/Plugins/ScavengerSense/docs/中文说明.txt",
+      "SKSE/Plugins/ScavengerSense/translations/ScavengerSense_english.ini"
+    ],
+    "unchanged_file_count": 24,
+    "preserved": {
+      "modlist.txt": "8dc503d4c7da8dc064908ca5d40bebc1d18a49340541ee6161fba7bbb49b87ab",
+      "plugins.txt": "7cd67eb13dde871a53866f49ac08fe863c0c29cab2db354d13c18f50c3052289",
+      "ScavengerSense-personal.ini": "a0e348e9818d9326008f9aeec0caf49d6b3917900b57b127bb4685c50d83e8f2",
+      "SKSEMenuFramework.ini": "f97f2e18cec1fc77d3eb0a648a71e4c070cbaaa039fc1ec7b9dc1894d7a04e9f"
+    }
+  },
+  "smoothing": {
+    "existing_duration_preserved": 0.26,
+    "new_actors_only_default": true,
+    "personal_ini_edited": false
+  },
+  "gameplay_verified": false,
+  "limits": [
+    "No Skyrim gameplay or live engine equipment/charge confirmation",
+    "Preview captures production glyph geometry and layout, not framework shader/charge rendering",
+    "Custom marker icon priority and race-emblem placement rules retained",
+    "Per-second regeneration figures remain unimplemented",
+    "Generic 1.6.1170 DLL error still needs logs"
+  ]
+}

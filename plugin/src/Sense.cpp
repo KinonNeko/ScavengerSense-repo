@@ -279,51 +279,35 @@ namespace SS
 		// What is in someone's hands, as a drawable shape. Equipped, not
 		// necessarily drawn: the sense reads what they carry ready, the same
 		// way it reads everything else.
-		[[nodiscard]] WeaponKind ClassifyWeapon(RE::Actor* a_actor)
+		[[nodiscard]] WeaponKind ClassifyEquippedForm(RE::TESForm* form)
 		{
-			if (!a_actor) {
-				return WeaponKind::kNone;
-			}
-
-			const auto kindOf = [](RE::TESForm* a_form) -> WeaponKind {
-				if (!a_form) {
-					return WeaponKind::kNone;
+			if (!form) { return WeaponKind::kNone; }
+			if (const auto* weapon = form->As<RE::TESObjectWEAP>(); weapon) {
+				switch (weapon->GetWeaponType()) {
+				case RE::WEAPON_TYPE::kHandToHandMelee: return WeaponKind::kFists;
+				case RE::WEAPON_TYPE::kOneHandSword: return WeaponKind::kSword;
+				case RE::WEAPON_TYPE::kOneHandDagger: return WeaponKind::kDagger;
+				case RE::WEAPON_TYPE::kOneHandAxe: return WeaponKind::kAxe;
+				case RE::WEAPON_TYPE::kOneHandMace: return WeaponKind::kMace;
+				case RE::WEAPON_TYPE::kTwoHandSword: return WeaponKind::kGreatsword;
+				case RE::WEAPON_TYPE::kTwoHandAxe: return WeaponKind::kBattleaxe;
+				case RE::WEAPON_TYPE::kBow: return WeaponKind::kBow;
+				case RE::WEAPON_TYPE::kCrossbow: return WeaponKind::kCrossbow;
+				case RE::WEAPON_TYPE::kStaff: return WeaponKind::kStaff;
+				default: return WeaponKind::kNone;
 				}
-				if (const auto* weapon = a_form->As<RE::TESObjectWEAP>(); weapon) {
-					switch (weapon->GetWeaponType()) {
-					case RE::WEAPON_TYPE::kHandToHandMelee:
-						return WeaponKind::kFists;
-					case RE::WEAPON_TYPE::kOneHandSword:
-						return WeaponKind::kSword;
-					case RE::WEAPON_TYPE::kOneHandDagger:
-						return WeaponKind::kDagger;
-					case RE::WEAPON_TYPE::kOneHandAxe:
-						return WeaponKind::kAxe;
-					case RE::WEAPON_TYPE::kOneHandMace:
-						return WeaponKind::kMace;
-					case RE::WEAPON_TYPE::kTwoHandSword:
-						return WeaponKind::kGreatsword;
-					case RE::WEAPON_TYPE::kTwoHandAxe:
-						return WeaponKind::kBattleaxe;
-					case RE::WEAPON_TYPE::kBow:
-						return WeaponKind::kBow;
-					case RE::WEAPON_TYPE::kCrossbow:
-						return WeaponKind::kCrossbow;
-					case RE::WEAPON_TYPE::kStaff:
-						return WeaponKind::kStaff;
-					default:
-						return WeaponKind::kNone;
-					}
-				}
-				return a_form->Is(RE::FormType::Spell) ? WeaponKind::kSpell : WeaponKind::kNone;
-			};
+			}
+			if (form->Is(RE::FormType::Spell)) { return WeaponKind::kSpell; }
+			if (const auto* armour = form->As<RE::TESObjectARMO>(); armour && armour->IsShield()) { return WeaponKind::kShield; }
+			if (form->Is(RE::FormType::Light)) { return WeaponKind::kTorch; }
+			return WeaponKind::kNone;
+		}
 
-			if (const auto right = kindOf(a_actor->GetEquippedObject(false)); right != WeaponKind::kNone) {
-				return right;
-			}
-			if (const auto left = kindOf(a_actor->GetEquippedObject(true)); left != WeaponKind::kNone) {
-				return left;
-			}
+		[[nodiscard]] WeaponKind ClassifyWeapon(RE::Actor* actor)
+		{
+			if (!actor) { return WeaponKind::kNone; }
+			if (const auto right = ClassifyEquippedForm(actor->GetEquippedObject(false)); right != WeaponKind::kNone) { return right; }
+			if (const auto left = ClassifyEquippedForm(actor->GetEquippedObject(true)); left != WeaponKind::kNone) { return left; }
 			return WeaponKind::kFists;
 		}
 
@@ -401,51 +385,26 @@ namespace SS
 			return 0xA896C4;
 		}
 
-		// The enchantment on the weapon in hand - right hand first - as a
-		// colour and a charge. Two ways in: the inventory entry, which knows a
-		// player-made enchantment and the charge left in it, and the weapon
-		// record itself, which is all an NPC's high process may hold. An NPC's
-		// weapon never runs down, so theirs reads full either way.
-		void ReadWeaponEnchant(RE::Actor* a_actor, std::uint32_t& a_colour, float& a_fill)
+		// Read one hand only. Never borrow the other hand's enchantment or charge.
+		void ReadHandEnchant(RE::Actor* actor, bool left, std::uint32_t& colour, float& fill)
 		{
-			a_colour = 0;
-			a_fill = -1.0f;
-			if (!a_actor) {
-				return;
+			colour = 0;
+			fill = -1.f;
+			if (!actor) { return; }
+			auto* held = actor->GetEquippedObject(left);
+			const auto* weapon = held ? held->As<RE::TESObjectWEAP>() : nullptr;
+			if (!weapon) { return; }
+			auto* entry = actor->GetEquippedEntryData(left);
+			RE::EnchantmentItem* enchant = nullptr;
+			std::optional<double> charge;
+			if (entry && entry->object == held) {
+				enchant = entry->GetEnchantment();
+				charge = entry->GetEnchantmentCharge();
 			}
-			static int said = 0;
-			for (const bool left : { false, true }) {
-				auto* entry = a_actor->GetEquippedEntryData(left);
-				auto* object = entry ? entry->object : nullptr;  // not GetObject(): Windows.h renames that one
-				RE::EnchantmentItem* ench = nullptr;
-				std::optional<double> charge;
-				if (object && object->Is(RE::FormType::Weapon)) {
-					ench = entry->GetEnchantment();
-					charge = entry->GetEnchantmentCharge();
-				}
-				const RE::TESObjectWEAP* weapon = nullptr;
-				if (!ench) {
-					auto* held = a_actor->GetEquippedObject(left);
-					weapon = held ? held->As<RE::TESObjectWEAP>() : nullptr;
-					if (weapon && weapon->formEnchanting) {
-						ench = weapon->formEnchanting;
-					}
-				}
-				if (said < 12) {
-					++said;
-					const auto* name = a_actor->GetDisplayFullName();
-					logger::info("weapon enchant: {} {} hand - entry {}, object {}, record {}, enchantment {}, charge {}",
-						name && name[0] ? name : "?", left ? "left" : "right", entry ? "yes" : "no",
-						object ? "yes" : "no", weapon ? "yes" : "no", ench ? ench->GetName() : "-",
-						charge ? std::to_string(static_cast<int>(*charge)) : "-");
-				}
-				if (!ench) {
-					continue;
-				}
-				a_colour = EnchantColour(ench);
-				a_fill = charge ? std::clamp(static_cast<float>(*charge) / 100.0f, 0.0f, 1.0f) : 1.0f;
-				return;
-			}
+			if (!enchant) { enchant = weapon->formEnchanting; }
+			if (!enchant) { return; }
+			colour = EnchantColour(enchant);
+			fill = actor->IsPlayerRef() && charge ? std::clamp(static_cast<float>(*charge) / 100.f, 0.f, 1.f) : 1.f;
 		}
 
 		// A spell's colour: its element when it has one, its school otherwise,
@@ -476,20 +435,19 @@ namespace SS
 			}
 		}
 
-		// What each hand is casting, as colours; 0 for a hand with no spell.
-		void ReadSpellColours(RE::Actor* a_actor, std::uint32_t& a_left, std::uint32_t& a_right)
+		EquipmentIcons ReadEquipmentIcons(RE::Actor* actor, bool colourEnabled)
 		{
-			a_left = 0;
-			a_right = 0;
-			if (!a_actor) {
-				return;
-			}
-			if (auto* held = a_actor->GetEquippedObject(true); held) {
-				a_left = SpellColour(held->As<RE::SpellItem>());
-			}
-			if (auto* held = a_actor->GetEquippedObject(false); held) {
-				a_right = SpellColour(held->As<RE::SpellItem>());
-			}
+			if (!actor) { return {}; }
+			const auto read = [&](bool left) {
+				auto* held = actor->GetEquippedObject(left);
+				HandIcon icon{ ClassifyEquippedForm(held) };
+				if (colourEnabled && held) {
+					if (icon.kind == WeaponKind::kSpell) { icon.colour = SpellColour(held->As<RE::SpellItem>()); }
+					else { ReadHandEnchant(actor, left, icon.colour, icon.fill); }
+				}
+				return icon;
+			};
+			return ComposeEquipmentIcons(read(true), read(false));
 		}
 
 		[[nodiscard]] std::pair<RaceKind, RaceMark> ClassifyRace(RE::Actor* a_actor);
@@ -1689,10 +1647,7 @@ namespace SS
 				}
 				if (settings->weaponIcons) {
 					_labelBuffer.back().weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
-					if (settings->weaponEnchant) {
-						ReadWeaponEnchant(player, _labelBuffer.back().weaponColour, _labelBuffer.back().weaponFill);
-						ReadSpellColours(player, _labelBuffer.back().spellColourL, _labelBuffer.back().spellColourR);
-					}
+					_labelBuffer.back().equipment = ReadEquipmentIcons(player, settings->weaponEnchant);
 				}
 				if (settings->raceIcons) {
 					const auto [kind, mod] = ClassifyRace(player);
@@ -1959,10 +1914,7 @@ namespace SS
 		}
 		if (settings->weaponIcons) {
 			stats.weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
-			if (settings->weaponEnchant) {
-				ReadWeaponEnchant(player, stats.weaponColour, stats.weaponFill);
-				ReadSpellColours(player, stats.spellColourL, stats.spellColourR);
-			}
+			stats.equipment = ReadEquipmentIcons(player, settings->weaponEnchant);
 		}
 		if (settings->sensePower) {
 			ReadPower(player, stats.power, stats.powerReady, stats.powerId);
@@ -2382,10 +2334,7 @@ namespace SS
 				}
 				if (settings->weaponIcons) {
 					entry.weapon = static_cast<std::uint8_t>(ClassifyWeapon(player));
-					if (settings->weaponEnchant) {
-						ReadWeaponEnchant(player, entry.weaponColour, entry.weaponFill);
-						ReadSpellColours(player, entry.spellColourL, entry.spellColourR);
-					}
+					entry.equipment = ReadEquipmentIcons(player, settings->weaponEnchant);
 				}
 				if (settings->raceIcons) {
 					const auto [kind, mod] = ClassifyRace(player);
@@ -2605,10 +2554,7 @@ namespace SS
 			}
 			if (settings->weaponIcons) {
 				entry.weapon = static_cast<std::uint8_t>(ClassifyWeapon(actor));
-				if (settings->weaponEnchant) {
-					ReadWeaponEnchant(actor, entry.weaponColour, entry.weaponFill);
-					ReadSpellColours(actor, entry.spellColourL, entry.spellColourR);
-				}
+				entry.equipment = ReadEquipmentIcons(actor, settings->weaponEnchant);
 			}
 			if (settings->raceIcons) {
 				const auto [kind, mod] = ClassifyRace(actor);
@@ -3785,14 +3731,8 @@ namespace SS
 									markColour).icon;
 						}
 						if (isActor && settings->weaponIcons) {
-							_labelBuffer.back().weapon = static_cast<std::uint8_t>(
-								ClassifyWeapon(a_ref->As<RE::Actor>()));
-							if (settings->weaponEnchant) {
-								ReadWeaponEnchant(a_ref->As<RE::Actor>(),
-									_labelBuffer.back().weaponColour, _labelBuffer.back().weaponFill);
-								ReadSpellColours(a_ref->As<RE::Actor>(),
-									_labelBuffer.back().spellColourL, _labelBuffer.back().spellColourR);
-							}
+							_labelBuffer.back().weapon = static_cast<std::uint8_t>(ClassifyWeapon(a_ref->As<RE::Actor>()));
+							_labelBuffer.back().equipment = ReadEquipmentIcons(a_ref->As<RE::Actor>(), settings->weaponEnchant);
 						}
 						if (isActor && settings->raceIcons) {
 							const auto [kind, mod] = ClassifyRace(a_ref->As<RE::Actor>());

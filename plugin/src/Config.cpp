@@ -697,6 +697,11 @@ namespace SS
 		}
 	}
 
+	float Settings::AnchorSmoothingFor(bool a_isActor) const
+	{
+		return anchorActorsOnly && !a_isActor ? 0.0f : anchorSmoothing;
+	}
+
 	bool Settings::ObjectGlowEnabled() const
 	{
 		return glowEnabled && glowStrength > 0.0f;
@@ -1037,6 +1042,7 @@ namespace SS
 		Get(table, "labels", "follow", labelsFollow);
 		Get(table, "labels", "steady", anchorSteady);
 		Get(table, "labels", "smoothing", anchorSmoothing);
+		Get(table, "labels", "smoothingActorsOnly", anchorActorsOnly);
 		Get(table, "labels", "speakerMode", labelSpeakerMode);
 		Get(table, "labels", "speakerLift", labelSpeakerLift);
 
@@ -1500,7 +1506,9 @@ namespace SS
 		file << "; than over the head, which bobs; and ease their movement on screen\n";
 		file << "; over this many seconds (0 is off).\n";
 		file << "steady = " << boolean(anchorSteady) << "\n";
-		file << "smoothing = " << anchorSmoothing << "\n\n";
+		file << "smoothing = " << anchorSmoothing << "\n";
+		file << "; Smooth actors (people/animals/creatures) only; static objects follow the camera directly.\n";
+		file << "smoothingActorsOnly = " << boolean(anchorActorsOnly) << "\n\n";
 		file << "; What to do about somebody who is talking, for people running a mod\n";
 		file << "; that floats subtitles over the speaker's head:\n";
 		file << ";   0  nothing\n";

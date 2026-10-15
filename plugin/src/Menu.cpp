@@ -874,6 +874,8 @@ namespace SS::Menu
 					"Eases how tags and bars move on screen, over this many seconds:\n"
 					"a bob becomes a sway. Zero follows every frame; a tenth of a\n"
 					"second is a good deal steadier without visible lag.");
+				igCheckbox(T("Smooth characters and creatures only"), &a_settings.anchorActorsOnly);
+				Help("Applies anchor smoothing only to people, animals and creatures. Static items follow the camera immediately. Turn off to smooth all targets.");
 
 				igSpacing();
 				igCheckbox(T("Friend or foe marker"), &a_settings.labelIcons);
@@ -1631,10 +1633,7 @@ namespace SS::Menu
 					"outmatched is the point.");
 
 				igCheckbox(T("Icons follow the drawn weapon"), &a_settings.weaponIcons);
-				Help(
-					"The shape beside a name becomes what they are holding - sword,\n"
-					"bow, spell - instead of the relationship marker. Yours too. The\n"
-					"colour still says friend or foe.");
+				Help("Shows left and right equipment separately for dual weapons, weapon and spell, dual spells, staves, shield or torch. Two-handed weapons use one icon. Each hand keeps its own enchantment colour and charge.");
 				if (a_settings.weaponIcons) {
 					igCheckbox(T("The weapon wears its enchantment"), &a_settings.weaponEnchant);
 					Help(

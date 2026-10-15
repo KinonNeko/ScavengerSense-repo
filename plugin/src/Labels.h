@@ -2,6 +2,7 @@
 
 #include "Config.h"
 #include "Marks.h"
+#include "EquipmentIcons.h"
 
 namespace SS
 {
@@ -106,14 +107,9 @@ namespace SS
 			// Where the lock mark sits: the chest, not the head the bars hang
 			// from, the way TDM's own reticle does.
 			RE::NiPoint3  lockWorld{};
-			// The weapon's enchantment, for the glyph: its colour (0 for none)
-			// and how much charge is left, 0 to 1, -1 for not applicable.
-			std::uint32_t weaponColour{ 0 };
-			float         weaponFill{ -1.0f };
-			// The spell in each hand, as a colour (0 for none). Both set and
-			// different, the spell glyph is drawn in two halves.
-			std::uint32_t spellColourL{ 0 };
-			std::uint32_t spellColourR{ 0 };
+			// Per-hand kind, enchantment/spell colour and charge; main-thread snapshot.
+			EquipmentIcons equipment;
+			bool isActor{ false };
 		};
 
 		// The stats row under the corner readout. Values below zero hide the
@@ -129,10 +125,6 @@ namespace SS
 			std::uint8_t weapon{ 0 };
 			std::uint8_t race{ 0 };      // RaceKind
 			std::uint8_t raceMark{ 0 };  // RaceMark
-			std::uint32_t weaponColour{ 0 };
-			float         weaponFill{ -1.0f };
-			std::uint32_t spellColourL{ 0 };
-			std::uint32_t spellColourR{ 0 };
 			// The chosen power: 0 none, 1 the race's own, 2 a vampire's, 3 a
 			// werewolf's, 4 some other; and whether the day has let it back.
 			std::uint8_t power{ 0 };
@@ -144,6 +136,7 @@ namespace SS
 			// Which power is in the slot, so a swap is not mistaken for a
 			// return.
 			std::uint32_t powerId{ 0 };
+			EquipmentIcons equipment;
 		};
 
 		// The sonar ring, sampled as a height field so the render thread never

@@ -22,6 +22,8 @@ int main() try {
 	saved.screenEffectsEnabled = false;
 	saved.screenEffectsStrength = .375f;
 	saved.glowEnabled = false;
+	saved.anchorActorsOnly = false;
+	saved.anchorSmoothing = .25f;
 	saved.hideGameHud = true;
 	saved.hideCompass = saved.hideMessages = saved.hideSubtitles = false;
 	saved.hideMenus = "HUD Menu, CustomCaseMenu";
@@ -39,6 +41,11 @@ int main() try {
 	Check(saved.SaveAs("roundtrip.ini"), "save config");
 	SS::Settings loaded;
 	Check(loaded.LoadFrom("roundtrip.ini"), "load config");
+	Check(!loaded.anchorActorsOnly && loaded.AnchorSmoothingFor(false) == .25f && loaded.AnchorSmoothingFor(true) == .25f,
+		"all-target smoothing choice survives save/load");
+	loaded.anchorActorsOnly = true;
+	Check(loaded.AnchorSmoothingFor(false) == 0 && loaded.AnchorSmoothingFor(true) == .25f,
+		"actors-only smoothing bypasses items without changing actor smoothing");
 	Check(!loaded.screenEffectsEnabled && loaded.screenEffectsStrength == .375f && !loaded.glowEnabled,
 		"screen/glow switches and intensity survive save/load");
 	Check(loaded.ScreenEffectScale() == 0 && loaded.TintBlend() == 0 && !loaded.ObjectGlowEnabled(),
@@ -95,6 +102,7 @@ int main() try {
 	loaded.LoadFrom("light-invalid.ini");
 	Check(loaded.screenEffectsStrength == 1 && loaded.screenEffectsEnabled && loaded.glowEnabled,
 		"nonfinite screen blend rejected and old INIs retain enabled defaults");
+	Check(loaded.anchorActorsOnly, "old INIs default to smoothing characters and creatures only");
 	Write("Data/SKSE/Plugins/ScavengerSense_french.ini", "\xEF\xBB\xBF[Translation]\nMenu language=Langue\na\\=b=ligne\\nseconde\nEmpty=\n");
 	Write("Data/SKSE/Plugins/ScavengerSense_marks.ini", "[Rule]\nName=not a language\n");
 	const auto languages = SS::Locale::Languages();

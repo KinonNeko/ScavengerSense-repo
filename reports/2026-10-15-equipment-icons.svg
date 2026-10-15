@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="760" viewBox="0 0 960 760">
+<rect width="960" height="760" fill="#161c26"/>
+<text x="20" y="28" fill="#e7edf5" font-family="Arial" font-size="18">Production glyph geometry / left hand then right hand</text>
+<text x="30" y="60" fill="#e7edf5" font-family="Arial" font-size="16">Unarmed</text>
+<circle cx="160" cy="108.75" r="13.75" fill="#f5ede7"/>
+<polyline points="146.25,97.5 173.75,97.5 " fill="none" stroke="#f5ede7" stroke-width="6.5"/>
+<text x="350" y="60" fill="#e7edf5" font-family="Arial" font-size="16">Dagger + sword</text>
+<polyline points="443.312,116.688 465.753,94.2475 " fill="none" stroke="#cc6e3a" stroke-width="5.525"/>
+<polyline points="442.919,105.776 454.224,117.081 " fill="none" stroke="#cc6e3a" stroke-width="5.525"/>
+<polyline points="486.938,123.062 521.617,88.3825 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<polyline points="489.413,109.282 500.718,120.587 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<text x="670" y="60" fill="#e7edf5" font-family="Arial" font-size="16">Axe + mace</text>
+<polyline points="758,124.125 786.688,91.1875 " fill="none" stroke="#cc6e3a" stroke-width="5.525"/>
+<polygon points="780.312,84.8125 795.188,99.6875 784.562,93.3125 " fill="#cc6e3a" stroke="#cc6e3a" stroke-width="0"/>
+<polyline points="812.25,124.125 832.438,97.5625 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<circle cx="835.625" cy="93.3125" r="8.925" fill="#9cc0d1"/>
+<text x="30" y="200" fill="#e7edf5" font-family="Arial" font-size="16">Spell + sword</text>
+<polyline points="120.125,245 149.875,245 " fill="none" stroke="#cc6e3a" stroke-width="4.42"/>
+<polyline points="135,230.125 135,259.875 " fill="none" stroke="#cc6e3a" stroke-width="4.42"/>
+<polyline points="125.438,235.438 144.562,254.562 " fill="none" stroke="#cc6e3a" stroke-width="3.315"/>
+<polyline points="125.438,254.562 144.562,235.438 " fill="none" stroke="#cc6e3a" stroke-width="3.315"/>
+<circle cx="135" cy="245" r="4.675" fill="#cc6e3a"/>
+<polyline points="166.938,263.062 201.618,228.382 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<polyline points="169.413,249.282 180.718,260.587 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<text x="350" y="200" fill="#e7edf5" font-family="Arial" font-size="16">Sword + spell</text>
+<polyline points="436.938,263.062 471.617,228.382 " fill="none" stroke="#cc6e3a" stroke-width="5.525"/>
+<polyline points="439.413,249.282 450.718,260.587 " fill="none" stroke="#cc6e3a" stroke-width="5.525"/>
+<polyline points="490.125,245 519.875,245 " fill="none" stroke="#9cc0d1" stroke-width="4.42"/>
+<polyline points="505,230.125 505,259.875 " fill="none" stroke="#9cc0d1" stroke-width="4.42"/>
+<polyline points="495.438,235.438 514.562,254.562 " fill="none" stroke="#9cc0d1" stroke-width="3.315"/>
+<polyline points="495.438,254.562 514.562,235.438 " fill="none" stroke="#9cc0d1" stroke-width="3.315"/>
+<circle cx="505" cy="245" r="4.675" fill="#9cc0d1"/>
+<text x="670" y="200" fill="#e7edf5" font-family="Arial" font-size="16">Dual spells</text>
+<polyline points="760.125,245 789.875,245 " fill="none" stroke="#cc6e3a" stroke-width="4.42"/>
+<polyline points="775,230.125 775,259.875 " fill="none" stroke="#cc6e3a" stroke-width="4.42"/>
+<polyline points="765.438,235.438 784.562,254.562 " fill="none" stroke="#cc6e3a" stroke-width="3.315"/>
+<polyline points="765.438,254.562 784.562,235.438 " fill="none" stroke="#cc6e3a" stroke-width="3.315"/>
+<circle cx="775" cy="245" r="4.675" fill="#cc6e3a"/>
+<polyline points="810.125,245 839.875,245 " fill="none" stroke="#9cc0d1" stroke-width="4.42"/>
+<polyline points="825,230.125 825,259.875 " fill="none" stroke="#9cc0d1" stroke-width="4.42"/>
+<polyline points="815.438,235.438 834.562,254.562 " fill="none" stroke="#9cc0d1" stroke-width="3.315"/>
+<polyline points="815.438,254.562 834.562,235.438 " fill="none" stroke="#9cc0d1" stroke-width="3.315"/>
+<circle cx="825" cy="245" r="4.675" fill="#9cc0d1"/>
+<text x="30" y="340" fill="#e7edf5" font-family="Arial" font-size="16">Dual staves</text>
+<polyline points="132.875,405.188 140.312,373.312 " fill="none" stroke="#cc6e3a" stroke-width="5.525"/>
+<circle cx="142.438" cy="369.062" r="5.95" fill="none" stroke="#cc6e3a" stroke-width="4.42"/>
+<polyline points="182.875,405.188 190.312,373.312 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<circle cx="192.438" cy="369.062" r="5.95" fill="none" stroke="#9cc0d1" stroke-width="4.42"/>
+<text x="350" y="340" fill="#e7edf5" font-family="Arial" font-size="16">Staff + sword</text>
+<polyline points="452.875,405.188 460.312,373.312 " fill="none" stroke="#cc6e3a" stroke-width="5.525"/>
+<circle cx="462.438" cy="369.062" r="5.95" fill="none" stroke="#cc6e3a" stroke-width="4.42"/>
+<polyline points="486.938,403.062 521.617,368.383 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<polyline points="489.413,389.282 500.718,400.587 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<text x="670" y="340" fill="#e7edf5" font-family="Arial" font-size="16">Shield + sword</text>
+<polygon points="760.125,368 789.875,368 787.75,390.312 775,404.125 762.25,390.312 " fill="none" stroke="#cc6e3a" stroke-width="5.525"/>
+<polyline points="806.938,403.062 841.617,368.383 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<polyline points="809.413,389.282 820.718,400.587 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<text x="30" y="480" fill="#e7edf5" font-family="Arial" font-size="16">Torch + axe</text>
+<polyline points="135,545.188 135,521.812 " fill="none" stroke="#cc6e3a" stroke-width="5.525"/>
+<polygon points="135,503.75 145.625,521.812 124.375,521.812 " fill="#cc6e3a" stroke="#cc6e3a" stroke-width="0"/>
+<polyline points="168,544.125 196.688,511.188 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<polygon points="190.312,504.812 205.188,519.688 194.562,513.312 " fill="#9cc0d1" stroke="#9cc0d1" stroke-width="0"/>
+<text x="350" y="480" fill="#e7edf5" font-family="Arial" font-size="16">Bow (one icon)</text>
+<polyline points="497.538,513.001 499.573,516.725 500.826,520.778 501.25,525 500.826,529.222 499.573,533.275 497.538,536.999 494.805,540.244 491.481,542.881 487.7,544.806 483.612,545.941 479.38,546.241 475.172,545.694 471.157,544.323 467.494,542.181 " fill="none" stroke="#9cc0d1" stroke-width="6.5"/>
+<polyline points="497.538,513.001 467.494,542.181 " fill="none" stroke="#9cc0d1" stroke-width="4.55"/>
+<text x="670" y="480" fill="#e7edf5" font-family="Arial" font-size="16">Greatsword (one icon)</text>
+<polyline points="775,550 823,502 " fill="none" stroke="#9cc0d1" stroke-width="6.5"/>
+<polyline points="776.625,529.125 795.875,548.375 " fill="none" stroke="#9cc0d1" stroke-width="6.5"/>
+<text x="30" y="620" fill="#e7edf5" font-family="Arial" font-size="16">Crossbow (one icon)</text>
+<polyline points="160,688.75 160,643.75 " fill="none" stroke="#cc6e3a" stroke-width="6.5"/>
+<polyline points="142.065,652.4 143.979,649.278 146.43,646.558 149.336,644.33 152.599,642.67 156.111,641.632 159.752,641.252 163.402,641.542 166.938,642.492 170.242,644.071 173.202,646.226 175.72,648.885 177.71,651.958 " fill="none" stroke="#cc6e3a" stroke-width="6.5"/>
+<text x="350" y="620" fill="#e7edf5" font-family="Arial" font-size="16">Right hand only</text>
+<polyline points="458.75,686.25 499.55,645.45 " fill="none" stroke="#9cc0d1" stroke-width="6.5"/>
+<polyline points="461.663,670.037 474.962,683.338 " fill="none" stroke="#9cc0d1" stroke-width="6.5"/>
+<text x="670" y="620" fill="#e7edf5" font-family="Arial" font-size="16">Spell + staff</text>
+<polyline points="760.125,665 789.875,665 " fill="none" stroke="#cc6e3a" stroke-width="4.42"/>
+<polyline points="775,650.125 775,679.875 " fill="none" stroke="#cc6e3a" stroke-width="4.42"/>
+<polyline points="765.438,655.438 784.562,674.562 " fill="none" stroke="#cc6e3a" stroke-width="3.315"/>
+<polyline points="765.438,674.562 784.562,655.438 " fill="none" stroke="#cc6e3a" stroke-width="3.315"/>
+<circle cx="775" cy="665" r="4.675" fill="#cc6e3a"/>
+<polyline points="822.875,685.188 830.312,653.312 " fill="none" stroke="#9cc0d1" stroke-width="5.525"/>
+<circle cx="832.438" cy="649.062" r="5.95" fill="none" stroke="#9cc0d1" stroke-width="4.42"/>
+</svg>

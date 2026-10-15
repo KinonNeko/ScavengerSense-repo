@@ -8,6 +8,20 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+## 0.10.3 beta — actor smoothing and dual equipment, 2026-10-15 (not published)
+
+- Add Smooth characters and creatures only, enabled by default. Actor tags
+  keep the configured smoothing; item tags use the current projected point.
+  Classify actors on the main thread, independently of relationship icons.
+  Switching scope clears bypassed cached positions to prevent stale easing.
+- Replace the right-hand-first equipment snapshot with two independent hands.
+  Draw both types, colours and charges for dual weapons, weapon/spell, dual
+  spells and staves. Add shield/torch shapes; two-handed items remain one icon.
+  Fix the other hand's enchantment leaking onto the selected weapon glyph.
+  Reserve paired widths in tags, combat chips and player stats.
+- Add native smoothing/combination regressions and SVG previews captured from
+  production glyph draw calls. These are offline checks, not game screenshots.
+
 ## 0.10.2 beta — lighting controls, 2026-10-15 (not published)
 
 - Add a screen-effects master switch and 0–1 blend at the top of Look. Both
