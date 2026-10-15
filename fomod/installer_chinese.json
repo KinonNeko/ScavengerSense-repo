@@ -24,20 +24,21 @@
     "Sweep chime": "感知提示音",
     "Font for non-Latin item names / 非拉丁文字体": "非拉丁文字体",
     "Add-ons that install files": "需要安装文件的扩展",
-    "Add-ons already built in - nothing to install": "内置扩展（无需安装额外文件）"
+    "Add-ons already built in - nothing to install": "内置扩展（无需安装额外文件）",
+    "Display settings and upgrades": "显示设置与升级"
   },
   "options": {
     "How would you like to begin / KShakes's Choice - everything, tuned": {
       "name": "KShakes 的完整预设",
-      "description": "请先阅读：此预设会开启战斗状态条，隐藏 TrueHUD 覆盖层并将原版敌人血条移出屏幕。取消战斗状态条或关闭“接管敌人血条”即可归还。玩家状态条也由本模组绘制。\n\n包含感知、追踪、头顶状态条、属性信息及作者调好的所有设置。各项均可在游戏菜单调整。\n\n如果你已经满意当前的 TrueHUD、目标锁定或 HUD 替换方案，请选下方的感知方案，或自行选择。"
+      "description": "作者调好的感知、追踪、战斗/头顶状态条和属性信息。开启战斗状态条期间会接管敌人血条；希望保留现有战斗 HUD 时，请选感知方案。\n\n屏幕光效与物体发光均可独立调节。人物/生物使用 0.26 秒标签平滑，物品直接跟随镜头；装备图标分别显示左右手及各自颜色、充能。\n\n安装器设置作为初始值，已有个人 ScavengerSense.ini 的设置优先。"
     },
     "How would you like to begin / Only sensing": {
       "name": "仅感知",
-      "description": "按键后，战利品与人物随着向外扩散的波纹高亮并显示名称，画面暂时褪色。\n\n不开启足迹追踪，也不改动你的 HUD 或战斗界面。"
+      "description": "扫描战利品与活着的人物，显示名称和感知画面效果；不开启足迹追踪、战斗状态条或 HUD 隐藏。\n\n屏幕光效和物体发光有独立开关；平滑默认 0，之后可在名牌页开启，仅人物/动物平滑选项已开启。已有个人 INI 优先。"
     },
     "How would you like to begin / Sensing and tracking": {
       "name": "感知与追踪",
-      "description": "包含感知与足迹追踪：先蹲下再感知，被感知到的人会留下足迹。标记人物或足迹后，可以跨区域追踪。\n\n默认感知键单击标记、双击感知、长按清除。可在按键页改成独立追踪键（鼠标中键）。不改动 HUD。"
+      "description": "包含感知与追踪：先蹲下再感知，记录并显示足迹；标记人物或足迹后可跨区域追踪。\n\n默认共用键单击标记、双击感知、长按清除；单击/长按感知可在下一页选择，追踪会改用独立按键。\n\n不接管战斗 HUD。屏幕光效可独立开关；平滑默认 0，仅人物/动物平滑选项已开启。已有个人 INI 优先。"
     },
     "How would you like to begin / Choose everything myself": {
       "name": "逐项自行选择",
@@ -101,19 +102,19 @@
     },
     "Screen effect while a sweep runs / Full - colour drains and the edges darken": {
       "name": "完整效果：褪色与暗角",
-      "description": "感知期间画面接近灰色，边缘变暗，高亮颜色更加突出。这是默认效果。"
+      "description": "完整感知画面：世界褪色、屏幕边缘变暗，物体高亮更加突出。\n\n屏幕光效总开关开启，总强度 1。游戏内“外观 → 光效调节”可开关、拖动强度，或点“保持原始明暗”。"
     },
     "Screen effect while a sweep runs / Subtle": {
       "name": "柔和效果",
-      "description": "大约半强度的褪色与暗角，画面只稍微变暗。完整效果过强时可以选择。"
+      "description": "较柔和的感知画面，屏幕光效总强度设为 0.5。\n\n太暗或太亮时，可在“外观 → 光效调节”继续降低强度，或保持原始明暗。"
     },
     "Screen effect while a sweep runs / Darkened edges only": {
       "name": "只保留暗角",
-      "description": "保留原有色彩，仅让屏幕边缘变暗。适合希望保留 ENB 或天气模组调色的玩家。"
+      "description": "保留场景颜色，只显示暗角。屏幕光效总开关开启，去色关闭；物体发光独立控制。\n\n可在外观页调整暗角强度或直接关闭屏幕光效。"
     },
     "Screen effect while a sweep runs / Nothing - leave my screen alone": {
       "name": "关闭画面效果",
-      "description": "不褪色也不增加暗角，只保留物体高亮与地面波纹。"
+      "description": "关闭屏幕光效总开关，同时关闭调色与暗角。物体发光和扫描波纹仍使用各自设置。\n\n日后可在外观页重新开启。"
     },
     "What lights up / Everything worth picking up": {
       "name": "全部可搜寻对象",
@@ -157,11 +158,11 @@
     },
     "Vitals bars during a sweep / Over hostiles the wave reaches": {
       "name": "仅被感知到的敌人",
-      "description": "感知期间，范围内被波纹触及的敌人会显示状态条，可以隔墙查看。"
+      "description": "被扫描到的敌对人物显示状态条，持续到感知结束。\n\n需要在上一页选择高亮活着的人物或所有人物；不高亮人物时，扫描不会给他们生成状态条。"
     },
     "Vitals bars during a sweep / Over everyone lit": {
       "name": "所有被感知的人物",
-      "description": "敌人、朋友及陌生人都显示状态条。"
+      "description": "被扫描到的敌人、朋友和陌生人都显示状态条。\n\n需要在上一页开启人物高亮。数字、独立布局和 PNG 皮肤可在游戏内状态条页调整。"
     },
     "Bars over people you fight / Off": {
       "name": "关闭",
@@ -193,11 +194,11 @@
     },
     "Sweep chime / A quiet two-note chime": {
       "name": "轻柔的双音提示",
-      "description": "感知开始时播放短提示音，音量受游戏 UI 音频设置影响。声音文件是可替换的 WAV，旁边有替换说明。游戏菜单中可调音量或关闭。"
+      "description": "明确开启扫描开始时的短提示音，通过游戏 UI 音量播放；游戏内可调整音量或关闭。可替换随包 WAV 自定义声音，说明文件随音频安装。"
     },
     "Sweep chime / Silence": {
       "name": "静音",
-      "description": "感知开始时不播放提示音。声音文件仍会安装，之后可在菜单里开启。"
+      "description": "默认保持安静，不播放扫描提示音。WAV 文件仍安装，以后可在菜单开启。"
     },
     "Font for non-Latin item names / 非拉丁文字体 / 中文字体 Noto Sans SC (Chinese font)": {
       "name": "中文字体：Noto Sans SC",
@@ -214,6 +215,14 @@
     "Add-ons already built in - nothing to install / Floating subtitles - already included": {
       "name": "悬浮字幕兼容（已内置）",
       "description": "此兼容功能已内置，无需额外文件。\n\n当其他模组把字幕放在说话者头顶时，可以隐藏或抬高说话者的名称标签，避免重叠。请在扩展菜单选择对应方式。"
+    },
+    "Display settings and upgrades / Brightness, stabilisation and equipment": {
+      "name": "光效、标签稳定与双持图标",
+      "description": "外观 → 光效调节：屏幕光效总开关、0–1 强度和“保持原始明暗”；视觉组另有物体发光开关。\n\n名牌 → 名称标签：“仅平滑人物和动物”默认开启。作者预设为 0.26 秒，两个感知预设为 0（不平滑）；需要时可增加人物平滑时间，物品直接跟随镜头。\n\n名牌 → 关于所有人可开启装备图标，左右手武器、法术、法杖、盾牌和火把分别显示；双手武器只显示一个。状态条页可调整玩家/NPC 各条布局、数字与 PNG 皮肤。"
+    },
+    "Display settings and upgrades / Existing settings and loading presets": {
+      "name": "升级、已有设置与加载预设",
+      "description": "安装器只提供初始值，已有个人 ScavengerSense.ini 优先，重新安装不会覆盖它。更换安装选项时请替换旧安装内容，避免合并后残留未选中的 setup 配置；放在模组目录内的自定义规则/图片需先备份。\n\n在设置 → 预设中加载预设，会先恢复内置默认值，再应用预设文件。未写入的项目不会保留之前的设置或安装选择；加载后检查语言和按键，再保存到 INI。\n\n中文显示还需要在框架配置中设置 MainFont.ttf 与 EnableChinese=true；勾选字体只安装文件，不自动修改框架配置。语言包和 PNG 自定义方法见随包 README 与 docs。"
     }
   }
 }

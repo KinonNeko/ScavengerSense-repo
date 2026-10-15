@@ -15,6 +15,9 @@ This is the source repository. The MO2 mods tree is a separate installed copy.
   creates D3D resources; do not dereference TESForm from rendering.
 - Validate translations, ImGui IDs, PE metadata/imports, FOMOD and installer
   routes. XSD validation was also performed for the 0.10 installer.
+  Use `check_installer_routes.py --probe plugin/build/ConfigProbe.exe` to check
+  the production loader, preset parity and personal-INI precedence in temporary
+  Data trees; XML-only checks do not establish the effective configuration.
 - Deployment detects the selected MO2 profile. Check the current modlist and
   plugins first; preserve personal INIs, rule customisations and assigned titles.
 - Do not call compilation, synthetic executable probes or XML checks in-game

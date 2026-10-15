@@ -382,7 +382,7 @@ namespace SS
 // had counted, saying 0.8 while the plugin declared 0.9.
 namespace
 {
-	constexpr REL::Version kVersion{ 0, 10, 3, 0 };
+	constexpr REL::Version kVersion{ 0, 10, 4, 0 };
 }
 
 SKSEPluginInfo(

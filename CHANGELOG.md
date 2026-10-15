@@ -8,6 +8,24 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+## 0.10.4 beta — presets and installation guide, 2026-10-15 (not published)
+
+- Synchronise lighting/glow/actor-smoothing keys in all three shipped presets;
+  keep the author's tuning, including 0.26 s actor smoothing. The two sensing
+  installer fragments now read the same files as the loadable menu presets.
+- Correct the old partial-merge preset instructions: loading a preset resets
+  built-in defaults before applying it. Explain personal-INI precedence and
+  language/key checks after loading in both installer languages and user docs.
+- Add display/upgrade guidance to every quick and custom installer route.
+  Replace the obsolete 0.6 README/install flow and update font setup notes.
+- Make Leave people alone explicitly disable actors. Make chime choices write
+  on/off, with silence recommended to match defaults. Full/subtle/none grading
+  choices write the new master settings; the first-hit combat choice writes
+  the struck trigger. Clarify that sweep NPC bars require people highlighting.
+- Add a headless adapter to the production config loader and use it in CI to
+  verify installer results, menu-preset parity and personal settings precedence.
+  This is an offline audit; no new game-testing claim is made.
+
 ## 0.10.3 beta — actor smoothing and dual equipment, 2026-10-15 (not published)
 
 - Add Smooth characters and creatures only, enabled by default. Actor tags

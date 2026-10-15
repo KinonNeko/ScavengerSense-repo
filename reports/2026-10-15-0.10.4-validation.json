@@ -1,0 +1,120 @@
+{
+  "date": "2026-10-15",
+  "version": "0.10.4 beta",
+  "base_commit": "b7ed037",
+  "branch": "codex/0.10.4-preset-installer",
+  "profile": "J61-BFCO",
+  "native_suites_passed": 7,
+  "feature_checks": 45,
+  "display_checks": 773,
+  "presets": {
+    "KShakes Choice.ini": {
+      "prior_setting_count": 257,
+      "current_setting_count": 261,
+      "all_prior_values_preserved": true,
+      "added_keys": [
+        "effects.screenenabled",
+        "effects.screenstrength",
+        "labels.smoothingactorsonly",
+        "vision.glowenabled"
+      ]
+    },
+    "Only Sensing.ini": {
+      "prior_setting_count": 3,
+      "current_setting_count": 9,
+      "all_prior_values_preserved": true,
+      "added_keys": [
+        "effects.screenenabled",
+        "effects.screenstrength",
+        "general.hidegamehud",
+        "labels.smoothing",
+        "labels.smoothingactorsonly",
+        "vision.glowenabled"
+      ]
+    },
+    "Sensing and Tracking.ini": {
+      "prior_setting_count": 3,
+      "current_setting_count": 9,
+      "all_prior_values_preserved": true,
+      "added_keys": [
+        "effects.screenenabled",
+        "effects.screenstrength",
+        "general.hidegamehud",
+        "labels.smoothing",
+        "labels.smoothingactorsonly",
+        "vision.glowenabled"
+      ]
+    }
+  },
+  "author_installer_menu_all_keys_equal": true,
+  "installer": {
+    "installer_routes": 102,
+    "production_config_loads": 222,
+    "native_probe_used": true,
+    "preset_menu_parity_checked": true,
+    "preset_guide_and_choice_contracts": true
+  },
+  "framework_imports_checked": 75,
+  "framework_abi": {
+    "host": {
+      "version": "1.90.8",
+      "io": 14616,
+      "style": 1140,
+      "vec2": 8,
+      "vec4": 16,
+      "drawvert": 20,
+      "drawidx": 2
+    },
+    "compiled": {
+      "version": "1.90.8",
+      "io": 14616,
+      "style": 1140,
+      "vec2": 8,
+      "vec4": 16,
+      "drawvert": 20,
+      "drawidx": 2
+    },
+    "matches": true
+  },
+  "framework_sha256": "0c107ad4c471c904186b68e1b50b10a66311affb40eb0ba2b8fcca36735d55a2",
+  "translation_keys": 638,
+  "xsd": "ModConfig 5.0 PASS",
+  "archive": {
+    "path": "E:\\dev\\ScavengerSense\\ScavengerSense-0.10.4-beta.zip",
+    "members": 68,
+    "bytes": 16625257,
+    "sha256": "6259640e187188ad710cd7771f4da854a4707207d13479ac13f59dcf370d1a02",
+    "all_member_bytes_and_crc_verified": true
+  },
+  "dll_sha256": "73a07970d9912c969728042da8653bb29a89181e1f691e1d3657f25c5a16f00c",
+  "esp_sha256": "b9b6c75f39a8ac58379c39d7fd8f5c029a97f6fe6bb980d0c360992e11b249bf",
+  "deployment": {
+    "changed": [
+      "meta.ini",
+      "README.md",
+      "SKSE/Plugins/ScavengerSense.dll",
+      "SKSE/Plugins/fonts/README-font.txt",
+      "SKSE/Plugins/ScavengerSense/docs/CUSTOMISING.txt",
+      "SKSE/Plugins/ScavengerSense/docs/DEPENDENCIES.txt",
+      "SKSE/Plugins/ScavengerSense/docs/中文说明.txt",
+      "SKSE/Plugins/ScavengerSense/presets/KShakes Choice.ini",
+      "SKSE/Plugins/ScavengerSense/presets/Only Sensing.ini",
+      "SKSE/Plugins/ScavengerSense/presets/Sensing and Tracking.ini"
+    ],
+    "unchanged_file_count": 21,
+    "preserved": {
+      "modlist.txt": "8dc503d4c7da8dc064908ca5d40bebc1d18a49340541ee6161fba7bbb49b87ab",
+      "plugins.txt": "7cd67eb13dde871a53866f49ac08fe863c0c29cab2db354d13c18f50c3052289",
+      "ScavengerSense-personal.ini": "a0e348e9818d9326008f9aeec0caf49d6b3917900b57b127bb4685c50d83e8f2",
+      "SKSEMenuFramework.ini": "f97f2e18cec1fc77d3eb0a648a71e4c070cbaaa039fc1ec7b9dc1894d7a04e9f"
+    }
+  },
+  "gameplay_verified": false,
+  "installer_gui_clicked": false,
+  "limits": [
+    "No Skyrim gameplay or MO2 interactive installer verification",
+    "Native config probe covers the reported keys, not every rendering/game integration",
+    "Previous runtime and gameplay limits remain"
+  ],
+  "reinstall_note": "Clean replacement required when changing answers to avoid retained old setup fragments; preserve personal overrides/custom files."
+}

@@ -2,7 +2,7 @@
 <fomod>
   <Name>Scavenger Sense</Name>
   <Author>KShakes</Author>
-  <Version MachineVersion="0.10.3.0">0.10.3 beta</Version>
+  <Version MachineVersion="0.10.4.0">0.10.4 beta</Version>
   <Website>https://www.nexusmods.com/profile/KShakes</Website>
   <Description>
 Press a key and everything worth looting lights up in an outward wave, with a
@@ -12,13 +12,13 @@ and the same sweep reads the ground: everyone the sense has touched leaves
 footprints, and marking a person - or their trail - keeps them trackable
 across cells. A scavenger's sense for Skyrim.
 
-BETA. Everything here works and has been played with, but it has only been
-tested on one load order. Keep a save from
-before you installed it, and please report anything odd - ScavengerSense.log
-next to the plugin says what happened.
+Local 0.10.4 beta development build. Offline build, configuration and installer
+checks are recorded in the source reports; actual gameplay verification of the
+new features is still pending. Report problems with ScavengerSense.log.
 
-Requires SKSE64, Address Library, SKSE Menu Framework 3.13 or newer, and the
-included ScavengerSense.esp enabled.
+Requires matching SKSE64 and Address Library, SKSE Menu Framework with the HUD
+exports and matching ImGui ABI (updated local 3.14 checked), and the included
+ScavengerSense.esp enabled.
   </Description>
   <Groups>
     <element>Gameplay Effects</element>

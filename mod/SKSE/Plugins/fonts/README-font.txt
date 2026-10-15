@@ -2,7 +2,7 @@ MainFont.ttf shipped with Scavenger Sense
 =========================================
 
 This is Noto Sans SC, unmodified, renamed to MainFont.ttf because that is the
-filename SKSE Menu Framework looks for.
+filename selected by this mod's font setup instructions. Framework defaults may differ.
 
   Family     Noto Sans SC
   Version    2.004
@@ -23,3 +23,13 @@ Coverage: full ASCII and Latin-1, all 6,763 GB2312 hanzi, and CJK punctuation.
 Enough for Simplified Chinese item and NPC names. It does NOT cover Japanese
 kana, Korean hangul, Cyrillic or Thai - for those, supply your own font with
 the right glyphs and point PrimaryFont at it.
+
+Framework configuration (installing this font does not edit it):
+  [Fonts]
+  PrimaryFont = MainFont.ttf
+  EnableChinese = true
+
+Use the effective SKSE/Plugins/SKSEMenuFramework.ini and preserve other settings.
+Restart Skyrim/SKSE after changing fonts or glyph ranges. Menu language and
+framework font support are independent; English menus may still show Chinese
+item/NPC names. Other scripts need their own font and glyph-range settings.

@@ -18,6 +18,12 @@ MOD   = os.path.join(ROOT, "mod")
 BUILD = os.path.join(ROOT, "fomod-build")
 SETUP = "SKSE/Plugins/ScavengerSense_setup"
 
+
+def preset_body(name):
+    # One source for the menu preset and the matching installer fragment.
+    with open(os.path.join(MOD, "SKSE/Plugins/ScavengerSense/presets", name), encoding="utf-8") as source:
+        return source.read()
+
 # ---------------------------------------------------------------- fragments
 HEAD = ("; ============================================================================\n"
         ";  Scavenger Sense - installer answer: {title}\n"
@@ -84,21 +90,36 @@ enable = false
 show = false
 """),
 
-    "20 Effect - subtle": ("40-effect.ini", "a gentler screen effect", """
+    "19 Effect - full": ("40-effect.ini", "full screen effect", """
+[Effects]
+screenEnabled = true
+screenStrength = 1.0
 [Tint]
+enable = true
+overlay = true
+"""),
+    "20 Effect - subtle": ("40-effect.ini", "a gentler screen effect", """
+[Effects]
+screenEnabled = true
+screenStrength = 0.5
+[Tint]
+enable = true
+overlay = true
 saturation = 0.65
 strength = 0.70
 overlayStrength = 0.18
 """),
     "21 Effect - vignette only": ("40-effect.ini", "vignette only, colour left alone", """
+[Effects]
+screenEnabled = true
+screenStrength = 1.0
 [Tint]
 enable = false
 overlay = true
 """),
     "22 Effect - none": ("40-effect.ini", "no screen effect", """
-[Tint]
-enable = false
-overlay = false
+[Effects]
+screenEnabled = false
 """),
 
     "30 Lights - no scenery": ("50-lights.ini", "skip doors, plants and activators", """
@@ -121,6 +142,10 @@ activator = false
 furniture = false
 """),
 
+    "39 People - none": ("60-people.ini", "do not highlight people", """
+[Categories]
+actor = false
+"""),
     "40 People - living": ("60-people.ini", "light up living people", """
 [Categories]
 actor = true
@@ -146,6 +171,7 @@ hostileOnly = false
     "52 Combat bars": ("71-combatbars.ini", "bars over people you have hit", """
 [Vitals]
 combat = true
+combatWhen = struck
 """),
 
     "53 My overhead bars": ("72-overhead.ini", "bars over your own head", """
@@ -162,6 +188,10 @@ lostFx = false
 lostMax = false
 """),
 
+    "56 Chime - on": ("74-chime.ini", "play the sweep chime", """
+[Sound]
+enabled = true
+"""),
     "56 Chime - off": ("74-chime.ini", "no sweep chime", """
 [Sound]
 enabled = false
@@ -193,22 +223,8 @@ enabled = true
     # detailed pages give one at a time. (KShakes's Choice is special: its
     # fragment is the author's whole INI, written by write_payload from
     # fomod/kshakes-preset.ini.)
-    "06 Preset - sense only": ("20-preset.ini", "preset: only sensing", """
-[Categories]
-actor = true
-actorFilter = living
-
-[Tracks]
-enabled = false
-"""),
-    "07 Preset - sense tracking": ("20-preset.ini", "preset: sensing and tracking", """
-[Categories]
-actor = true
-actorFilter = living
-
-[Tracks]
-enabled = true
-"""),
+    "06 Preset - sense only": ("20-preset.ini", "preset: only sensing", preset_body("Only Sensing.ini")),
+    "07 Preset - sense tracking": ("20-preset.ini", "preset: sensing and tracking", preset_body("Sensing and Tracking.ini")),
     "09 Hide HUD": ("21-hidehud.ini", "hide the game's own interface", """
 [General]
 hideGameHud = true
@@ -273,8 +289,8 @@ def sync_payload():
         put(os.path.join(plugins, "fonts", f), f"02 CJK font/SKSE/Plugins/fonts/{f}")
     put(os.path.join(plugins, "ScavengerSense_marks_ostim.ini"),
         "03 OStim add-on/SKSE/Plugins/ScavengerSense_marks_ostim.ini")
-    # The Default preset ships with everybody: it is how the menu gets back
-    # to the shipped look after experiments.
+    # Every named preset ships with everybody. Menu loading starts with the
+    # built-in defaults; missing preset keys never retain the previous look.
     # Every preset in the folder, not a hardcoded name: presets get added and
     # a fixed list quietly ships the tree without them.
     for name in sorted(os.listdir(os.path.join(plugins, "ScavengerSense/presets"))):
@@ -408,12 +424,14 @@ def build_xml():
         plugin("Full - colour drains and the edges darken",
                "The world goes almost grey and the edges of the screen darken for as long "
                "as the sweep lasts, so the glow is the only colour left.\n\nThis is the "
-               "effect the mod is built around.",
+               "effect the mod is built around. Look -> Lighting controls provides a master switch, "
+               "strength slider and Keep original brightness shortcut.",
+               "19 Effect - full",
                type_="Recommended"),
         plugin("Subtle",
                "The same effect at roughly half strength. The world dims rather than "
                "draining.\n\nA good middle if the full version is too much on a bright "
-               "monitor.",
+               "monitor. Sets the screen master strength to 0.5; adjust it in Look -> Lighting controls.",
                "20 Effect - subtle"),
         plugin("Darkened edges only",
                "The colour is left alone; only the edges of the screen darken.\n\nWorth "
@@ -423,7 +441,7 @@ def build_xml():
         plugin("Nothing - leave my screen alone",
                "No colour change and no darkening. Objects glow, the ring runs across the "
                "ground, and nothing else about the image changes.\n\nThe safe answer for "
-               "heavily graded setups.",
+               "heavily graded setups. Switches the screen master off; object glow keeps its own switch.",
                "22 Effect - none"),
     ])
 
@@ -449,6 +467,7 @@ def build_xml():
                "A sweep finds objects only. Nobody is outlined and no names float over "
                "anyone.\n\nThe lightest option, and the one that changes the least about "
                "how the game reads.",
+               "39 People - none",
                type_="Recommended"),
         plugin("Light up living people",
                "People are outlined too, coloured by how they feel about you - lovers, "
@@ -527,44 +546,28 @@ def build_xml():
 
     start = group("How would you like to begin", "SelectExactlyOne", [
         plugin("KShakes's Choice - everything, tuned",
-               "READ THIS FIRST - this is the only choice here that changes your "
-               "HUD.\n\nIt switches the combat bars on, and while those are on this "
-               "mod becomes the only enemy health on screen: TrueHUD's overlay is "
-               "hidden and the vanilla enemy bar is parked off screen. Both come "
-               "back the moment you untick the combat bars in the menu. Your own "
-               "health, magicka and stamina are drawn by this mod too. Nothing else "
-               "about the game's interface is touched.\n\n"
-               "If you have TrueHUD, a target-lock mod, or any HUD replacer you are "
-               "happy with, pick one of the others below - they leave your interface "
-               "completely alone.\n\n--\n\n"
-               "The author's own settings, copied whole: the sense with tracking, the "
-               "sense-built HUD - combat bars, overhead bars, the stats row - and "
-               "every slider where the mod was tuned during development. The complete "
-               "experience in one click, and every part of it stays adjustable in the "
-               "menu afterwards.\n\n--\n\n"
-               "请先阅读：这是本页唯一会改变你 HUD 的选项。"
-               "它会开启战斗状态条；开启期间，本模组将成为屏幕上"
-               "唯一的敌人血量来源：TrueHUD 的覆盖层会被隐藏，"
-               "原版敌人血条会被挪出屏幕。在菜单里取消勾选"
-               "战斗状态条，两者立刻全部归还。\n\n"
-               "如果你在用 TrueHUD、目标锁定类模组，或任何你满意的"
-               "HUD 替换模组，请选择下面其他选项——它们完全不动"
-               "你的界面。",
-               "05 Preset - KShakes", type_="Recommended",
+               "The author's tuned sensing, tracking, combat/overhead bars and stats. "
+               "Combat bars take over enemy HUD display while enabled; choose a sensing-only "
+               "preset if you want your current combat HUD left alone.\n\n"
+               "Screen effects and object glow stay independently adjustable. Label smoothing "
+               "is 0.26 seconds for people/creatures only; static items follow the camera directly. "
+               "Equipment icons show both hands with separate colours and charges.\n\n"
+               "These are starting settings. An existing personal INI wins over installer answers.",
+               "05 Preset - KShakes", type_="Recommended", flags={"custom": "off"},
                image="fomod/images/preset-sense-hud.png"),
         plugin("Only sensing",
                "Press a key and the world tells you what is worth taking: loot and "
                "people light up in an outward wave, names float over them, the colour "
                "drains while it runs.\n\nNo tracking, no HUD changes - your interface "
                "and combat mods stay exactly as they are.",
-               "06 Preset - sense only",
+               "06 Preset - sense only", flags={"custom": "off"},
                image="fomod/images/preset-sense.png"),
         plugin("Sensing and tracking",
                "The sense as above, plus the hunt: crouch, sweep, and everyone the "
                "sense has touched leaves footprints; mark a person or their trail - "
-               "middle mouse out of the box - and follow them across cells.\n\nStill "
+               "using the configured marking gesture - and follow them across cells.\n\nStill "
                "no HUD changes.",
-               "07 Preset - sense tracking",
+               "07 Preset - sense tracking", flags={"custom": "off"},
                image="fomod/images/tracking-crouch-sense.png"),
         plugin("Choose everything myself",
                "The full installer, page by page: tracking, looks, what lights up, "
@@ -598,10 +601,10 @@ def build_xml():
         plugin("Over hostiles the wave reaches",
                "Everyone hostile to you that a sweep lights carries their bars for the "
                "length of the sweep - through walls, across the whole radius. A sweep "
-               "through a bandit camp tells you what you are walking into.",
+               "through a bandit camp tells you what you are walking into. Requires Light up living people or everyone on the previous page.",
                "50 Sweep bars - hostile"),
         plugin("Over everyone lit",
-               "As above, but friend and stranger too, not just enemies.",
+               "As above, but friend and stranger too, not just enemies. Requires highlighting people on the previous page.",
                "51 Sweep bars - everyone"),
     ])
 
@@ -703,12 +706,12 @@ button.""",
                "A short chime when a sweep starts, played through the game's UI audio "
                "so its volume sliders apply. The sound is one wav on disk - replace it "
                "with any wav to make it yours; a note beside it says how.\n\nVolume and "
-               "the switch live in the menu.",
-               type_="Recommended"),
+               "the switch live in the menu. This choice explicitly enables the sound.",
+               "56 Chime - on"),
         plugin("Silence",
                "Sweeps start without a sound. The wav still installs, so you can turn "
                "the chime on later from the menu.",
-               "56 Chime - off"),
+               "56 Chime - off", type_="Recommended"),
     ])
 
     xml = ('<?xml version="1.0" encoding="utf-8"?>\n'
@@ -730,7 +733,28 @@ button.""",
                "08 Quick hold"),
     ])
     xml += step("Scavenger Sense / 快速开始", [start, keys]) + "\n"
-    xml += step("Controls / 按键", [activation]) + "\n"
+    display_guide = group("Display settings and upgrades", "SelectAny", [
+        plugin("Brightness, stabilisation and equipment",
+               "Look -> Lighting controls: screen master on/off, strength 0-1 and Keep original brightness. "
+               "Vision has a separate object-glow switch.\n\n"
+               "Names -> Name tags: Smooth characters and creatures only defaults ON. "
+               "KShakes uses 0.26 s; the two sensing presets use 0 (no smoothing). Increase it for "
+               "characters if wanted; static items follow the camera directly.\n\n"
+               "Equipment icons show left/right weapons, spells, staves, shield or torch separately; "
+               "two-handed weapons use one icon. Enable them in Names -> About everyone. Bars -> Bar style offers "
+               "separate player/NPC layouts, numbers and optional PNG skins.", type_="NotUsable"),
+        plugin("Existing settings and loading presets",
+               "Installer answers are starting values. Existing ScavengerSense.ini settings take precedence; "
+               "reinstalling does not overwrite them. When changing installer answers, use a clean replacement "
+               "so old unselected setup fragments do not remain; back up custom rules/artwork stored in the package first.\n\n"
+               "Loading a named preset from Setup -> Presets restores built-in defaults, then applies "
+               "that file. Missing keys do not keep your previous settings or installer choices. "
+               "Check language and key bindings after loading, then Save to INI.\n\n"
+               "Chinese text also needs MainFont.ttf and EnableChinese=true in the framework configuration; "
+               "the optional font does not change that configuration automatically. See the bundled README "
+               "and docs for translation packs and custom PNGs.", type_="NotUsable"),
+    ])
+    xml += step("Controls / 按键", [activation, display_guide]) + "\n"
     xml += step("Tracking / 足迹追踪", [tracking, capture, trailkey], when=("custom", "on")) + "\n"
     xml += step("How it should look / 外观",
         [tags, effect, lights, people, hidehud], when=("custom", "on")) + "\n"

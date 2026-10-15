@@ -57,6 +57,7 @@ $jobs = @(
     @{ From = $dll;                                              To = "SKSE\Plugins\ScavengerSense.dll" }
     @{ From = "$repo\ScavengerSense.esp";                        To = "ScavengerSense.esp" }
     @{ From = "$repo\mod\README.md";                             To = "README.md" }
+    @{ From = "$repo\mod\SKSE\Plugins\fonts\README-font.txt";       To = "SKSE\Plugins\fonts\README-font.txt" }
     @{ From = "$repo\mod\Sound\FX\ScavengerSense\sweep.wav";     To = "Sound\FX\ScavengerSense\sweep.wav" }
     @{ From = "$repo\mod\Sound\FX\ScavengerSense\README-sound.txt"; To = "Sound\FX\ScavengerSense\README-sound.txt" }
 )

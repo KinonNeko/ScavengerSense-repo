@@ -139,3 +139,13 @@ weapon/spell, dual spells, dual staves, shield/weapon and torch/weapon are
 represented separately. A two-handed weapon remains one icon. Names, combat
 chips and the player stats row reserve the paired width. Existing marker-icon
 priority and race-emblem placement rules are retained.
+
+Installer/preset loading (0.10.4)
+--------------------------------
+All three shipped presets explicitly store screenEnabled/screenStrength,
+glowEnabled and smoothingActorsOnly. KShakes keeps its tuned 0.26 s; the two
+sensing presets use 0. Installing reads defaults, setup fragments, then the
+personal INI. Loading a named preset resets defaults and ignores installer
+fragments/previous values before applying that file. Save to INI afterward.
+The Controls page explains lighting, smoothing, paired equipment and upgrade
+precedence for every installer route. See the root README for the full flow.

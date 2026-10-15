@@ -1,287 +1,167 @@
 # Scavenger Sense
 
-**0.6 beta** — by KShakes — https://www.nexusmods.com/profile/KShakes
+**0.10.4 beta development build** — by KShakes.
 
-Everything in it works and has been played with, but it has only been tested
-against one load order.
-
-**New in 0.6.** Health, magicka and stamina as sheared, notched bars — under
-your name during a sweep, or pinned to a screen corner where they work in
-first person and with no sweep running at all. The same bars over other people
-for the length of a sweep, optionally only over people hostile to you. The
-game's own interface can be hidden, so the sweep becomes the interface. Title
-rules can name a keyword instead of a form ID, which is what makes SPID
-distribution practical. The settings menu has been reorganised around a new
-Vitals page.
-
-Keep a save from before you installed it. If something misbehaves,
-`ScavengerSense.log` (in `Documents\My Games\Skyrim Special Edition\SKSE\`, and
-a second copy next to the plugin) records what happened and is the fastest way
-to get it fixed.
-
-Press a key and everything worth looting lights up in an outward wave, with a
-ring travelling across the ground from your feet, names floating over the
-objects, and the colour draining out of the world while it runs.
+Press a key to send a sensing wave through nearby loot and people, with optional
+name tags, tracking and HUD bars. This local build has passed offline checks;
+the new features still need gameplay verification. Source and release details:
+https://github.com/KinonNeko/ScavengerSense-repo
 
 ## Requirements
 
-Required, in the order the game loads them:
+- Skyrim SE/AE on Windows, with SKSE64 and Address Library matching your exact
+  executable. Offline runtime probes cover 1.5.97, 1.6.1170 and 1.7.104; they
+  do not establish successful startup on every user load order. VR is not built.
+- SKSE Menu Framework with HUD exports and the matching ImGui ABI. The updated
+  local 3.14 DLL was checked against this build. Version numbers alone are not
+  enough; the plugin checks ImGui version/layout before registering callbacks.
+- The included ScavengerSense.esp enabled. Its effect-shader records are required.
+- A font with the glyphs your item/NPC names need, plus matching framework glyph
+  ranges. The optional bundled Noto font supports Simplified Chinese, not every
+  language. See Fonts below.
 
-- **Skyrim Special Edition or Anniversary Edition**, 64-bit, on Windows. One DLL
-  covers every runtime from 1.5.97 to current. Skyrim VR is not built.
-- **SKSE64**, matching your runtime.
-- **Address Library for SKSE Plugins** — the plugin looks engine functions up by
-  ID rather than by hard-coded address, which is what lets one build cover every
-  patch. Without it the plugin logs a fatal error and stops.
-- **SKSE Menu Framework 3.13 or newer**. The settings page, the name tags, the
-  sonar ring and the vignette are all drawn through it. Older builds do not
-  export the hook the tags need.
-- **`ScavengerSense.esp`, enabled.** The 128 effect shaders that produce the glow
-  are records in it, and they cannot be created at runtime. It is ESL-flagged,
-  so it costs no load order slot. Without it the menu opens and says "not
-  armed", and nothing lights up.
+TrueHUD, Community Shaders, OStim Standalone and SLO Aroused NG are optional
+integrations. SkyUI/MCM is not required. See docs/DEPENDENCIES.txt for startup
+errors and logs. Mod contents install at Skyrim's Data root; no extra nested
+Data folder is required when installing through MO2.
 
-Optional, and detected at runtime:
+## Installer flow
 
-- **Community Shaders** — nothing is required, but if you use it, turn on
-  *Community Shaders mode* on the Look page so the desaturation survives its
-  tone mapping.
-- **OStim Standalone** — only needed for the Dibella marker in
-  `ScavengerSense_marks.ini`. The rule names form lists inside `OStim.esp`; if
-  that file is not in your load order the references simply do not resolve and
-  the rule sits idle.
-- **A font with the glyphs your game's language needs**, for name tags. This mod
-  ships one for Simplified Chinese. See the section below.
+The first page chooses English or Chinese for the following installer pages and
+sets the initial menu language for a fresh installation. An existing personal
+INI still wins.
 
-No script extender plugin other than SKSE, no Papyrus scripts, no SkyUI, no MCM,
-no ENB, and no dependency on any particular lighting or weather mod.
+1. **Language.** English or Simplified Chinese.
+2. **Starting preset and keys.** Choose the author's preset, Only sensing,
+   Sensing and tracking, or Choose everything myself.
+3. **Controls and display guide.** Keep shared-key double tap, choose immediate
+   single press, or hold for 0.35 seconds. Single/hold choices give tracking its
+   own key (middle mouse; controller tracking starts unbound). This page also
+   explains lighting, actor-only smoothing, dual equipment and upgrades for
+   every preset, including quick installs.
+4. **Optional extras.** Font and optional OStim files, plus built-in integration
+   information. A quick-preset route has four visible pages in total.
 
-## What the installer asks
+Choose everything myself inserts three detailed pages before Optional extras:
+tracking; appearance/HUD; and bars/sound. That route has seven visible pages.
 
-Three pages. Every answer has a sensible default, so clicking straight through
-gives you the mod as intended.
-
-**Page 1 — how it should look.** Four questions, and a reminder of the keys.
-
-| Question | Answers |
+| Preset | Starting behaviour |
 |---|---|
-| **Name tags** | names, titles and icons · names and titles · names only · none |
-| **Screen effect** | full · subtle · darkened edges only · nothing |
-| **What lights up** | everything · skip the scenery · containers and valuables only |
-| **People** | leave them alone · living people · everyone, bodies included |
+| KShakes's Choice | Author's tuned sensing/tracking, combat and overhead bars, stats, equipment icons, and 0.26 s actor smoothing. Combat bars take over enemy HUD display while enabled. |
+| Only sensing | Sensing with living people; no trails, combat-bar takeover or vanilla HUD hiding. Smoothing is 0. |
+| Sensing and tracking | The same sensing defaults plus crouch-and-sense tracking. Smoothing is 0. |
 
-None of this is locked in. Every one of these is a control in the settings menu
-afterwards, and the page exists so the mod behaves the way you want the first
-time you press the key rather than after a trip through the menu.
+All three explicitly enable the screen master at strength 1, object glow and
+the actors-only smoothing scope. A smoothing duration of 0 still means no
+smoothing; the scope does not turn it on by itself. Each option remains
+adjustable in the menu. The two sensing installer fragments use the same source
+files as their loadable presets; the author's installer/menu values are checked
+for equality.
 
-**Page 2 — menu language.** English or Simplified Chinese.
+Detailed installation offers full/subtle/vignette-only/no screen grading.
+Subtle sets the screen master strength to 0.5; No screen effects turns the
+master off. Object glow remains independent. Leave people alone explicitly
+turns actor highlighting off. Sweep bars require highlighting people on that
+page. Silence is the default; selecting the two-note chime explicitly enables
+sound. The combat option labelled from your first hit uses the struck trigger.
 
-**Page 3 — optional extras.**
+## Settings, upgrades and presets
 
-| Option | What it is | Take it if |
-|---|---|---|
-| **Bundled CJK font** | Noto Sans SC as MainFont.ttf, 2.2 MB | your game is in Chinese, Japanese, Korean, Russian or Thai and item names show as `?` |
-| **OStim Standalone** | the Dibella marker and its tally | you have OStim. Without this file the add-on does not exist at all |
-| **Oathvein UI palette** | a colour scheme, applied on install | you use Oathvein UI, or just like the palette |
+The framework opens its menu with its configured binding (normally F1). Choose
+Scavenger Sense -> Settings. Useful locations:
 
-### How the installer's answers reach the game
+- **Keys:** all keyboard/controller bindings and single/double/hold gestures.
+- **Look -> Lighting controls:** screen master, 0-1 strength and Keep original
+  brightness. Brightness 1 is neutral; lower darkens, higher brightens. The
+  shortcut resets brightness/contrast, removes colour cast and disables the
+  vignette while retaining desaturation.
+- **Look -> Vision:** object glow switch and strength. Zero turns highlights
+  off; positive strength changes apply to newly highlighted objects.
+- **Names -> Name tags:** smoothing duration and Smooth characters and creatures
+  only (default on). People/animals retain smoothing; static items follow the
+  camera directly. Disable the scope to smooth all targets.
+- **Names -> About everyone:** equipment icons. Left/right weapons, spells,
+  staves, shield and torch are separate; two-handed weapons use one icon. Each
+  hand keeps its own enchantment/spell colour and charge. Custom markers keep
+  their icon priority. With racial emblems enabled, the corner stats row leaves
+  equipment to the overhead chip, as before.
+- **Bars -> Bar style:** independent player/NPC bar sizes, offsets, number
+  centring and PNG layers. NPC values can show current, current/max or percent;
+  per-second regeneration figures are not included. See docs/CUSTOMISING.txt.
+- **Setup:** individual HUD suppression and named presets. Keep compass/messages
+  by disabling their hiding checkboxes while leaving other parts suppressed.
 
-Each answer drops one small file into
-`Data/SKSE/Plugins/ScavengerSense_setup/`, holding only the settings that
-answer changes. On startup the plugin reads them in filename order on top of
-its built-in defaults, then reads your own `ScavengerSense.ini` over the top of
-that. So:
+At game startup, configuration is read in this order:
 
-- **Nothing has to be loaded from the menu.** The answers are live on the first
-  sweep.
-- **Your settings always win.** The moment you press *Save to INI*, that file
-  holds every key and the installer's files stop mattering.
-- **Deleting one** returns those particular settings to the default.
-- A preset loaded from the menu deliberately ignores this folder — a preset is
-  meant to describe the whole look on its own.
+1. Built-in defaults.
+2. Installer fragments in SKSE/Plugins/ScavengerSense_setup, sorted by filename.
+3. Your personal SKSE/Plugins/ScavengerSense.ini, overriding matching keys.
 
-The Oathvein option uses both routes: it applies the palette immediately
-*and* installs the full preset, so you can still switch back and forth from
-**Setup → Presets**.
+When changing installer answers, replace the previous package files instead of
+merging old ScavengerSense_setup fragments. Otherwise unselected old answers
+can remain active. Back up custom rules/artwork stored inside that package
+before replacing it. Keep personal settings in your separate override location.
 
-The log says which files it read:
+Reinstalling does not overwrite the personal INI. If you have saved one already,
+new installer choices may not visibly apply: use the menu to change those saved
+settings. This is intentional. Removing one installer fragment removes that
+answer; a personal value can still override the resulting default.
 
-```
-config: setup fragment 40-effect.ini (3 keys)
-config: no Data/SKSE/Plugins/ScavengerSense.ini yet - running on defaults plus the installer's answers
-```
+Loading a named preset from Setup -> Presets is different: it starts from
+built-in defaults, then applies the selected file, ignoring installer fragments
+and previous unsaved settings. Missing keys reset to defaults; a small preset
+is not a partial merge. Check language and keys after loading. **Save to INI**
+keeps your result across restarts; it does not save automatically on preset load.
 
-Two more add-ons are built into the plugin and have no files, so the installer
-lists them greyed out for information only:
+## Default gestures
 
-- **SLO Aroused NG** - a flame on the right of a name showing arousal. Appears
-  on the Add-ons page as installed or not installed depending on whether you
-  have that mod, and hides itself when you do not.
-- **Floating subtitles** - hides or lifts a name tag while that person is
-  speaking, for anyone running a subtitle mod. Works with any of them; there
-  is nothing to detect.
+With shared keys: double-tap Y (controller A) senses; a single press marks or
+releases a readable person/trail after the double-tap window; holding clears
+marks and trails. Crouch and sense to read ordinary footprints. Marked targets
+remain trackable according to the tracking settings. If you choose single-press
+sensing, it starts without the double-tap delay and tracking uses a separate key.
+Controller A also activates things in vanilla; choose another binding if needed.
+The framework's menu binding is configured by that framework.
 
-### Bundled font and its licence
+## Fonts and translations
 
-The optional font is **Noto Sans SC 2.004**, unmodified, renamed to
-`MainFont.ttf` because that is the filename SKSE Menu Framework looks for.
-Copyright (c) 2014-2021 Adobe, with Reserved Font Name 'Source'. It is licensed
-under the **SIL Open Font License 1.1**, which permits bundling and
-redistribution provided the licence text travels with the font - so `OFL.txt`
-is installed next to it, along with a note on what the font is and covers.
-Please keep those three files together if you repackage anything.
-
-Renaming a file is not a Modified Version under the OFL, so the Reserved Font
-Name clause is not engaged. Nothing about the font itself has been altered.
-
-No `ScavengerSense.ini` is installed. The plugin has sensible defaults built in
-and writes a fully commented INI the first time you press **Save to INI** in
-the menu, so there is never a stale settings file overriding a new default.
-
-Add-ons are always separate files. Any `ScavengerSense_marks_*.ini` next to the
-main marker file is read automatically, so deleting one removes that add-on
-completely - its rules, its marker and its entry in the menu.
-
-## Keys
-
-- **Y, twice** — run a sweep.
-- **A, twice** — the same on a controller.
-- **F1** — open the SKSE menu, then **Scavenger Sense → Settings**. F1 belongs
-  to SKSE Menu Framework, not to this mod; if it does nothing, check that mod's
-  own INI for the key it opens on.
-
-It is a double tap rather than a single press so a key you already use for
-something else does not set off a sweep every time you touch it. The two taps
-have to land within 0.3 s, and there is a half-second cooldown afterwards.
-
-Both keys, the controller button, the window, and whether it should be a single
-press or a hold instead, are all on the Setup page. On a controller, note that A
-is also Activate; Right Bumper is unbound in vanilla if you would rather not
-share.
-
-## Settings
-
-In game: SKSE menu (F1 by default) → **Scavenger Sense → Settings**. Everything
-is live; "Save to INI" writes it to `Data/SKSE/Plugins/ScavengerSense.ini`, which
-you can also edit by hand.
-
-## Non-Latin item names — read this if your tags show "???"
-
-This is the one piece of setup that is not automatic, and it is worth
-understanding because the symptom is confusing.
-
-Name tags are drawn with whatever font SKSE Menu Framework baked into its ImGui
-atlas. If a glyph is not in that atlas, ImGui draws `?`. So on a Chinese,
-Japanese, Korean, Russian or Thai copy of the game, tags come out as rows of
-question marks — not because the text is wrong, but because the font cannot
-draw it.
-
-There is a trap underneath it. SKSE Menu Framework ships with
+The optional MainFont.ttf is Noto Sans SC 2.004, with its OFL.txt and font note.
+It covers Latin and the bundled Simplified Chinese character set; other scripts
+need a suitable font. Installing a font does not modify framework configuration.
+In the effective SKSE/Plugins/SKSEMenuFramework.ini set:
 
 ```ini
+[Fonts]
 PrimaryFont = MainFont.ttf
+EnableChinese = true
 ```
 
-and **ships no `MainFont.ttf`**. When the primary font is missing it silently
-falls back to `SkyrimMenuFont.ttf` *with Latin-only glyph ranges* — and it does
-that regardless of what `EnableChinese` is set to. So turning `EnableChinese` on
-by itself changes nothing. Every stock SMF install is in this state.
+Framework defaults can change between releases; inspect the effective file
+rather than assuming its default font. Keep other framework settings unless
+you intend to change them. Restart Skyrim/SKSE after changing font files/ranges.
+The bundled font is not a promise of coverage for all modded names.
 
-**The fix**, which this mod is already 90% of:
+Menu translations are independent of fonts and game-language names. Copy the
+English template in SKSE/Plugins/ScavengerSense/translations next to the DLL as
+ScavengerSense_<language>.ini, translate values in UTF-8 and use the language
+rescan control. Missing entries fall back to English. See docs/TRANSLATING.txt
+and docs/中文说明.txt. PNG bar/arousal skins are documented in CUSTOMISING.txt;
+replacing already cached artwork requires a restart.
 
-1. This mod ships `Data/SKSE/Plugins/fonts/MainFont.ttf` — Noto Sans SC, with
-   full ASCII, Latin-1, all 6,763 GB2312 hanzi and CJK punctuation. Because Mod
-   Organizer merges directories, it lands in the same virtual folder SMF reads,
-   without modifying SMF itself.
-2. In `Data/SKSE/Plugins/SKSEMenuFramework.ini`, set:
-   ```ini
-   [Fonts]
-   PrimaryFont  = MainFont.ttf
-   EnableChinese = true
-   ```
-   (Use `EnableJapanese` / `EnableKorean` / `EnableCyrillic` / `EnableThai`
-   instead, or as well, for other languages — but supply a font that actually
-   contains those glyphs. The bundled one is Simplified Chinese.)
-3. Consider lowering `FontSizeMedium`. SMF rasterises the primary font once per
-   Font Awesome file it finds, so with CJK ranges on you get roughly four full
-   bakes of a several-thousand-glyph font. At the default 32px that is a font
-   texture around 144 MB; at 24px it is about 80 MB. 24 is a good compromise.
+## Graphics and troubleshooting
 
-The plugin checks this for you. On the first HUD frame it looks for U+4E00 in
-the loaded font and writes one of these to the log:
+If native image-space grading does not visibly work with your graphics setup,
+Look -> Screen tint offers Community Shaders mode (own shader pass). It is
+optional. The screen master covers grading and vignette through either route;
+legacy image-space mode reads positive slider changes on the next sweep, while
+turning the master off stops it. Actual appearance depends on the load order.
 
-```
-labels: font has CJK glyphs, non-Latin item names will render
-labels: the menu framework's font has no CJK glyphs - names in Chinese, ...
-```
-
-and the same verdict appears in the Name tags section of the settings page.
-
-Menu *translations* are separate and independent of all this: set `language` in
-the settings page or the INI, and the plugin reads
-`Data/SKSE/Plugins/ScavengerSense_<language>.ini`. English and Chinese ship with
-the mod.
-
-## Community Shaders and the desaturation
-
-The desaturation writes the game's cinematic image space parameters — the same
-input the tonemapper reads. On a stock game that works. Under Community Shaders
-it does not, and there is no way to make it: CS exposes no plugin API at all,
-its feature list is compiled in, and shipping an HLSL for it to pick up is
-rejected by a name whitelist.
-
-So there is a second route, off by default:
-
-```ini
-[Tint]
-postProcess = true
-```
-
-This runs our own full-screen shader pass at the very end of the frame, through
-an ImGui draw callback, after everything else has had its turn. It copies the
-finished frame, samples the copy, and writes back a genuinely desaturated,
-graded and vignetted result. Nothing downstream can undo it because there is
-nothing downstream. It also takes over the vignette and does it properly, as a
-radial falloff rather than four overlapping gradient quads.
-
-It is off by default because it is the only part of this mod that talks to the
-graphics pipeline directly. Some notes on how it behaves:
-
-- Any unrecoverable problem — shaders that will not compile, a device that
-  refuses a resource — disables it for the rest of the session, logs the reason,
-  and falls back to the overlay vignette. It never half-works.
-- A frame it cannot use (nothing bound, a multisampled target) is skipped and
-  retried, not treated as fatal.
-- The shaders are compiled at load, not on first use, so there is no hitch the
-  first time you sweep.
-- The settings page shows its live state: `ready`, `running at 2560x1440`,
-  `waiting: ...`, or `unavailable: ...`.
-
-If you are not running Community Shaders or ENB, leave it off — the image space
-route is lighter and already works.
-
-## Diagnostics
-
-Two logs, identical contents:
-
-- `Documents/My Games/Skyrim Special Edition/SKSE/ScavengerSense.log`
-- `Data/SKSE/Plugins/ScavengerSense-diag.log` — under Mod Organizer this lands in
-  the `overwrite` folder, which is much easier to get at.
-
-Set `debug = true` in `[General]` for per-object detail.
-
-Useful lines even without debug: the plugin index the esp resolved to, how many
-effect shaders it found, what the scan visited and why it rejected things, when
-menus open and whether we judged them blocking, and a readback of what the
-engine actually resolved the image space to while desaturating.
-
-## If the sweep ever stops working
-
-`[General] menuAware = false` turns off menu detection entirely. It exists
-because a mod that parks a permanent overlay menu on the menu stack could,
-in principle, be misjudged as "a menu is open" forever. There is also a
-watchdog that cancels any wave still running 60 seconds past its budget and
-logs what was holding it.
+Logs are written to Documents/My Games/Skyrim Special Edition/SKSE/
+ScavengerSense.log and SKSE/Plugins/ScavengerSense-diag.log (normally MO2
+Overwrite). An import failure can occur before the plugin creates a log. For
+DLL errors, include the exact message, skse64.log, the plugin log if created,
+and your runtime/framework versions. No new save, BodySlide or behaviour
+conversion is required for these updates.
 
 ## Licence
 
@@ -291,10 +171,10 @@ source is at the link on the [mod page](https://www.nexusmods.com/skyrimspeciale
 
 `ScavengerSense.dll` is a combined work. Three components are compiled into it
 under permissive licences that ask for their notice to travel along; that is
-what the rest of this section is. Dear ImGui and cimgui are deliberately not
-listed — the interface is drawn with them, but only their headers are used, so
-their code lives in SKSE Menu Framework's DLL rather than this one. The bundled
-font is separate again; its OFL sits beside it in `SKSE/Plugins/fonts/`.
+what the rest of this section is. Drawing executes in SKSE Menu Framework;
+matching Dear ImGui/cimgui headers are used by the plugin. The ImGui MIT notice
+is included in SKSE/Plugins/ScavengerSense/docs/LICENSE-imgui.txt. The bundled
+font's OFL sits beside it in SKSE/Plugins/fonts/.
 
 <details>
 <summary>spdlog — MIT</summary>

@@ -70,7 +70,7 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python tools/check_binary.py plugin/build/Release/ScavengerSense.dll
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          python tools/check_installer_routes.py
+          python tools/check_installer_routes.py --probe plugin/build/Release/ConfigProbe.exe
 
       - name: Validate the installer
         shell: pwsh

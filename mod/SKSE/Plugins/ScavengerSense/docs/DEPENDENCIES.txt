@@ -35,7 +35,7 @@ created, ScavengerSense.log or Data/SKSE/Plugins/ScavengerSense-diag.log.
 Under MO2 the latter is normally in overwrite.
 
 Verification on 2026-10-15:
-0.10.3 Release x64 compiled. Seven native offline suites passed, including
+0.10.4 Release x64 compiled. Seven native offline suites passed, including
 layout and guard checks, plus executable version probes for
 1.5.97, 1.6.1170 and 1.7.104: runtime classification and VM member offsets.
 The 1.7.104 probe also used the production filename selection and format-5
