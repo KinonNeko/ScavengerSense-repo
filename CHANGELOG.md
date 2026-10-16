@@ -8,6 +8,21 @@ release until they do: `REL::Version` in `plugin/src/Main.cpp`,
 `MachineVersion` in `fomod/info.xml`, and `project(... VERSION)` in
 `plugin/CMakeLists.txt`.
 
+## Optional screenshot companion 0.1.0 beta — 2026-10-16 (preview)
+
+- Add a separate ScavengerSenseCapture DLL and unchecked FOMOD option; the
+  existing 0.10.1 core DLL has no dependency on it. Also package it separately.
+- Chain DXGI Present/Present1 and capture 8-bit SDR back buffers including
+  overlays already drawn. Skip test-only presents and unrelated swap chains.
+- Default Ctrl+Shift+F10, configurable key/modifiers/output folder, queue after
+  closing settings, independent INI/language packs, status and diagnostic log.
+  Never consume another plugin's screenshot key or overwrite existing photos.
+- Read back GPU pixels on the render thread, encode PNG on a worker and publish
+  complete files atomically. Reject unsupported HDR/10-bit formats explicitly.
+- Add a hidden-window WARP test with actual ImGui foreground layers, chained
+  presentation, PNG decode, resize/row pitch, BGRA/sRGB and MSAA checks. In-game
+  CS/renderer ordering and appearance still need confirmation.
+
 ## 0.10.1 beta — consolidated release candidate, 2026-10-15
 
 - Include all feedback, framework ABI, lighting, actor-only stabilisation,

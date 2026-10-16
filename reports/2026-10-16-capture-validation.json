@@ -1,0 +1,25 @@
+{
+  "selected_profile": "J61-BFCO",
+  "addon_install": "E:\\iniRePather-Skyrim\\mods\\Scavenger Sense - Screenshot Add-on",
+  "enabled": true,
+  "personal_capture_ini_shipped": false,
+  "protected_file_count": 35,
+  "protected_files_unchanged": true,
+  "modlist_change": "one enabled companion entry only",
+  "installed_core_dll_sha256": "e658b9f1ed64a870188b86287da045c2d69f212d48dcbdd5febc3728bff6ba6f",
+  "capture_dll_sha256": "3cd5898559436f6573b96bd0c8a7d93c2fe7715fec0e131f58fdf54a147778b9",
+  "native_suites_passed": 8,
+  "screenshot_checks": 28,
+  "capture_translation_strings": 19,
+  "capture_chinese_glyphs_checked": 129,
+  "capture_framework_imports_checked": 14,
+  "framework_abi_matches": true,
+  "installer": {
+    "installer_routes": 132,
+    "production_config_loads": 300,
+    "native_probe_used": true,
+    "preset_menu_parity_checked": true,
+    "preset_guide_and_choice_contracts": true
+  },
+  "in_game_tested": false
+}

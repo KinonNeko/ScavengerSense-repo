@@ -87,10 +87,33 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     /Zc:preprocessor
 )
 
+# Optional companion DLL; the main plugin never imports it.
+add_library(ScavengerSenseCapture SHARED
+    capture/Plugin.cpp capture/Capture.cpp capture/Settings.cpp capture/PresentHook.cpp src/FrameworkABI.cpp)
+target_precompile_headers(ScavengerSenseCapture PRIVATE src/PCH.h)
+target_compile_definitions(ScavengerSenseCapture PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+target_compile_options(ScavengerSenseCapture PRIVATE /permissive- /utf-8 /Zc:preprocessor)
+target_include_directories(ScavengerSenseCapture PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cimgui ${CMAKE_CURRENT_SOURCE_DIR}/../extern/imgui-abi)
+target_link_libraries(ScavengerSenseCapture PRIVATE CommonLibSSE::CommonLibSSE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../extern/lib/SKSEMenuFramework.lib
+    d3d11.lib dxgi.lib windowscodecs.lib ole32.lib shell32.lib)
+
 option(SCAVENGER_BUILD_TESTS "Build offline config, HUD policy and runtime probes" OFF)
 if(SCAVENGER_BUILD_TESTS)
     enable_testing()
     enable_language(RC)
+    add_executable(CaptureChecks tests/CaptureChecks.cpp capture/Capture.cpp capture/Settings.cpp capture/PresentHook.cpp
+        ../extern/imgui-abi/imgui.cpp ../extern/imgui-abi/imgui_draw.cpp
+        ../extern/imgui-abi/imgui_tables.cpp ../extern/imgui-abi/imgui_widgets.cpp
+        ../extern/imgui-abi/backends/imgui_impl_dx11.cpp)
+    target_compile_definitions(CaptureChecks PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_options(CaptureChecks PRIVATE /utf-8)
+    target_include_directories(CaptureChecks PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../extern/imgui-abi)
+    target_link_libraries(CaptureChecks PRIVATE d3d11.lib dxgi.lib d3dcompiler.lib windowscodecs.lib ole32.lib)
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-fixtures/capture")
+    add_test(NAME screenshot_capture COMMAND CaptureChecks)
+    set_tests_properties(screenshot_capture PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-fixtures/capture" TIMEOUT 30)
     add_executable(FrameworkAbiProbe tests/FrameworkAbiProbe.cpp)
     target_include_directories(FrameworkAbiProbe PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../cimgui ${CMAKE_CURRENT_SOURCE_DIR}/../extern/imgui-abi)

@@ -127,6 +127,14 @@ def simulate(language, preset, controls, override=None):
             assert destination not in destinations, f'colliding selected payloads: {destination}'
             destinations[destination] = file
     settings = {}
+    capture_selected = '04 Screenshot add-on' in sources
+    assert ('skse/plugins/scavengersensecapture.dll' in destinations) == capture_selected, 'optional DLL selection differs'
+    assert 'skse/plugins/scavengersensecapture.ini' not in destinations, 'must not ship a personal capture INI'
+    if capture_selected:
+        for relative in ('scavengersensecapture.example.ini', 'scavengersensecapture_english.ini', 'scavengersensecapture_chinese.ini'):
+            assert 'skse/plugins/' + relative in destinations, f'capture companion missing: {relative}'
+    else:
+        assert not any('scavengersensecapture' in name for name in destinations), 'capture files leaked into an unselected route'
     for key, path in sorted(destinations.items()):
         if 'scavengersense_setup/' not in key: continue
         section = ''
@@ -174,6 +182,11 @@ for language in (0, 1):
     for preset in range(4):
         for controls in range(3):
             simulate(language, preset, controls); checks += 1
+            # Discover the translated group name rather than hard-code its copy.
+            addon_group = next(group.get('name') for step in all_steps for group in step.findall('optionalFileGroups/group')
+                               if any(folder.get('source') == '04 Screenshot add-on' for folder in group.iter('folder'))
+                               and any(dep.get('value') == ('english','chinese')[language] for dep in step.findall('visible//flagDependency')))
+            simulate(language, preset, controls, (addon_group, 0)); checks += 1
     language_name = ('english', 'chinese')[language]
     for step in all_steps[1:]:
         dependencies = {x.get('flag'): x.get('value') for x in step.findall('visible//flagDependency')}

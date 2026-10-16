@@ -35,6 +35,15 @@ def package(output):
     encoded = version[0] << 24 | version[1] << 16 | version[2] << 4 | version[3]
     assert pe.unpack('<II', pe.offset(pe.exports()['SKSEPlugin_Version'])) == (1, encoded)
     assert pe.machine == 0x8664
+    capture = tree / '04 Screenshot add-on/SKSE/Plugins/ScavengerSenseCapture.dll'
+    if capture.is_file():
+        compiled = next(ROOT / folder / 'ScavengerSenseCapture.dll' for folder in
+                        ('plugin/build/Release','plugin/build') if (ROOT / folder / 'ScavengerSenseCapture.dll').is_file())
+        assert capture.read_bytes() == compiled.read_bytes(), 'stale capture DLL'
+        addon = PE(capture)
+        assert addon.machine == 0x8664 and 'ScavengerSenseCapture_Request' in addon.exports()
+        assert addon.unpack('<II', addon.offset(addon.exports()['SKSEPlugin_Version'])) == (1, 1 << 16)
+        assert 'scavengersensecapture.dll' not in {name.lower() for name in pe.imports()}, 'core must not require optional DLL'
     assert (tree / '00 Core/ScavengerSense.esp').read_bytes() == (ROOT / 'ScavengerSense.esp').read_bytes()
     files = {path.relative_to(tree).as_posix(): path for path in sorted(tree.rglob('*')) if path.is_file()}
     assert 'fomod/ModuleConfig.xml' in files and not any(name.startswith('Data/') for name in files)

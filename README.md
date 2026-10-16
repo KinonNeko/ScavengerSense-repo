@@ -28,6 +28,14 @@ User guides ship in [the docs folder](mod/SKSE/Plugins/ScavengerSense/docs),
 including Chinese instructions. The full English translation template is in
 `mod/SKSE/Plugins/ScavengerSense/translations`.
 
+An optional **Scavenger Sense Capture 0.1.0 beta** companion is available in the
+installer, unchecked by default, or as a separate MO2 mod. Ctrl + Shift + F10
+saves an SDR PNG including overlays already drawn before DXGI presentation.
+It has independent settings, translations and logging; the core DLL does not
+depend on it. See [the capture guide](capture-mod/ScavengerSenseCapture-README.txt)
+and [the inspection report](reports/2026-10-16-capture-addon.md). HDR/10-bit and
+D3D12 frame-generation paths are outside this preview's support.
+
 ## Licence
 
 **GPL-3.0-or-later.** See [LICENSE](LICENSE).

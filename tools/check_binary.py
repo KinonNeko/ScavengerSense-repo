@@ -62,14 +62,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('dll')
     parser.add_argument('--framework')
+    parser.add_argument('--version', help='Expected four-part plugin version (default: main plugin source)')
     args = parser.parse_args()
     plugin = PE(args.dll)
     assert plugin.machine == 0x8664, 'plugin must be x64'
     exports = plugin.exports()
     assert {'SKSEPlugin_Load', 'SKSEPlugin_Version'} <= exports.keys(), 'missing SKSE exports'
     root = Path(__file__).resolve().parent.parent
-    version = tuple(map(int, re.search(r'kVersion\{\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)',
+    version = tuple(map(int,args.version.split('.'))) if args.version else tuple(map(int, re.search(r'kVersion\{\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)',
                                      (root / 'plugin/src/Main.cpp').read_text()).groups()))
+    assert len(version)==4, 'version must have four parts'
     expected = version[0] << 24 | version[1] << 16 | version[2] << 4 | version[3]
     metadata = plugin.unpack('<II', plugin.offset(exports['SKSEPlugin_Version']))
     assert metadata == (1, expected), f'wrong compiled plugin version: {metadata}'

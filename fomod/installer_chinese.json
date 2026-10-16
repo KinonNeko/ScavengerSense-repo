@@ -232,6 +232,10 @@
     "Track appearance / Alternating footprints": {
       "name": "左右交替脚印",
       "description": "用左右交替的脚印替代箭头，在追踪 → 绘制中调整大小和间距。\n\n可将透明 PNG 放入 SKSE/Plugins/ScavengerSense/icons，在“脚印 PNG”填写相对路径，使用靴底、爪印或自己的图案。画布为正方形，绘制脚尖朝上的右脚，左脚自动镜像。关闭“连接发光足迹”可去掉连接光线。\n\n这是追踪显示层，并非永久地面贴花；未附带自定义图片。"
+    },
+    "Add-ons that install files / Screenshot capture (optional)": {
+      "name": "截图扩展（可选）",
+      "description": "安装独立的 ScavengerSenseCapture.dll；默认不勾选，主模组不依赖此扩展。\n\n默认 Ctrl + Shift + F10，在游戏本体的 Screenshots/ScavengerSense 下保存 PNG，包含提交画面前已绘制的叠加界面。Capture 设置页可改按键、目录，也可选择关闭菜单后截图。\n\nSDR 预览版：暂不支持 HDR/10位与 D3D12 帧生成封装。其他渲染钩子可能影响取图顺序，实际效果仍需进游戏验证。无需 ESP、新档或资产生成。"
     }
   }
 }

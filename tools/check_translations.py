@@ -45,12 +45,12 @@ def joined(a_concat: str) -> str:
     return unescape("".join(re.findall(r'"((?:[^"\\]|\\.)*)"', a_concat)))
 
 
-def collect() -> set:
+def collect(source_dir=SRC) -> set:
     wanted = set()
-    for name in sorted(os.listdir(SRC)):
+    for name in sorted(os.listdir(source_dir)):
         if not name.endswith((".cpp", ".h")):
             continue
-        text = open(os.path.join(SRC, name), encoding="utf-8", errors="replace").read()
+        text = open(os.path.join(source_dir, name), encoding="utf-8", errors="replace").read()
 
         for call in ("T", "Help"):
             for m in re.finditer(rf"\b{call}\(\s*({CONCAT})", text):
@@ -101,14 +101,16 @@ def as_key(a_text: str) -> str:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--language', default=INI, help='Translation INI to validate')
+    parser.add_argument('--source-dir', default=SRC, help='Directory containing the translated source')
+    parser.add_argument('--template-prefix', default='ScavengerSense', help='Plugin filename prefix for template instructions')
     parser.add_argument('--template', help='Write a complete English translation template')
     parser.add_argument('--merge', help='Append missing keys without changing existing translations or comments')
     args = parser.parse_args()
-    wanted = collect()
+    wanted = collect(args.source_dir)
     if args.template:
         path = Path(args.template)
         path.parent.mkdir(parents=True, exist_ok=True)
-        header = '; UTF-8. Copy next to ScavengerSense.dll as ScavengerSense_<language>.ini.\n'
+        header = f'; UTF-8. Copy next to {args.template_prefix}.dll as {args.template_prefix}_<language>.ini.\n'
         header += '; Translate only the right side. Keep the English keys and escapes unchanged.\n[Translation]\n'
         path.write_text(header + ''.join(f'{as_key(s)}={as_key(s)}\n' for s in sorted(wanted)), encoding='utf-8')
         print(f'Wrote {len(wanted)} strings to {path}')

@@ -66,9 +66,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python tools/check_translations.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/check_translations.py --source-dir plugin/capture --language capture-mod/SKSE/Plugins/ScavengerSenseCapture_chinese.ini
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python tools/check_menu_ids.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python tools/check_binary.py plugin/build/Release/ScavengerSense.dll
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/check_binary.py plugin/build/Release/ScavengerSenseCapture.dll --version 0.1.0.0
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python tools/check_installer_routes.py --probe plugin/build/Release/ConfigProbe.exe
 
@@ -86,6 +90,13 @@ jobs:
           path: fomod-build
           if-no-files-found: error
 
+      - name: Upload the optional screenshot companion
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScavengerSenseCapture-0.1.0-beta
+          path: fomod-build/04 Screenshot add-on
+          if-no-files-found: error
+
       - name: Upload the bare DLL and esp
         uses: actions/upload-artifact@v4
         with:
@@ -93,5 +104,6 @@ jobs:
           path: |
             plugin/build/Release/ScavengerSense.dll
             plugin/build/Release/ScavengerSense.pdb
+            plugin/build/Release/ScavengerSenseCapture.dll
             ScavengerSense.esp
           if-no-files-found: error

@@ -1,5 +1,14 @@
 # Scavenger Sense — working notes
 
+## 2026-10-16 optional screenshot companion
+
+Core remains 0.10.1 beta. Branch `codex/optional-screenshot-addon` adds a separate
+`ScavengerSenseCapture.dll` 0.1.0 beta, an unchecked FOMOD option and standalone
+MO2 package. Read `reports/2026-10-16-capture-addon.md` for native WARP/ImGui
+capture evidence, installation and support limits. No game verification claim.
+Capture settings are independent: only an example INI ships, Save creates the
+personal INI. No core presets or user settings should be changed for this addon.
+
 ## 2026-10-15 handoff update
 
 The following older notes remain useful historical context. The current release candidate

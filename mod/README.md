@@ -123,6 +123,23 @@ sensing, it starts without the double-tap delay and tracking uses a separate key
 Controller A also activates things in vanilla; choose another binding if needed.
 The framework's menu binding is configured by that framework.
 
+## Optional screenshot companion
+
+The installer offers **Screenshot capture (optional)** on Optional extras,
+unchecked by default. It installs a separate DLL; Scavenger Sense works without
+it. The standalone add-on can also be installed as its own MO2 mod for convenient
+enable/disable. Restart SKSE after changing installed DLLs.
+
+Default shortcut: **Ctrl + Shift + F10**. Menu Framework -> Scavenger Sense ->
+Capture changes the key/folder, saves independent settings, and can queue a shot
+after closing the menu. PNGs default to `Screenshots/ScavengerSense` inside the
+game directory, beside SkyrimSE.exe, rather than Data or MO2 overwrite.
+
+This is an **8-bit SDR preview**. HDR/10-bit output and D3D12 frame-generation
+wrappers are unsupported; later render hooks may affect capture ordering.
+Check actual game results and keep ScavengerSenseCapture.log if something fails.
+See ScavengerSenseCapture-README.txt when the add-on is installed.
+
 ## Fonts and translations
 
 The optional MainFont.ttf is Noto Sans SC 2.004, with its OFL.txt and font note.

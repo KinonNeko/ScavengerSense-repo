@@ -248,7 +248,7 @@ def sync_payload():
     plugins = os.path.join(MOD, "SKSE/Plugins")
 
     for d in ("00 Core", "01 Chinese menu", "02 CJK font", "03 OStim add-on",
-              "04 Oathvein preset", "fomod"):  # 04 lingers from older trees
+              "04 Oathvein preset", "04 Screenshot add-on", "fomod"):  # retired 04 preset also cleaned
         p = os.path.join(BUILD, d)
         if os.path.isdir(p):
             shutil.rmtree(p)
@@ -292,6 +292,17 @@ def sync_payload():
         put(os.path.join(plugins, "fonts", f), f"02 CJK font/SKSE/Plugins/fonts/{f}")
     put(os.path.join(plugins, "ScavengerSense_marks_ostim.ini"),
         "03 OStim add-on/SKSE/Plugins/ScavengerSense_marks_ostim.ini")
+    capture_dll = next((os.path.join(ROOT, path) for path in
+                       ("plugin/build/Release/ScavengerSenseCapture.dll", "plugin/build/ScavengerSenseCapture.dll")
+                       if os.path.isfile(os.path.join(ROOT, path))), None)
+    if not capture_dll:
+        sys.exit("Build the optional ScavengerSenseCapture target before packaging")
+    put(capture_dll, "04 Screenshot add-on/SKSE/Plugins/ScavengerSenseCapture.dll")
+    capture_data = os.path.join(ROOT, "capture-mod")
+    for directory, _, files in os.walk(capture_data):
+        for name in sorted(files):
+            source = os.path.join(directory, name)
+            put(source, "04 Screenshot add-on/" + os.path.relpath(source, capture_data).replace('\\', '/'))
     # Every named preset ships with everybody. Menu loading starts with the
     # built-in defaults; missing preset keys never retain the previous look.
     # Every preset in the folder, not a hardcoded name: presets get added and
@@ -519,6 +530,14 @@ def build_xml():
     ])
 
     addons = group("Add-ons that install files", "SelectAny", [
+        plugin("Screenshot capture (optional)",
+               "Installs a separate ScavengerSenseCapture.dll. Leave unchecked to install no capture plugin. "
+               "Default: Ctrl + Shift + F10. Saves PNGs under Screenshots/ScavengerSense in the Skyrim game folder, "
+               "with overlays already drawn at DXGI presentation. The Capture settings page offers key/folder "
+               "controls and capture after closing the menu.\n\n"
+               "SDR preview: HDR/10-bit output and D3D12 frame-generation wrappers are not supported. "
+               "Other render hooks may affect capture ordering; actual game testing is still needed. "
+               "The main mod works without this add-on. No ESP or generation steps required.", "04 Screenshot add-on"),
         plugin("OStim Standalone",
                "Puts a Dibella sigil over people you have been with, and counts how many "
                "different things you have done together as a filling heart. It reads "
